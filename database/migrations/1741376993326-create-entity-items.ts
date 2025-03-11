@@ -41,6 +41,11 @@ export class CreateEntityItems1741376993326 implements MigrationInterface {
             isNullable: false
           },
           {
+            name: 'image_url',
+            type: 'varchar',
+            isNullable: false
+          },
+          {
             name: 'production_time',
             type: 'int',
             isNullable: false,

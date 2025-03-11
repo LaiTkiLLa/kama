@@ -8,7 +8,7 @@ import {
   UpdateDateColumn
 } from 'typeorm';
 import { Stocks } from '../../stocks/entities/stocks.entity';
-import { Marketplaces } from '../../common/entities/marketplaces.entity';
+import { Marketplaces } from '../../info/entities/marketplaces.entity';
 
 @Entity({
   name: 'items'
@@ -50,6 +50,9 @@ export class Items {
   @Column({ type: 'int', nullable: false, default: 10, name: 'shipping_period' })
   shippingPeriod: number;
 
+  @Column({ type: 'varchar', nullable: false, name: 'image_url' })
+  imageUrl: string;
+
   @Column({ type: 'int', nullable: false, name: 'marketplace_id' })
   marketplaceId: number;
 
@@ -62,7 +65,7 @@ export class Items {
   @CreateDateColumn({
     type: 'timestamp',
     nullable: false,
-    name: 'createdAt',
+    name: 'created_at',
     default: new Date(),
     select: false
   })
@@ -71,7 +74,7 @@ export class Items {
   @UpdateDateColumn({
     type: 'timestamp',
     nullable: false,
-    name: 'updatedAt',
+    name: 'updated_at',
     default: new Date(),
     select: false
   })

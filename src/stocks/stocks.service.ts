@@ -4,16 +4,20 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { ItemsService } from '../items/items.service';
 import axios from 'axios';
 import { ConfigService } from '@nestjs/config';
+import { InfoService } from '../info/info.service';
+import { OzonStocks, StocksResult } from './interfaces/ozon-stocks.interface';
+import { Marketplaces } from '../info/entities/marketplaces.entity';
 
 @Injectable()
 export class StocksService {
   constructor(
     private dataSource: DataSource,
     private itemsService: ItemsService,
-    private configService: ConfigService
+    private configService: ConfigService,
+    private infoService: InfoService
   ) {}
 
-  @Cron(CronExpression.EVERY_10_SECONDS)
+  // @Cron(CronExpression.EVERY_10_SECONDS)
   async getStocks() {
     const queryRunner = await this.dataSource.createQueryRunner();
     await queryRunner.connect();
@@ -23,13 +27,17 @@ export class StocksService {
       const urlStocks = 'https://statistics-api.wildberries.ru/api/v1/supplier/stocks';
       const getWbStocks = await axios.get(urlStocks, {
         params: {
-          dateFrom: '2019-09-06T20:00:00Z'
+          dateFrom: '2019-09-06'
         },
         headers: {
           Authorization: apiToken
         }
       });
-      console.log(getWbStocks);
+      const warehouses = getWbStocks.data.map(item => item.warehouseName);
+      const unique = [...new Set(warehouses)];
+      for (const item of getWbStocks.data) {
+        await this.infoService.findOrCreateWarehouses({ title: item.warehouseName }, queryRunner);
+      }
       //Получаем значения со склада
       // for (const dataStock of dataStocks){
       //   const findBarcode = result.find(item => item.barcode === dataStock.barcode)
@@ -89,9 +97,68 @@ export class StocksService {
       // }
       await queryRunner.commitTransaction();
     } catch (error) {
+      console.log(error);
       await queryRunner.rollbackTransaction();
     } finally {
       await queryRunner.release();
     }
   }
+
+  // @Cron(CronExpression.EVERY_10_SECONDS)
+  async getOzonStocks() {
+    const queryRunner = await this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    try {
+      const ozonMarketplace = await this.infoService.findMarketplace({ title: 'Озон' }, queryRunner);
+      const ozonToken = await this.configService.get('ozonToken');
+      const clientId = await this.configService.get('ozonClientId');
+      const headers = {
+        'Client-Id': clientId,
+        'Api-Key': ozonToken
+      };
+      const listItemsBody = {
+        sku: []
+      };
+
+      const urlStocksMore = 'https://api-seller.ozon.ru/v4/product/info/stocks';
+      //Запрос на получение остатков на складах
+      const requestFullStocks: { data: OzonStocks } = await axios.post(
+        urlStocksMore,
+        {
+          cursor: '',
+          filter: {
+            visibility: 'ALL'
+          },
+          limit: 1000
+        },
+        { headers }
+      );
+      const stocks: StocksResult[] = [];
+      for (const item of requestFullStocks.data.items) {
+        if (item.stocks.length) {
+          item.stocks.forEach(stock => {
+            stocks.push({
+              article: item.offer_id,
+              category: '',
+              title: '',
+              barcode: stock.sku.toString(),
+              marketplaceIdentifier: stock.sku,
+              reserved: stock.reserved,
+              present: stock.present,
+              marketplaceId: ozonMarketplace.id
+            });
+          });
+        }
+        console.log(stocks);
+      }
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      console.log(error);
+    } finally {
+      await queryRunner.release();
+    }
+  }
+  //
+  // return result
+  // }
 }

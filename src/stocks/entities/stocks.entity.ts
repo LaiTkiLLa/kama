@@ -8,6 +8,7 @@ import {
   UpdateDateColumn
 } from 'typeorm';
 import { Items } from '../../items/entities/items.entity';
+import { Warehouses } from '../../info/entities/warehouses.entity';
 
 @Entity({
   name: 'stocks'
@@ -21,7 +22,8 @@ export class Stocks {
   @Column({ type: 'int', name: 'item_id', nullable: false })
   itemId: number;
 
-
+  @Column({ type: 'int', name: 'warehouse_id', nullable: false })
+  warehouseId: number;
 
   @CreateDateColumn({
     type: 'timestamp',
@@ -47,4 +49,9 @@ export class Stocks {
   })
   item: Items;
 
+  @ManyToOne(() => Warehouses, warehouse => warehouse.stocks)
+  @JoinColumn({
+    name: 'warehouse_id'
+  })
+  warehouse: Warehouses;
 }
