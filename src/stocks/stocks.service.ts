@@ -6,7 +6,7 @@ import axios from 'axios';
 import { ConfigService } from '@nestjs/config';
 import { InfoService } from '../info/info.service';
 import { OzonStocks, StocksResult } from './interfaces/ozon-stocks.interface';
-import { Marketplaces } from '../info/entities/marketplaces.entity';
+import { Stocks } from './entities/stocks.entity';
 
 @Injectable()
 export class StocksService {
@@ -104,61 +104,76 @@ export class StocksService {
     }
   }
 
-  // @Cron(CronExpression.EVERY_10_SECONDS)
+  @Cron(CronExpression.EVERY_10_SECONDS)
   async getOzonStocks() {
-    const queryRunner = await this.dataSource.createQueryRunner();
-    await queryRunner.connect();
-    try {
-      const ozonMarketplace = await this.infoService.findMarketplace({ title: 'Озон' }, queryRunner);
-      const ozonToken = await this.configService.get('ozonToken');
-      const clientId = await this.configService.get('ozonClientId');
-      const headers = {
-        'Client-Id': clientId,
-        'Api-Key': ozonToken
-      };
-      const listItemsBody = {
-        sku: []
-      };
+    const ozonToken = await this.configService.get('ozonToken');
+    const clientId = await this.configService.get('ozonClientId');
+    const headers = {
+      'Client-Id': clientId,
+      'Api-Key': ozonToken
+    };
 
-      const urlStocksMore = 'https://api-seller.ozon.ru/v4/product/info/stocks';
-      //Запрос на получение остатков на складах
-      const requestFullStocks: { data: OzonStocks } = await axios.post(
-        urlStocksMore,
+    const urlStocks = 'https://api-seller.ozon.ru/v2/analytics/stock_on_warehouses';
+    let hasMoreData = true;
+    let offset = 0;
+
+    const stocks: StocksResult[] = [];
+
+    while (hasMoreData) {
+      const { data }: { data: OzonStocks } = await axios.post(
+        urlStocks,
         {
-          cursor: '',
           filter: {
             visibility: 'ALL'
           },
-          limit: 1000
+          limit: 1000,
+          offset
         },
         { headers }
       );
-      const stocks: StocksResult[] = [];
-      for (const item of requestFullStocks.data.items) {
-        if (item.stocks.length) {
-          item.stocks.forEach(stock => {
-            stocks.push({
-              article: item.offer_id,
-              category: '',
-              title: '',
-              barcode: stock.sku.toString(),
-              marketplaceIdentifier: stock.sku,
-              reserved: stock.reserved,
-              present: stock.present,
-              marketplaceId: ozonMarketplace.id
-            });
+
+      if (!data.result.rows.length) {
+        hasMoreData = false;
+      } else {
+        for (const item of data.result.rows) {
+          stocks.push({
+            article: item.item_code,
+            sku: String(item.sku),
+            reserved: item.reserved_amount,
+            current: item.free_to_sell_amount,
+            promised: item.promised_amount,
+            warehouse: item.warehouse_name
           });
         }
-        console.log(stocks);
+        offset += 1000;
       }
-    } catch (error) {
-      await queryRunner.rollbackTransaction();
-      console.log(error);
-    } finally {
-      await queryRunner.release();
+    }
+    for (const stock of stocks) {
+      const queryRunner = await this.dataSource.createQueryRunner();
+      await queryRunner.connect();
+      try {
+        const warehouse = await this.infoService.findOrCreateWarehouses(
+          { title: stock.warehouse },
+          queryRunner
+        );
+        const findItem = await this.itemsService.findItem({ sku: stock.sku }, queryRunner);
+        if (!findItem) {
+          continue;
+        } else {
+          // const createStock = await queryRunner.manager.create(Stocks, {
+          //   itemId
+          //   warehouseId
+          //   currentValue
+          //   reserved
+          //   promised
+          // })
+        }
+      } catch (error) {
+        await queryRunner.rollbackTransaction();
+        console.log(error);
+      } finally {
+        await queryRunner.release();
+      }
     }
   }
-  //
-  // return result
-  // }
 }

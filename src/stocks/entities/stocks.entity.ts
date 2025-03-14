@@ -25,6 +25,15 @@ export class Stocks {
   @Column({ type: 'int', name: 'warehouse_id', nullable: false })
   warehouseId: number;
 
+  @Column({ type: 'int', name: 'current_value', nullable: false, default: 0 })
+  currentValue: number
+
+  @Column({ type: 'int', nullable: false, default: 0 })
+  reserved: number
+
+  @Column({ type: 'int', nullable: false, default: 0 })
+  promised: number
+
   @CreateDateColumn({
     type: 'timestamp',
     nullable: false,

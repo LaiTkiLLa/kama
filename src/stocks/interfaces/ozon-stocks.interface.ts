@@ -1,24 +1,23 @@
 export interface OzonStocks {
-  items: {
-    offer_id: string;
-    product_id: number;
-    stocks: {
-      present: number;
-      reserved: number;
-      shipment_type: string;
+  result: {
+    rows: {
       sku: number;
-      type: string;
+      warehouse_name: string;
+      item_code: string;
+      item_name: string;
+      promised_amount: number;
+      free_to_sell_amount: number;
+      reserved_amount: number;
+      idc: number;
     }[];
-  }[];
+  };
 }
 
 export interface StocksResult {
-  article: string,
-  category: string,
-  title: string,
-  barcode: string,
-  marketplaceIdentifier: number,
-  reserved: number,
-  present: number,
-  marketplaceId: number
+  article: string;
+  sku: string;
+  reserved: number;
+  current: number;
+  promised: number
+  warehouse: string;
 }

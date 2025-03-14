@@ -41,6 +41,6 @@ export class Marketplaces {
   })
   updatedAt: Date;
 
-  @OneToMany(() => Items, items => items.marketPlace)
+  @OneToMany(() => Items, items => items.marketplace)
   items: Items[];
 }

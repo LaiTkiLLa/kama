@@ -1,7 +1,7 @@
 import {
   Column,
   CreateDateColumn,
-  Entity,
+  Entity, JoinColumn,
   ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
@@ -31,6 +31,9 @@ export class Items {
   @Column({ type: 'varchar', nullable: false })
   barcode: string;
 
+  @Column({ type: 'varchar', nullable: false })
+  sku: string;
+
   @Column({ type: 'varchar', nullable: false, name: 'marketplace_identifier' })
   marketplaceIdentifier: string;
 
@@ -56,8 +59,11 @@ export class Items {
   @Column({ type: 'int', nullable: false, name: 'marketplace_id' })
   marketplaceId: number;
 
-  @ManyToOne(() => Marketplaces, marketPlace => marketPlace.items)
-  marketPlace: Marketplaces;
+  @ManyToOne(() => Marketplaces, marketplace => marketplace.items)
+  @JoinColumn({
+    name: 'marketplace_id'
+  })
+  marketplace: Marketplaces;
 
   @OneToMany(() => Stocks, stocks => stocks.item)
   stocks: Stocks[];

@@ -36,6 +36,11 @@ export class CreateEntityItems1741376993326 implements MigrationInterface {
             isNullable: false
           },
           {
+            name: 'sku',
+            type: 'varchar',
+            isNullable: false
+          },
+          {
             name: 'marketplace_identifier',
             type: 'varchar',
             isNullable: false
