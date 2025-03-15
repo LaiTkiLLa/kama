@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { DataSource, FindOptionsWhere, QueryRunner, Repository } from 'typeorm';
+import { FindOptionsWhere, QueryRunner, Repository } from 'typeorm';
 import { Warehouses } from './entities/warehouses.entity';
 import { Marketplaces } from './entities/marketplaces.entity';
 import { InjectRepository } from '@nestjs/typeorm';

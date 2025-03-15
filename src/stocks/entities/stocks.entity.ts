@@ -9,6 +9,7 @@ import {
 } from 'typeorm';
 import { Items } from '../../items/entities/items.entity';
 import { Warehouses } from '../../info/entities/warehouses.entity';
+import { Marketplaces } from '../../info/entities/marketplaces.entity';
 
 @Entity({
   name: 'stocks'
@@ -21,6 +22,9 @@ export class Stocks {
 
   @Column({ type: 'int', name: 'item_id', nullable: false })
   itemId: number;
+
+  @Column({ type: 'int', name: 'marketplace_id', nullable: false })
+  marketplaceId: number;
 
   @Column({ type: 'int', name: 'warehouse_id', nullable: false })
   warehouseId: number;
@@ -63,4 +67,10 @@ export class Stocks {
     name: 'warehouse_id'
   })
   warehouse: Warehouses;
+
+  @ManyToOne(() => Marketplaces, marketplace => marketplace.stocks)
+  @JoinColumn({
+    name: 'marketplace_id'
+  })
+  marketplace: Marketplaces;
 }

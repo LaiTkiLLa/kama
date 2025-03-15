@@ -7,6 +7,8 @@ import {
   UpdateDateColumn
 } from 'typeorm';
 import { Items } from '../../items/entities/items.entity';
+import { Stocks } from '../../stocks/entities/stocks.entity';
+import { Orders } from '../../orders/entities/orders.entity';
 
 @Entity({
   name: 'marketplaces'
@@ -43,4 +45,10 @@ export class Marketplaces {
 
   @OneToMany(() => Items, items => items.marketplace)
   items: Items[];
+
+  @OneToMany(() => Stocks, stocks => stocks.marketplace)
+  stocks: Stocks[];
+
+  @OneToMany(() => Orders, orders => orders.marketplace)
+  orders: Orders[];
 }

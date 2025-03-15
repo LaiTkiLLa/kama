@@ -19,6 +19,7 @@ export class CreateTableStocks1741969018545 implements MigrationInterface {
           { name: 'reserved', type: 'int', default: 0, isNullable: false },
           { name: 'promised', type: 'int', default: 0, isNullable: false },
           { name: 'warehouse_id', type: 'int', isNullable: false },
+          { name: 'marketplace_id', type: 'int', isNullable: false },
           { name: 'item_id', type: 'int', isNullable: false },
           {
             name: 'created_at',
@@ -48,6 +49,13 @@ export class CreateTableStocks1741969018545 implements MigrationInterface {
       onUpdate: 'CASCADE',
       referencedColumnNames: ['id'],
       referencedTableName: 'warehouses'
+    });
+    new TableForeignKey({
+      columnNames: ['marketplace_id'],
+      onDelete: 'CASCADE',
+      onUpdate: 'CASCADE',
+      referencedColumnNames: ['id'],
+      referencedTableName: 'marketplaces'
     });
   }
 

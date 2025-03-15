@@ -20,6 +20,7 @@ export class CreateOrdersEntity1742027935464 implements MigrationInterface {
           { name: 'marketplace_order_identification', type: 'varchar', isNullable: true },
           { name: 'is_canceled', type: 'varchar', isNullable: true },
           { name: 'warehouse_id', type: 'int', isNullable: false },
+          { name: 'marketplace_id', type: 'int', isNullable: false },
           { name: 'item_id', type: 'int', isNullable: false },
           {
             name: 'created_at',
@@ -49,6 +50,13 @@ export class CreateOrdersEntity1742027935464 implements MigrationInterface {
       onUpdate: 'CASCADE',
       referencedColumnNames: ['id'],
       referencedTableName: 'warehouses'
+    });
+    new TableForeignKey({
+      columnNames: ['marketplace_id'],
+      onDelete: 'CASCADE',
+      onUpdate: 'CASCADE',
+      referencedColumnNames: ['id'],
+      referencedTableName: 'marketplaces'
     });
   }
 
