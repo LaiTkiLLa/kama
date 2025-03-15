@@ -29,7 +29,7 @@ export class OrdersService {
     };
     const ozonUrlOrders = 'https://api-seller.ozon.ru/v2/posting/fbo/list';
 
-    let todayMorning = new Date();
+    const todayMorning = new Date();
     todayMorning.setHours(3, 0, 0);
 
     const todayEvening = new Date();

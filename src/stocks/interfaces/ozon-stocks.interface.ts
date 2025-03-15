@@ -18,6 +18,6 @@ export interface StocksResult {
   sku: string;
   reserved: number;
   current: number;
-  promised: number
+  promised: number;
   warehouse: string;
 }

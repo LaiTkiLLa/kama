@@ -13,7 +13,7 @@ import { InfoModule } from './info/info.module';
     ConfigModule.forRoot({
       envFilePath: '.env',
       isGlobal: true,
-      load: [configuration],
+      load: [configuration]
     }),
     ScheduleModule.forRoot(),
     TypeOrmModule.forRootAsync({
