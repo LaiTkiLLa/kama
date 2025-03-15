@@ -82,6 +82,7 @@ export class OrdersService {
         }
       }
     }
+    const findMarketplace = await this.infoService.findMarketplace({ title: 'Озон' });
     for (const order of orders) {
       const queryRunner = await this.dataSource.createQueryRunner();
       await queryRunner.connect();
@@ -112,7 +113,8 @@ export class OrdersService {
             isCanceled,
             itemId: findItem.id,
             warehouseId: findWarehouse.id,
-            createdAt: new Date(order.createdAt)
+            createdAt: new Date(order.createdAt),
+            marketplaceId: findMarketplace.id
           });
           await queryRunner.manager.save(Orders, createOrder);
         } else {

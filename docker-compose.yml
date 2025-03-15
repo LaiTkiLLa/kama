@@ -1,8 +1,6 @@
 services:
   kama-marketplaces-backend:
-    build:
-      context: .
-      dockerfile: ./Dockerfile
+    build: .
     container_name: kama-marketplaces-backend
     env_file:
       - .env
@@ -50,4 +48,4 @@ volumes:
 
 networks:
   dnet:
-    name: dnet
+    external: true

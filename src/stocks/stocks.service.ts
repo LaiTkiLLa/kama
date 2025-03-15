@@ -150,6 +150,7 @@ export class StocksService {
         offset += 1000;
       }
     }
+    const findMarketplace = await this.infoService.findMarketplace({ title: 'Озон' });
     for (const stock of stocks) {
       const queryRunner = await this.dataSource.createQueryRunner();
       await queryRunner.connect();
@@ -186,7 +187,8 @@ export class StocksService {
             warehouseId: warehouse.id,
             currentValue: stock.current,
             reserved: stock.reserved,
-            promised: stock.promised
+            promised: stock.promised,
+            marketplaceId: findMarketplace.id
           });
           await queryRunner.manager.save(Stocks, createStock);
         }
@@ -199,7 +201,6 @@ export class StocksService {
         await queryRunner.release();
       }
     }
-    console.log(555);
     return;
   }
 }
