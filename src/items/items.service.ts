@@ -22,7 +22,7 @@ export class ItemsService {
     return queryRunner.manager.findOne(Items, { where });
   }
 
-  @Cron(CronExpression.EVERY_10_SECONDS)
+  @Cron('0 */40 * * * *')
   async getWbItems() {
     const itemsUrl = 'https://content-api.wildberries.ru/content/v2/get/cards/list';
     const apiToken = await this.configService.get('wbToken');
