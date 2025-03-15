@@ -15,7 +15,7 @@ export class ItemsService {
     private configService: ConfigService
   ) {}
 
-  private logger: Logger = new Logger(ItemsService.name)
+  private logger: Logger = new Logger(ItemsService.name);
 
   async findItem(where: FindOptionsWhere<Items>, queryRunner: QueryRunner) {
     return queryRunner.manager.findOne(Items, { where });
@@ -90,8 +90,8 @@ export class ItemsService {
         }
       } catch (error) {
         await queryRunner.rollbackTransaction();
-        this.logger.error(error)
-        this.logger.error('Не смог получить товары Ozon')
+        this.logger.error(error);
+        this.logger.error('Не смог получить товары Ozon');
       } finally {
         await queryRunner.release();
       }

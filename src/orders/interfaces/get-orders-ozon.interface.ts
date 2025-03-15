@@ -34,12 +34,12 @@ export interface GetOrdersOzon {
 }
 
 export interface GetOrdersResult {
-  sku: string
-  quantity: number
-  sum: string
-  article: string
-  warehouse: string
-  cancelReasonId: number,
-  createdAt: string
-  orderId: number
+  sku: string;
+  quantity: number;
+  sum: string;
+  article: string;
+  warehouse: string;
+  cancelReasonId: number;
+  createdAt: string;
+  orderId: number;
 }

@@ -1,6 +1,6 @@
 import * as process from 'node:process';
 
-export const configuration  = () => ({
+export const configuration = () => ({
   serverPort: process.env.SERVER_PORT,
   //database
   database: {
@@ -19,4 +19,4 @@ export const configuration  = () => ({
   wbToken: process.env.wbToken,
   ozonToken: process.env.ozonToken,
   ozonClientId: process.env.ozonClientId
-})
+});

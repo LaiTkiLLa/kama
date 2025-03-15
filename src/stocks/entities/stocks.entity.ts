@@ -26,13 +26,13 @@ export class Stocks {
   warehouseId: number;
 
   @Column({ type: 'int', name: 'current_value', nullable: false, default: 0 })
-  currentValue: number
+  currentValue: number;
 
   @Column({ type: 'int', nullable: false, default: 0 })
-  reserved: number
+  reserved: number;
 
   @Column({ type: 'int', nullable: false, default: 0 })
-  promised: number
+  promised: number;
 
   @CreateDateColumn({
     type: 'timestamp',

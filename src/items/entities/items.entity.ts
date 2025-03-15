@@ -1,7 +1,8 @@
 import {
   Column,
   CreateDateColumn,
-  Entity, JoinColumn,
+  Entity,
+  JoinColumn,
   ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
@@ -88,5 +89,5 @@ export class Items {
   stocks: Stocks[];
 
   @OneToMany(() => Orders, orders => orders.item)
-  orders: Orders[]
+  orders: Orders[];
 }
