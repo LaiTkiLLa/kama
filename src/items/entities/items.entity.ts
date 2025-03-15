@@ -9,6 +9,7 @@ import {
 } from 'typeorm';
 import { Stocks } from '../../stocks/entities/stocks.entity';
 import { Marketplaces } from '../../info/entities/marketplaces.entity';
+import { Orders } from '../../orders/entities/orders.entity';
 
 @Entity({
   name: 'items'
@@ -59,15 +60,6 @@ export class Items {
   @Column({ type: 'int', nullable: false, name: 'marketplace_id' })
   marketplaceId: number;
 
-  @ManyToOne(() => Marketplaces, marketplace => marketplace.items)
-  @JoinColumn({
-    name: 'marketplace_id'
-  })
-  marketplace: Marketplaces;
-
-  @OneToMany(() => Stocks, stocks => stocks.item)
-  stocks: Stocks[];
-
   @CreateDateColumn({
     type: 'timestamp',
     nullable: false,
@@ -85,4 +77,16 @@ export class Items {
     select: false
   })
   updatedAt: Date;
+
+  @ManyToOne(() => Marketplaces, marketplace => marketplace.items)
+  @JoinColumn({
+    name: 'marketplace_id'
+  })
+  marketplace: Marketplaces;
+
+  @OneToMany(() => Stocks, stocks => stocks.item)
+  stocks: Stocks[];
+
+  @OneToMany(() => Orders, orders => orders.item)
+  orders: Orders[]
 }
