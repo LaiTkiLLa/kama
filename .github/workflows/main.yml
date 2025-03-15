@@ -21,4 +21,5 @@ jobs:
 
       - name: Deploy with Rsync
         run: |
-          rsync -avz --delete -e "ssh -i ~/.ssh/id_rsa -p 3425" ./ root@45.139.78.245:/opt/kama
+          rsync -avz --delete --exclude=".env" -e "ssh -i ~/.ssh/id_rsa -p 3425" ./ root@45.139.78.245:/opt/kama
+
