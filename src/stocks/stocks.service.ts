@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { DataSource } from 'typeorm';
-import { Cron, CronExpression } from '@nestjs/schedule';
+import { Cron } from '@nestjs/schedule';
 import { ItemsService } from '../items/items.service';
 import axios from 'axios';
 import { ConfigService } from '@nestjs/config';
