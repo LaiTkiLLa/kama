@@ -106,7 +106,7 @@ export class StocksService {
     }
   }
 
-  @Cron(CronExpression.EVERY_30_MINUTES)
+  @Cron('0 */15 * * * *')
   async getOzonStocks() {
     const ozonToken = await this.configService.get('ozonToken');
     const clientId = await this.configService.get('ozonClientId');
@@ -153,14 +153,15 @@ export class StocksService {
     for (const stock of stocks) {
       const queryRunner = await this.dataSource.createQueryRunner();
       await queryRunner.connect();
+      await queryRunner.startTransaction();
       try {
-        await queryRunner.startTransaction();
         const warehouse = await this.infoService.findOrCreateWarehouses(
           { title: stock.warehouse },
           queryRunner
         );
         const findItem = await this.itemsService.findItem({ sku: stock.sku }, queryRunner);
         if (!findItem) {
+          await queryRunner.commitTransaction();
           continue;
         }
         const findStock = await queryRunner.manager

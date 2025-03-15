@@ -4,17 +4,22 @@ import { ConfigService } from '@nestjs/config';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import axios from 'axios';
 import { GetOrdersOzon, GetOrdersResult } from './interfaces/get-orders-ozon.interface';
+import { ItemsService } from '../items/items.service';
+import { InfoService } from '../info/info.service';
+import { Orders } from './entities/orders.entity';
 
 @Injectable()
 export class OrdersService {
   constructor(
     private dataSource: DataSource,
-    private configService: ConfigService
+    private configService: ConfigService,
+    private itemsService: ItemsService,
+    private infoService: InfoService
   ) {}
 
   private logger: Logger = new Logger(OrdersService.name);
 
-  @Cron(CronExpression.EVERY_10_SECONDS)
+  @Cron('0 */20 * * * *')
   async getOrdersOzon() {
     const ozonToken = await this.configService.get('ozonToken');
     const clientId = await this.configService.get('ozonClientId');
@@ -62,7 +67,6 @@ export class OrdersService {
       } else {
         offset += 1000;
         for (const order of data.result) {
-          console.log(order);
           order.products.map(item => {
             orders.push({
               sku: String(item.sku),
@@ -76,6 +80,58 @@ export class OrdersService {
             });
           });
         }
+      }
+    }
+    for (const order of orders) {
+      const queryRunner = await this.dataSource.createQueryRunner();
+      await queryRunner.connect();
+      await queryRunner.startTransaction();
+      try {
+        const findItem = await this.itemsService.findItem({ sku: order.sku }, queryRunner);
+        const findWarehouse = await this.infoService.findOrCreateWarehouses(
+          { title: order.warehouse },
+          queryRunner
+        );
+        if (!findItem) {
+          await queryRunner.commitTransaction();
+          continue;
+        }
+        const findOrder = await queryRunner.manager.findOne(Orders, {
+          where: {
+            marketplaceOrderIdentification: String(order.orderId),
+            createdAt: new Date(order.createdAt),
+            itemId: findItem.id
+          }
+        });
+        const isCanceled = order.cancelReasonId ? true : false;
+        if (!findOrder) {
+          const createOrder = await queryRunner.manager.create(Orders, {
+            quantity: order.quantity,
+            sum: Number(order.sum),
+            marketplaceOrderIdentification: String(order.orderId),
+            isCanceled,
+            itemId: findItem.id,
+            warehouseId: findWarehouse.id,
+            createdAt: new Date(order.createdAt)
+          });
+          await queryRunner.manager.save(Orders, createOrder);
+        } else {
+          await queryRunner.manager.update(
+            Orders,
+            { id: findOrder.id },
+            {
+              quantity: order.quantity,
+              isCanceled,
+              sum: Number(order.sum)
+            }
+          );
+        }
+        await queryRunner.commitTransaction();
+      } catch (error) {
+        this.logger.error(error);
+        this.logger.error('Не смог сказать заказы Ozon');
+      } finally {
+        await queryRunner.release();
       }
     }
   }
