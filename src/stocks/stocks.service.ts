@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { ItemsService } from '../items/items.service';
@@ -16,6 +16,8 @@ export class StocksService {
     private configService: ConfigService,
     private infoService: InfoService
   ) {}
+
+  private logger: Logger = new Logger(StocksService.name);
 
   // @Cron(CronExpression.EVERY_10_SECONDS)
   async getStocks() {
@@ -104,7 +106,7 @@ export class StocksService {
     }
   }
 
-  @Cron(CronExpression.EVERY_10_SECONDS)
+  @Cron(CronExpression.EVERY_30_MINUTES)
   async getOzonStocks() {
     const ozonToken = await this.configService.get('ozonToken');
     const clientId = await this.configService.get('ozonClientId');
@@ -152,6 +154,7 @@ export class StocksService {
       const queryRunner = await this.dataSource.createQueryRunner();
       await queryRunner.connect();
       try {
+        await queryRunner.startTransaction();
         const warehouse = await this.infoService.findOrCreateWarehouses(
           { title: stock.warehouse },
           queryRunner
@@ -159,21 +162,43 @@ export class StocksService {
         const findItem = await this.itemsService.findItem({ sku: stock.sku }, queryRunner);
         if (!findItem) {
           continue;
-        } else {
-          // const createStock = await queryRunner.manager.create(Stocks, {
-          //   itemId
-          //   warehouseId
-          //   currentValue
-          //   reserved
-          //   promised
-          // })
         }
+        const findStock = await queryRunner.manager
+          .createQueryBuilder(Stocks, 'stocks')
+          .where("DATE(created_at) = DATE('now')")
+          .andWhere('item_id = :itemId', { itemId: findItem.id })
+          .andWhere('warehouse_id = :warehouseId', { warehouseId: warehouse.id })
+          .getOne();
+        if (findStock) {
+          await queryRunner.manager.update(
+            Stocks,
+            { id: findStock.id },
+            {
+              currentValue: stock.current,
+              reserved: stock.reserved,
+              promised: stock.promised
+            }
+          );
+        } else {
+          const createStock = await queryRunner.manager.create(Stocks, {
+            itemId: findItem.id,
+            warehouseId: warehouse.id,
+            currentValue: stock.current,
+            reserved: stock.reserved,
+            promised: stock.promised
+          });
+          await queryRunner.manager.save(Stocks, createStock);
+        }
+        await queryRunner.commitTransaction();
       } catch (error) {
         await queryRunner.rollbackTransaction();
-        console.log(error);
+        this.logger.error('Не смог обновить остатки Ozon');
+        this.logger.error(error);
       } finally {
         await queryRunner.release();
       }
     }
+    console.log(555);
+    return;
   }
 }

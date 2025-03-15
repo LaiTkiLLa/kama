@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { DataSource, FindOptionsWhere, QueryRunner } from 'typeorm';
 import axios from 'axios';
@@ -15,11 +15,13 @@ export class ItemsService {
     private configService: ConfigService
   ) {}
 
+  private logger: Logger = new Logger(ItemsService.name)
+
   async findItem(where: FindOptionsWhere<Items>, queryRunner: QueryRunner) {
     return queryRunner.manager.findOne(Items, { where });
   }
 
-  // @Cron(CronExpression.EVERY_10_SECONDS)
+  @Cron(CronExpression.EVERY_30_MINUTES)
   async getOzonItems() {
     const itemsUrl = 'https://api-seller.ozon.ru/v3/product/list';
     const ozonMarketplace = await this.infoService.findMarketplace({ title: 'Озон' });
@@ -88,6 +90,8 @@ export class ItemsService {
         }
       } catch (error) {
         await queryRunner.rollbackTransaction();
+        this.logger.error(error)
+        this.logger.error('Не смог получить товары Ozon')
       } finally {
         await queryRunner.release();
       }

@@ -37,7 +37,7 @@ export class Stocks {
   @CreateDateColumn({
     type: 'timestamp',
     nullable: false,
-    name: 'createdAt',
+    name: 'created_at',
     default: new Date(),
     select: false
   })
@@ -46,7 +46,7 @@ export class Stocks {
   @UpdateDateColumn({
     type: 'timestamp',
     nullable: false,
-    name: 'updatedAt',
+    name: 'updated_at',
     default: new Date(),
     select: false
   })
