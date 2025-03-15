@@ -1,4 +1,6 @@
-import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import { Column, CreateDateColumn, Entity, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import { Stocks } from '../../stocks/entities/stocks.entity';
+import { Orders } from '../../orders/entities/orders.entity';
 
 @Entity({
   name: 'warehouses'
@@ -15,7 +17,7 @@ export class Warehouses {
   @CreateDateColumn({
     type: 'timestamp',
     nullable: false,
-    name: 'createdAt',
+    name: 'created_at',
     default: new Date(),
     select: false
   })
@@ -24,9 +26,15 @@ export class Warehouses {
   @UpdateDateColumn({
     type: 'timestamp',
     nullable: false,
-    name: 'updatedAt',
+    name: 'updated_at',
     default: new Date(),
     select: false
   })
   updatedAt: Date;
+
+  @OneToMany(() => Stocks, stocks => stocks.warehouse)
+  stocks: Stocks[]
+
+  @OneToMany(() => Orders, orders => orders.warehouse)
+  orders: Orders[]
 }

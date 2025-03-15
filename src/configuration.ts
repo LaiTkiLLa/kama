@@ -13,8 +13,10 @@ export const configuration  = () => ({
     autoLoadEntities: false,
     synchronize: false,
     logging: false,
-    entities: [],
+    entities: ['dist/**/*.entity{.ts,.js}'],
     migrations: ['/database/migrations/*{.ts,.js}']
   },
-  wbToken: process.env.wbToken
+  wbToken: process.env.wbToken,
+  ozonToken: process.env.ozonToken,
+  ozonClientId: process.env.ozonClientId
 })

@@ -8,6 +8,7 @@ import {
   UpdateDateColumn
 } from 'typeorm';
 import { Items } from '../../items/entities/items.entity';
+import { Warehouses } from '../../info/entities/warehouses.entity';
 
 @Entity({
   name: 'stocks'
@@ -21,12 +22,22 @@ export class Stocks {
   @Column({ type: 'int', name: 'item_id', nullable: false })
   itemId: number;
 
+  @Column({ type: 'int', name: 'warehouse_id', nullable: false })
+  warehouseId: number;
 
+  @Column({ type: 'int', name: 'current_value', nullable: false, default: 0 })
+  currentValue: number
+
+  @Column({ type: 'int', nullable: false, default: 0 })
+  reserved: number
+
+  @Column({ type: 'int', nullable: false, default: 0 })
+  promised: number
 
   @CreateDateColumn({
     type: 'timestamp',
     nullable: false,
-    name: 'createdAt',
+    name: 'created_at',
     default: new Date(),
     select: false
   })
@@ -35,7 +46,7 @@ export class Stocks {
   @UpdateDateColumn({
     type: 'timestamp',
     nullable: false,
-    name: 'updatedAt',
+    name: 'updated_at',
     default: new Date(),
     select: false
   })
@@ -47,4 +58,9 @@ export class Stocks {
   })
   item: Items;
 
+  @ManyToOne(() => Warehouses, warehouse => warehouse.stocks)
+  @JoinColumn({
+    name: 'warehouse_id'
+  })
+  warehouse: Warehouses;
 }

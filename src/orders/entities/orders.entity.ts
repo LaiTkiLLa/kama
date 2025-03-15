@@ -1,4 +1,14 @@
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn
+} from 'typeorm';
+import { Items } from '../../items/entities/items.entity';
+import { Warehouses } from '../../info/entities/warehouses.entity';
 
 @Entity({
   name: 'orders'
@@ -9,6 +19,51 @@ export class Orders {
   })
   id: number;
 
+  @Column({ type: 'int', nullable: false })
+  quantity: number;
+
   @Column({ type: 'float', nullable: false, default: 0 })
   sum: number;
+
+  @Column({ type: 'varchar', nullable: true, name: 'marketplace_order_identification' })
+  marketplaceOrderIdentification: string;
+
+  @Column({ type: 'boolean', nullable: false, default: false, name: 'is_canceled' })
+  isCanceled: boolean;
+
+  @Column({ type: 'int', name: 'item_id', nullable: false })
+  itemId: number;
+
+  @Column({ type: 'int', name: 'warehouse_id', nullable: false })
+  warehouseId: number;
+
+  @CreateDateColumn({
+    type: 'timestamp',
+    nullable: false,
+    name: 'created_at',
+    default: new Date(),
+    select: false
+  })
+  createdAt: Date;
+
+  @UpdateDateColumn({
+    type: 'timestamp',
+    nullable: false,
+    name: 'updated_at',
+    default: new Date(),
+    select: false
+  })
+  updatedAt: Date;
+
+  @ManyToOne(() => Items, item => item.orders)
+  @JoinColumn({
+    name: 'item_id'
+  })
+  item: Items;
+
+  @ManyToOne(() => Warehouses, warehouse => warehouse.orders)
+  @JoinColumn({
+    name: 'warehouse_id'
+  })
+  warehouse: Warehouses;
 }

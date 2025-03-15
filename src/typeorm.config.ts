@@ -13,6 +13,6 @@ export const TypeOrmDataSource = new DataSource({
   database: process.env.POSTGRES_DB,
   synchronize: false,
   logging: false,
-  entities: ['src/**/*.entity.ts'],
+  entities: ['dist/**/*.entity{.ts,.js}'],
   migrations: ['database/migrations/*{.ts,.js}']
 });

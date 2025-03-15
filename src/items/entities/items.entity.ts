@@ -1,14 +1,15 @@
 import {
   Column,
   CreateDateColumn,
-  Entity,
+  Entity, JoinColumn,
   ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn
 } from 'typeorm';
 import { Stocks } from '../../stocks/entities/stocks.entity';
-import { Marketplaces } from '../../common/entities/marketplaces.entity';
+import { Marketplaces } from '../../info/entities/marketplaces.entity';
+import { Orders } from '../../orders/entities/orders.entity';
 
 @Entity({
   name: 'items'
@@ -31,6 +32,9 @@ export class Items {
   @Column({ type: 'varchar', nullable: false })
   barcode: string;
 
+  @Column({ type: 'varchar', nullable: false })
+  sku: string;
+
   @Column({ type: 'varchar', nullable: false, name: 'marketplace_identifier' })
   marketplaceIdentifier: string;
 
@@ -50,19 +54,16 @@ export class Items {
   @Column({ type: 'int', nullable: false, default: 10, name: 'shipping_period' })
   shippingPeriod: number;
 
+  @Column({ type: 'varchar', nullable: false, name: 'image_url' })
+  imageUrl: string;
+
   @Column({ type: 'int', nullable: false, name: 'marketplace_id' })
   marketplaceId: number;
-
-  @ManyToOne(() => Marketplaces, marketPlace => marketPlace.items)
-  marketPlace: Marketplaces;
-
-  @OneToMany(() => Stocks, stocks => stocks.item)
-  stocks: Stocks[];
 
   @CreateDateColumn({
     type: 'timestamp',
     nullable: false,
-    name: 'createdAt',
+    name: 'created_at',
     default: new Date(),
     select: false
   })
@@ -71,9 +72,21 @@ export class Items {
   @UpdateDateColumn({
     type: 'timestamp',
     nullable: false,
-    name: 'updatedAt',
+    name: 'updated_at',
     default: new Date(),
     select: false
   })
   updatedAt: Date;
+
+  @ManyToOne(() => Marketplaces, marketplace => marketplace.items)
+  @JoinColumn({
+    name: 'marketplace_id'
+  })
+  marketplace: Marketplaces;
+
+  @OneToMany(() => Stocks, stocks => stocks.item)
+  stocks: Stocks[];
+
+  @OneToMany(() => Orders, orders => orders.item)
+  orders: Orders[]
 }

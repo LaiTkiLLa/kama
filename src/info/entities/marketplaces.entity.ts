@@ -26,7 +26,7 @@ export class Marketplaces {
   @CreateDateColumn({
     type: 'timestamp',
     nullable: false,
-    name: 'createdAt',
+    name: 'created_at',
     default: new Date(),
     select: false
   })
@@ -35,12 +35,12 @@ export class Marketplaces {
   @UpdateDateColumn({
     type: 'timestamp',
     nullable: false,
-    name: 'updatedAt',
+    name: 'updated_at',
     default: new Date(),
     select: false
   })
   updatedAt: Date;
 
-  @OneToMany(() => Items, items => items.marketPlace)
+  @OneToMany(() => Items, items => items.marketplace)
   items: Items[];
 }
