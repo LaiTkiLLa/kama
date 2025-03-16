@@ -7,6 +7,7 @@ import { GetOrdersOzon, GetOrdersResult } from './interfaces/get-orders-ozon.int
 import { ItemsService } from '../items/items.service';
 import { InfoService } from '../info/info.service';
 import { Orders } from './entities/orders.entity';
+import { GetOrdersWb } from './interfaces/get-orders-wb.interface';
 
 @Injectable()
 export class OrdersService {
@@ -18,6 +19,86 @@ export class OrdersService {
   ) {}
 
   private logger: Logger = new Logger(OrdersService.name);
+
+  @Cron('0 */23 * * * *')
+  async getOrdersWb() {
+    const today = new Date();
+    const todayMorning = new Date(today.setHours(3, 0, 0, 0));
+    const apiToken = await this.configService.get('wbToken');
+    const urlOrders = 'https://statistics-api.wildberries.ru/api/v1/supplier/orders';
+    const { data }: { data: GetOrdersWb[] } = await axios.get(urlOrders, {
+      params: {
+        dateFrom: todayMorning,
+        flag: 1
+      },
+      headers: {
+        Authorization: apiToken
+      }
+    });
+    const findMarketplace = await this.infoService.findMarketplace({ title: 'WB' });
+    for (const order of data) {
+      const queryRunner = await this.dataSource.createQueryRunner();
+      await queryRunner.connect();
+      await queryRunner.startTransaction();
+      try {
+        const findItem = await this.itemsService.findItem(
+          { marketplaceIdentifier: String(order.nmId) },
+          queryRunner
+        );
+        const findWarehouse = await this.infoService.findOrCreateWarehouses(
+          { title: order.warehouseName },
+          queryRunner
+        );
+        if (!findItem) {
+          await queryRunner.commitTransaction();
+          continue;
+        }
+        const orderDate = new Date(`${order.date}Z`)
+        const findOrder = await queryRunner.manager.findOne(Orders, {
+          where: {
+            marketplaceOrderIdentification: order.gNumber,
+            createdAt: orderDate,
+            itemId: findItem.id
+          }
+        });
+        if (!findOrder) {
+          const createOrder = await queryRunner.manager.create(Orders, {
+            quantity: 1,
+            sum: order.finishedPrice,
+            marketplaceOrderIdentification: String(order.gNumber),
+            isCanceled: order.isCancel,
+            itemId: findItem.id,
+            totalPrice: order.totalPrice,
+            spp: order.spp,
+            priceWithDisc: order.priceWithDisc,
+            warehouseId: findWarehouse.id,
+            createdAt: orderDate,
+            marketplaceId: findMarketplace.id
+          });
+          await queryRunner.manager.save(Orders, createOrder);
+        } else {
+          await queryRunner.manager.update(
+            Orders,
+            { id: findOrder.id },
+            {
+              isCanceled: order.isCancel,
+              sum: order.finishedPrice,
+              totalPrice: order.totalPrice,
+              spp: order.spp,
+              priceWithDisc: order.priceWithDisc
+            }
+          );
+        }
+        await queryRunner.commitTransaction();
+      } catch (error) {
+        this.logger.error(error);
+        this.logger.error('Не смог сказать заказы WB');
+      } finally {
+        await queryRunner.release();
+      }
+    }
+    return;
+  }
 
   @Cron('0 */22 * * * *')
   async getOrdersOzon() {
@@ -136,5 +217,6 @@ export class OrdersService {
         await queryRunner.release();
       }
     }
+    return;
   }
 }

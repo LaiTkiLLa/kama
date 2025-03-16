@@ -23,8 +23,18 @@ export class Orders {
   @Column({ type: 'int', nullable: false })
   quantity: number;
 
+  //поле finished_price У WB, поле sum у Ozon
   @Column({ type: 'float', nullable: false, default: 0 })
   sum: number;
+  //Поля для WB
+  @Column({ type: 'float', nullable: false, default: 0, name: 'total_price' })
+  totalPrice: number;
+  //Поля для WB
+  @Column({ type: 'float', nullable: false, default: 0 })
+  spp: number;
+  //Поля для WB
+  @Column({ type: 'float', nullable: false, default: 0, name: 'price_with_disc' })
+  priceWithDisc: number;
 
   @Column({ type: 'varchar', nullable: true, name: 'marketplace_order_identification' })
   marketplaceOrderIdentification: string;
