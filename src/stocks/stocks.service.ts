@@ -7,6 +7,7 @@ import { ConfigService } from '@nestjs/config';
 import { InfoService } from '../info/info.service';
 import { OzonStocks, StocksResult } from './interfaces/ozon-stocks.interface';
 import { Stocks } from './entities/stocks.entity';
+import { GetWbStocks } from './interfaces/wb-stocks.intrerface';
 
 @Injectable()
 export class StocksService {
@@ -19,94 +20,77 @@ export class StocksService {
 
   private logger: Logger = new Logger(StocksService.name);
 
-  // @Cron(CronExpression.EVERY_10_SECONDS)
+  @Cron('0 */18 * * * *')
   async getStocks() {
-    const queryRunner = await this.dataSource.createQueryRunner();
-    await queryRunner.connect();
-    await queryRunner.startTransaction();
-    try {
-      const apiToken = await this.configService.get('wbToken');
-      const urlStocks = 'https://statistics-api.wildberries.ru/api/v1/supplier/stocks';
-      const getWbStocks = await axios.get(urlStocks, {
-        params: {
-          dateFrom: '2019-09-06'
-        },
-        headers: {
-          Authorization: apiToken
-        }
-      });
-      const warehouses = getWbStocks.data.map(item => item.warehouseName);
-      const unique = [...new Set(warehouses)];
-      for (const item of getWbStocks.data) {
-        await this.infoService.findOrCreateWarehouses({ title: item.warehouseName }, queryRunner);
+    const apiToken = await this.configService.get('wbToken');
+    const urlStocks = 'https://statistics-api.wildberries.ru/api/v1/supplier/stocks';
+    const { data }: { data: GetWbStocks[] } = await axios.get(urlStocks, {
+      params: {
+        dateFrom: '2019-09-06'
+      },
+      headers: {
+        Authorization: apiToken
       }
-      //Получаем значения со склада
-      // for (const dataStock of dataStocks){
-      //   const findBarcode = result.find(item => item.barcode === dataStock.barcode)
-      //   if (findBarcode){
-      //     findBarcode.inWayToClient += dataStock.inWayToClient
-      //     findBarcode.inWayFromClient += dataStock.inWayFromClient
-      //     findBarcode.quantityFull += (dataStock.quantityFull - dataStock.inWayToClient - dataStock.inWayFromClient)
-      //     if (findBarcode.supplierArticle !== dataStock.supplierArticle){
-      //       findBarcode.newSupplierArticle = dataStock.supplierArticle
-      //     }
-      //   } else {
-      //     const imageUrl = compareUrl(dataStock.nmId)
-      //     result.push({
-      //       nmId: dataStock.nmId,
-      //       supplierArticle: dataStock.supplierArticle,
-      //       newSupplierArticle: dataStock.supplierArticle,
-      //       barcode: dataStock.barcode,
-      //       orders: 0,
-      //       //Заказы за последний месяц
-      //       orderLastMonth: 0,
-      //       imageUrl,
-      //       subject: dataStock.subject,
-      //       category: dataStock.category,
-      //       inWayToClient: dataStock.inWayToClient,
-      //       inWayFromClient: dataStock.inWayFromClient,
-      //       quantityFull: dataStock.quantityFull - dataStock.inWayToClient - dataStock.inWayFromClient,
-      //       ordersSum: 0,
-      //       //В приемке на МП
-      //       inAcceptance: 0,
-      //       onTheWay: 0,
-      //       quantityFulfillment: 0,
-      //       salesSpeed: 0,
-      //       //срок производства
-      //       productionTime: 0,
-      //       //срок сборки
-      //       assemblyPeriod: 0,
-      //       //Срок доставки
-      //       deliveryTime: 0,
-      //       //Срок отгрузки
-      //       shipmentTime: 0,
-      //       //Запас
-      //       reserve: 0,
-      //       //Запас в процентах
-      //       reserveInPersent: 0,
-      //       //Себестоимость
-      //       cost: 0,
-      //       //% месячного роста
-      //       growthPercent: 0,
-      //       //Продажная цена
-      //       salePrice: 0,
-      //       //Поставщик
-      //       supplier: '',
-      //       //Средняя цена продажи за период
-      //       middlePrice: 0
-      //     })
-      //   }
-      // }
-      await queryRunner.commitTransaction();
-    } catch (error) {
-      console.log(error);
-      await queryRunner.rollbackTransaction();
-    } finally {
-      await queryRunner.release();
+    });
+    const findMarketplace = await this.infoService.findMarketplace({ title: 'WB' });
+    for (const stock of data) {
+      const queryRunner = await this.dataSource.createQueryRunner();
+      await queryRunner.connect();
+      await queryRunner.startTransaction();
+      try {
+        const findWarehouse = await this.infoService.findOrCreateWarehouses(
+          { title: stock.warehouseName },
+          queryRunner
+        );
+        const findItem = await this.itemsService.findItem(
+          { marketplaceIdentifier: String(stock.nmId) },
+          queryRunner
+        );
+        if (!findItem) {
+          await queryRunner.commitTransaction();
+          continue;
+        }
+        await this.itemsService.updateItem({ id: findItem.id }, { barcode: stock.barcode }, queryRunner);
+        const findStock = await queryRunner.manager
+          .createQueryBuilder(Stocks, 'stocks')
+          .where("DATE(created_at) = DATE('now')")
+          .andWhere('item_id = :itemId', { itemId: findItem.id })
+          .andWhere('warehouse_id = :warehouseId', { warehouseId: findWarehouse.id })
+          .getOne();
+        if (findStock) {
+          await queryRunner.manager.update(
+            Stocks,
+            { id: findStock.id },
+            {
+              currentValue: stock.quantity,
+              reserved: stock.inWayToClient,
+              promised: stock.inWayFromClient
+            }
+          );
+        } else {
+          const createStock = await queryRunner.manager.create(Stocks, {
+            itemId: findItem.id,
+            warehouseId: findWarehouse.id,
+            currentValue: stock.quantity,
+            reserved: stock.inWayToClient,
+            promised: stock.inWayFromClient,
+            marketplaceId: findMarketplace.id
+          });
+          await queryRunner.manager.save(Stocks, createStock);
+        }
+        await queryRunner.commitTransaction();
+      } catch (error) {
+        await queryRunner.rollbackTransaction();
+        this.logger.error(error);
+        this.logger.error('Не смог скачать остатки WB');
+      } finally {
+        await queryRunner.release();
+      }
     }
+    return
   }
 
-  @Cron('0 */15 * * * *')
+  @Cron('0 */25 * * * *')
   async getOzonStocks() {
     const ozonToken = await this.configService.get('ozonToken');
     const clientId = await this.configService.get('ozonClientId');
@@ -156,7 +140,7 @@ export class StocksService {
       await queryRunner.connect();
       await queryRunner.startTransaction();
       try {
-        const warehouse = await this.infoService.findOrCreateWarehouses(
+        const findWarehouse = await this.infoService.findOrCreateWarehouses(
           { title: stock.warehouse },
           queryRunner
         );
@@ -169,7 +153,7 @@ export class StocksService {
           .createQueryBuilder(Stocks, 'stocks')
           .where("DATE(created_at) = DATE('now')")
           .andWhere('item_id = :itemId', { itemId: findItem.id })
-          .andWhere('warehouse_id = :warehouseId', { warehouseId: warehouse.id })
+          .andWhere('warehouse_id = :warehouseId', { warehouseId: findWarehouse.id })
           .getOne();
         if (findStock) {
           await queryRunner.manager.update(
@@ -184,7 +168,7 @@ export class StocksService {
         } else {
           const createStock = await queryRunner.manager.create(Stocks, {
             itemId: findItem.id,
-            warehouseId: warehouse.id,
+            warehouseId: findWarehouse.id,
             currentValue: stock.current,
             reserved: stock.reserved,
             promised: stock.promised,

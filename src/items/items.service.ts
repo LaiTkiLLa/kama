@@ -6,6 +6,8 @@ import { InfoService } from '../info/info.service';
 import { ConfigService } from '@nestjs/config';
 import { OzomItemsInfo, OzonItems } from './interfaces/ozon-items.interface';
 import { Items } from './entities/items.entity';
+import { WbItem, WbItems } from './interfaces/wb-items.interface';
+import { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
 
 @Injectable()
 export class ItemsService {
@@ -21,7 +23,86 @@ export class ItemsService {
     return queryRunner.manager.findOne(Items, { where });
   }
 
-  @Cron(CronExpression.EVERY_30_MINUTES)
+  async updateItem(
+    where: FindOptionsWhere<Items>,
+    updateData: QueryDeepPartialEntity<Items>,
+    queryRunner: QueryRunner
+  ) {
+    return queryRunner.manager.update(Items, where, updateData);
+  }
+
+  @Cron('0 */40 * * * *')
+  async getWbItems() {
+    const itemsUrl = 'https://content-api.wildberries.ru/content/v2/get/cards/list';
+    const apiToken = await this.configService.get('wbToken');
+    let hasMoreData = true;
+    let cursor: { limit: number } | { limit: number; nmID: number; updatedAt: string } = {
+      limit: 100
+    };
+    const items: WbItem[] = [];
+    while (hasMoreData) {
+      const { data }: { data: WbItems } = await axios.post(
+        itemsUrl,
+        {
+          settings: {
+            cursor,
+            filter: {
+              withPhoto: 1
+            }
+          }
+        },
+        {
+          headers: {
+            Authorization: apiToken
+          }
+        }
+      );
+      if (!data.cards.length) {
+        hasMoreData = false;
+      } else {
+        items.push(...data.cards);
+      }
+      cursor = {
+        limit: 100,
+        updatedAt: data.cursor.updatedAt,
+        nmID: data.cursor.nmID
+      };
+    }
+    const wbMarketplace = await this.infoService.findMarketplace({ title: 'WB' });
+    for (const item of items) {
+      const queryRunner = await this.dataSource.createQueryRunner();
+      await queryRunner.connect();
+      await queryRunner.startTransaction();
+      try {
+        const findItem = await queryRunner.manager.findOne(Items, {
+          where: { marketplaceIdentifier: String(item.nmID), marketplaceId: wbMarketplace.id }
+        });
+        if (!findItem) {
+          const createItem = await queryRunner.manager.create(Items, {
+            article: item.vendorCode,
+            category: item.subjectName,
+            title: item.title,
+            barcode: '0',
+            sku: '0',
+            marketplaceIdentifier: String(item.nmID),
+            imageUrl: item.photos[0].big,
+            marketplaceId: wbMarketplace.id
+          });
+          await queryRunner.manager.save(Items, createItem);
+        }
+        await queryRunner.commitTransaction();
+      } catch (error) {
+        await queryRunner.rollbackTransaction();
+        this.logger.error(error);
+        this.logger.error('Не удалось скачать товар WB');
+      } finally {
+        await queryRunner.release();
+      }
+    }
+    return;
+  }
+
+  @Cron('0 */42 * * * *')
   async getOzonItems() {
     const itemsUrl = 'https://api-seller.ozon.ru/v3/product/list';
     const ozonMarketplace = await this.infoService.findMarketplace({ title: 'Озон' });
@@ -86,8 +167,8 @@ export class ItemsService {
             marketplaceId: ozonMarketplace.id
           });
           await queryRunner.manager.save(Items, createItem);
-          await queryRunner.commitTransaction();
         }
+        await queryRunner.commitTransaction();
       } catch (error) {
         await queryRunner.rollbackTransaction();
         this.logger.error(error);

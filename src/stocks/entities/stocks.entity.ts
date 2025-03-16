@@ -29,12 +29,15 @@ export class Stocks {
   @Column({ type: 'int', name: 'warehouse_id', nullable: false })
   warehouseId: number;
 
+  //Без учета reserved и promised
   @Column({ type: 'int', name: 'current_value', nullable: false, default: 0 })
   currentValue: number;
 
+  //Для WB Это сколько едет к клиентам
   @Column({ type: 'int', nullable: false, default: 0 })
   reserved: number;
 
+  //Для WB это сколько едет от клиентов
   @Column({ type: 'int', nullable: false, default: 0 })
   promised: number;
 
