@@ -7,6 +7,7 @@ import { ConfigService } from '@nestjs/config';
 import { OzomItemsInfo, OzonItems } from './interfaces/ozon-items.interface';
 import { Items } from './entities/items.entity';
 import { WbItem, WbItems } from './interfaces/wb-items.interface';
+import { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
 
 @Injectable()
 export class ItemsService {
@@ -20,6 +21,14 @@ export class ItemsService {
 
   async findItem(where: FindOptionsWhere<Items>, queryRunner: QueryRunner) {
     return queryRunner.manager.findOne(Items, { where });
+  }
+
+  async updateItem(
+    where: FindOptionsWhere<Items>,
+    updateData: QueryDeepPartialEntity<Items>,
+    queryRunner: QueryRunner
+  ) {
+    return queryRunner.manager.update(Items, where, updateData);
   }
 
   @Cron('0 */40 * * * *')

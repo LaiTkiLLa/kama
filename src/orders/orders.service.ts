@@ -19,7 +19,7 @@ export class OrdersService {
 
   private logger: Logger = new Logger(OrdersService.name);
 
-  @Cron('0 */20 * * * *')
+  @Cron('0 */22 * * * *')
   async getOrdersOzon() {
     const ozonToken = await this.configService.get('ozonToken');
     const clientId = await this.configService.get('ozonClientId');
