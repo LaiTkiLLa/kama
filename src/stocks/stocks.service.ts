@@ -8,6 +8,7 @@ import { InfoService } from '../info/info.service';
 import { OzonStocks, StocksResult } from './interfaces/ozon-stocks.interface';
 import { Stocks } from './entities/stocks.entity';
 import { GetWbStocks } from './interfaces/wb-stocks.intrerface';
+import { GetCurrentStocksDto } from './dto/get-current-stocks.dto';
 
 @Injectable()
 export class StocksService {
@@ -19,6 +20,23 @@ export class StocksService {
   ) {}
 
   private logger: Logger = new Logger(StocksService.name);
+
+  async getCurrentStocks(getCurrentStocksDto: GetCurrentStocksDto): Promise<Stocks[]> {
+    const today = new Date();
+    return this.dataSource.manager
+      .createQueryBuilder(Stocks, 'stocks')
+      .leftJoinAndSelect('stocks.marketplace', 'marketplace')
+      .leftJoinAndSelect('stocks.item', 'item')
+      .select([
+        'item.title AS title',
+        'item.article AS article',
+        'SUM(stocks.currentValue) AS currentValue'
+      ])
+      .where('marketplace.title = :marketplace', { marketplace: getCurrentStocksDto.marketplace })
+      .andWhere('Date(stocks.createdAt) = Date(:today)', { today })
+      .groupBy('item.id, marketplace.id')
+      .getRawMany();
+  }
 
   @Cron('0 */18 * * * *')
   async getStocks() {
@@ -87,7 +105,7 @@ export class StocksService {
         await queryRunner.release();
       }
     }
-    return
+    return;
   }
 
   @Cron('0 */25 * * * *')
