@@ -8,6 +8,8 @@ import { InfoService } from '../info/info.service';
 import { OzonStocks, StocksResult } from './interfaces/ozon-stocks.interface';
 import { Stocks } from './entities/stocks.entity';
 import { GetWbStocks } from './interfaces/wb-stocks.intrerface';
+import { GetCurrentStocksDto } from './dto/get-current-stocks.dto';
+import { GetCurrentStocks } from './interfaces/get-current-stocks.interface';
 
 @Injectable()
 export class StocksService {
@@ -19,6 +21,50 @@ export class StocksService {
   ) {}
 
   private logger: Logger = new Logger(StocksService.name);
+
+  async getCurrentStocks(getCurrentStocksDto: GetCurrentStocksDto): Promise<GetCurrentStocks[]> {
+    const today = new Date();
+    const findStocks = await this.dataSource.manager
+      .createQueryBuilder(Stocks, 'stocks')
+      .leftJoinAndSelect('stocks.marketplace', 'marketplace')
+      .leftJoinAndSelect('stocks.item', 'item')
+      .where('marketplace.title = :marketplace', { marketplace: getCurrentStocksDto.marketplace })
+      .andWhere('Date(stocks.createdAt) = Date(:today)', { today })
+      .getMany();
+    return findStocks.reduce((acc: GetCurrentStocks[], stock) => {
+      const findItem = acc.find(item => stock.itemId === item.itemId);
+      if (findItem) {
+      } else {
+        acc.push({
+          nmId: Number(stock.item.marketplaceIdentifier),
+          supplierArticle: stock.item.article,
+          barcode: Number(stock.item.barcode),
+          orders: 0,
+          orderLastMonth: 0,
+          imageUrl: stock.item.imageUrl,
+          inWayToClient: stock.reserved,
+          inWayFromClient: stock.promised,
+          quantityFull: stock.currentValue,
+          ordersSum: 0,
+          inAcceptance: 0,
+          salesSpeed: 0,
+          planTime: 0,
+          assemblyPeriod: 0,
+          deliveryTime: 0,
+          shipmentTime: 0,
+          reserve: 0,
+          reserveInPercent: 0,
+          cost: 0,
+          growthPercent: 0,
+          salePrice: 0,
+          supplier: '',
+          middlePrice: 0,
+          itemId: stock.itemId
+        });
+      }
+      return acc;
+    }, []);
+  }
 
   @Cron('0 */18 * * * *')
   async getStocks() {
@@ -87,7 +133,7 @@ export class StocksService {
         await queryRunner.release();
       }
     }
-    return
+    return;
   }
 
   @Cron('0 */25 * * * *')
@@ -98,7 +144,6 @@ export class StocksService {
       'Client-Id': clientId,
       'Api-Key': ozonToken
     };
-
     const urlStocks = 'https://api-seller.ozon.ru/v2/analytics/stock_on_warehouses';
     let hasMoreData = true;
     let offset = 0;
