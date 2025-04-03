@@ -34,6 +34,9 @@ export class StocksService {
     return findStocks.reduce((acc: GetCurrentStocks[], stock) => {
       const findItem = acc.find(item => stock.itemId === item.itemId);
       if (findItem) {
+        findItem.quantityFull += stock.currentValue
+        findItem.inWayToClient += stock.reserved
+        findItem.inWayFromClient += stock.promised
       } else {
         acc.push({
           nmId: Number(stock.item.marketplaceIdentifier),
