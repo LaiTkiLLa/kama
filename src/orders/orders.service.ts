@@ -101,7 +101,6 @@ export class OrdersService {
   }
 
   @Cron('0 */22 * * * *')
-  @Cron('0 55 23 * * *')
   async getOrdersOzon() {
     const ozonToken = await this.configService.get('ozonToken');
     const clientId = await this.configService.get('ozonClientId');

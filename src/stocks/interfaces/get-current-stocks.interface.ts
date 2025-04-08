@@ -6,6 +6,7 @@ export interface GetCurrentStocks {
   orderLastMonth: number,
   imageUrl: string,
   inWayToClient
+  sku: string
   inWayFromClient
   quantityFull
   ordersSum: number,
