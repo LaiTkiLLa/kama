@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Cron, CronExpression } from '@nestjs/schedule';
+import { Cron } from '@nestjs/schedule';
 import { DataSource, FindOptionsWhere, QueryRunner } from 'typeorm';
 import axios from 'axios';
 import { InfoService } from '../info/info.service';
@@ -8,6 +8,7 @@ import { OzomItemsInfo, OzonItems } from './interfaces/ozon-items.interface';
 import { Items } from './entities/items.entity';
 import { WbItem, WbItems } from './interfaces/wb-items.interface';
 import { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
+import { YandexItems } from './interfaces/yandex-items.interface';
 
 @Injectable()
 export class ItemsService {
@@ -178,5 +179,54 @@ export class ItemsService {
       }
     }
     return;
+  }
+
+  @Cron('0 */44 * * * *')
+  async getYandexItems() {
+    const businessId = await this.configService.get('yandexBusinessId');
+    const itemsUrl = `https://api.partner.market.yandex.ru/businesses/${businessId}/offer-mappings?limit=200`;
+    const { data }: { data: YandexItems } = await axios.post(
+      itemsUrl,
+      {},
+      {
+        headers: {
+          'Api-Key': 'ACMA:1pUUUtGUjFw0frKFuYg5ymG5nEs5RKNtz5NbW9OQ:226d6e1d'
+        }
+      }
+    );
+    const yandexMarketplace = await this.infoService.findMarketplace({ title: 'Yandex' });
+    for (const item of data.result.offerMappings) {
+      const queryRunner = await this.dataSource.createQueryRunner();
+      await queryRunner.connect();
+      try {
+        await queryRunner.startTransaction();
+        if (!item.mapping.marketSku) {
+          continue;
+        }
+        const findItem = await queryRunner.manager.findOne(Items, {
+          where: { marketplaceIdentifier: String(item.mapping.marketSku) }
+        });
+        if (!findItem) {
+          const createItem = await queryRunner.manager.create(Items, {
+            article: item.offer.offerId,
+            category: item.offer.category ?? item.mapping.marketCategoryName,
+            title: item.offer.name,
+            barcode: item.offer.barcodes[0],
+            sku: String(0),
+            marketplaceIdentifier: String(item.mapping.marketSku),
+            imageUrl: item.offer.pictures[0],
+            marketplaceId: yandexMarketplace.id
+          });
+          await queryRunner.manager.save(Items, createItem);
+        }
+        await queryRunner.commitTransaction();
+      } catch (error) {
+        await queryRunner.rollbackTransaction();
+        this.logger.error(error);
+        this.logger.error('Не смог получить товары Яндекс');
+      } finally {
+        await queryRunner.release();
+      }
+    }
   }
 }

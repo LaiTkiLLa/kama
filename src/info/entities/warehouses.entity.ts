@@ -21,6 +21,9 @@ export class Warehouses {
   @Column({ type: 'varchar', nullable: false })
   title: string;
 
+  @Column({ type: 'varchar', nullable: true, name: 'marketplace_id' })
+  marketplaceId: string;
+
   @CreateDateColumn({
     type: 'timestamp',
     nullable: false,

@@ -19,5 +19,8 @@ export const configuration = () => ({
   wbToken: process.env.wbToken,
   ozonToken: process.env.ozonToken,
   ozonClientId: process.env.ozonClientId,
-  apiKey: process.env.apiKey
+  apiKey: process.env.apiKey,
+  yandexToken: process.env.yandexToken,
+  yandexClientId: process.env.yandexCLientId,
+  yandexBusinessId: process.env.yandexBusinessId
 });

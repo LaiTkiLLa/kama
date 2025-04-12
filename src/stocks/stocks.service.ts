@@ -71,7 +71,7 @@ export class StocksService {
   }
 
   @Cron('0 */18 * * * *')
-  async getStocks() {
+  async getWbStocks() {
     const apiToken = await this.configService.get('wbToken');
     const urlStocks = 'https://statistics-api.wildberries.ru/api/v1/supplier/stocks';
     const { data }: { data: GetWbStocks[] } = await axios.get(urlStocks, {
@@ -236,4 +236,133 @@ export class StocksService {
     }
     return;
   }
+
+  // @Cron(CronExpression.EVERY_10_SECONDS)
+  // async getYandexStocks() {
+  //   const yandexToken = await this.configService.get('yandexToken');
+  //   const clientId = await this.configService.get('yandexClientId');
+  //   const urlStocks = `https://api.partner.market.yandex.ru/campaigns/${clientId}/offers/stocks?limit=200`;
+  //   const { data }: { data: GetYandexStocks } = await axios.post(
+  //     urlStocks,
+  //     {
+  //       withTurnover: true
+  //     },
+  //     {
+  //       headers: {
+  //         'Api-Key': yandexToken
+  //       }
+  //     }
+  //   );
+  //   const stocks: {
+  //     warehouseId: number;
+  //     supplierArticle: string;
+  //     stocks: { type: ItemTypes; count: number }[];
+  //   }[] = [];
+  //
+  //   for (const warehouse of data.result.warehouses) {
+  //     warehouse.offers.map(offer => {
+  //       stocks.push({
+  //         warehouseId: warehouse.warehouseId,
+  //         supplierArticle: offer.offerId,
+  //         stocks: offer.stocks
+  //       });
+  //     });
+  //   }
+  //   const findMarketplace = await this.infoService.findMarketplace({ title: 'Yandex' });
+  //   for (const stock of stocks) {
+  //     const queryRunner = await this.dataSource.createQueryRunner();
+  //     await queryRunner.connect();
+  //     try {
+  //       const findWarehouse = await this.infoService.findOrCreateWarehouses(
+  //         { marketplaceId: String(stock.warehouseId) },
+  //         queryRunner
+  //       );
+  //       const findItem = await this.itemsService.findItem({ article: stock.supplierArticle }, queryRunner);
+  //       if (!findItem) {
+  //         console.log(stock)
+  //         continue;
+  //       }
+  //       // for (const stock of stocks) {
+  //       //   //Резерв
+  //       //   let reserved = 0;
+  //       //   //Карантин
+  //       //   let quarantine = 0;
+  //       //   //Годный
+  //       //   let fit = 0;
+  //       //   //Утилизация
+  //       //   let utilization = 0;
+  //       //   //Брак
+  //       //   let defected = 0;
+  //       //   //Истек
+  //       //   let expired = 0;
+  //       //   //Доступный
+  //       //   let available = 0;
+  //       //   stock.stocks.forEach(el => {
+  //       //     switch (el.type) {
+  //       //       case ItemTypes.FIT: {
+  //       //         fit += el.count;
+  //       //         break;
+  //       //       }
+  //       //       case ItemTypes.AVAILABLE: {
+  //       //         available += el.count;
+  //       //         break;
+  //       //       }
+  //       //       case ItemTypes.UTILIZATION: {
+  //       //         utilization += el.count;
+  //       //         break;
+  //       //       }
+  //       //       case ItemTypes.DEFECT: {
+  //       //         defected += el.count;
+  //       //         break;
+  //       //       }
+  //       //       case ItemTypes.QUARANTINE: {
+  //       //         quarantine += el.count;
+  //       //         break;
+  //       //       }
+  //       //       case ItemTypes.EXPIRED: {
+  //       //         expired += el.count;
+  //       //         break;
+  //       //       }
+  //       //     }
+  //       //   });
+  //       // }
+  //       // if (!findItem) {
+  //       //   await queryRunner.commitTransaction();
+  //       //   continue;
+  //       // }
+  //       // const findStock = await queryRunner.manager
+  //       //   .createQueryBuilder(Stocks, 'stocks')
+  //       //   .where("DATE(created_at) = DATE('now')")
+  //       //   .andWhere('item_id = :itemId', { itemId: findItem.id })
+  //       //   .andWhere('warehouse_id = :warehouseId', { warehouseId: findWarehouse.id })
+  //       //   .getOne();
+  //       // if (findStock) {
+  //       //   await queryRunner.manager.update(
+  //       //     Stocks,
+  //       //     { id: findStock.id },
+  //       //     {
+  //       //       currentValue: stock.current,
+  //       //       reserved: stock.reserved,
+  //       //       promised: stock.promised
+  //       //     }
+  //       //   );
+  //       // } else {
+  //       //   const createStock = await queryRunner.manager.create(Stocks, {
+  //       //     itemId: findItem.id,
+  //       //     warehouseId: findWarehouse.id,
+  //       //     currentValue: stock.current,
+  //       //     reserved: stock.reserved,
+  //       //     promised: stock.promised,
+  //       //     marketplaceId: findMarketplace.id
+  //       //   });
+  //       //   await queryRunner.manager.save(Stocks, createStock);
+  //       // }
+  //     } catch (error) {
+  //       this.logger.error('Не смог обновить остатки Yandex');
+  //       this.logger.error(error);
+  //     } finally {
+  //       await queryRunner.release();
+  //     }
+  //   }
+  // }
 }
