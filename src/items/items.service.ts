@@ -90,6 +90,12 @@ export class ItemsService {
             marketplaceId: wbMarketplace.id
           });
           await queryRunner.manager.save(Items, createItem);
+        } else {
+          await queryRunner.manager.update(
+            Items,
+            { id: findItem.id },
+            { article: item.vendorCode, category: item.subjectName, title: item.title }
+          );
         }
         await queryRunner.commitTransaction();
       } catch (error) {
@@ -154,7 +160,7 @@ export class ItemsService {
           continue;
         }
         const findItem = await queryRunner.manager.findOne(Items, {
-          where: { marketplaceIdentifier: String(item.id) }
+          where: { marketplaceIdentifier: String(item.id), marketplaceId: ozonMarketplace.id }
         });
         if (!findItem) {
           const createItem = await queryRunner.manager.create(Items, {
@@ -168,6 +174,15 @@ export class ItemsService {
             marketplaceId: ozonMarketplace.id
           });
           await queryRunner.manager.save(Items, createItem);
+        } else {
+          await queryRunner.manager.update(
+            Items,
+            { id: findItem.id },
+            {
+              article: item.offer_id,
+              title: item.name
+            }
+          );
         }
         await queryRunner.commitTransaction();
       } catch (error) {
@@ -204,7 +219,10 @@ export class ItemsService {
           continue;
         }
         const findItem = await queryRunner.manager.findOne(Items, {
-          where: { marketplaceIdentifier: String(item.mapping.marketSku) }
+          where: {
+            marketplaceIdentifier: String(item.mapping.marketSku),
+            marketplaceId: yandexMarketplace.id
+          }
         });
         if (!findItem) {
           const createItem = await queryRunner.manager.create(Items, {
@@ -218,6 +236,16 @@ export class ItemsService {
             marketplaceId: yandexMarketplace.id
           });
           await queryRunner.manager.save(Items, createItem);
+        } else {
+          await queryRunner.manager.update(
+            Items,
+            { id: findItem.id },
+            {
+              article: item.offer.offerId,
+              title: item.offer.name,
+              category: item.offer.category ?? item.mapping.marketCategoryName
+            }
+          );
         }
         await queryRunner.commitTransaction();
       } catch (error) {
