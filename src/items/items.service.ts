@@ -109,8 +109,7 @@ export class ItemsService {
     return;
   }
 
-  // @Cron('0 */42 * * * *')
-  @Cron(CronExpression.EVERY_30_SECONDS)
+  @Cron('0 */42 * * * *')
   async getOzonItems() {
     const itemsUrl = 'https://api-seller.ozon.ru/v3/product/list';
     const ozonMarketplace = await this.infoService.findMarketplace({ title: 'Озон' });
