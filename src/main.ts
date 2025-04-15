@@ -9,9 +9,9 @@ import { ValidationPipe } from '@nestjs/common';
   });
   app.useGlobalPipes(new ValidationPipe({ transform: true, whitelist: true }));
   app.setGlobalPrefix('api');
-  app.enableCors()
   const configService = app.get(ConfigService);
   const PORT = configService.get('serverPort');
+  app.enableCors()
   await app.listen(PORT, () => {
     console.warn(`Server started on port: ${PORT}`);
   });
