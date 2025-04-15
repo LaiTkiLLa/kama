@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
-import { DataSource, FindOptionsWhere, QueryRunner } from 'typeorm';
+import { DataSource, FindOptionsWhere, In, QueryRunner } from 'typeorm';
 import axios from 'axios';
 import { InfoService } from '../info/info.service';
 import { ConfigService } from '@nestjs/config';
@@ -9,6 +9,7 @@ import { Items } from './entities/items.entity';
 import { WbItem, WbItems } from './interfaces/wb-items.interface';
 import { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
 import { YandexItems } from './interfaces/yandex-items.interface';
+import { GetItemsListDto } from './dto/get-items-list.dto';
 
 @Injectable()
 export class ItemsService {
@@ -19,6 +20,28 @@ export class ItemsService {
   ) {}
 
   private logger: Logger = new Logger(ItemsService.name);
+
+  async getOzonItemsList(getItemsListDto: GetItemsListDto) {
+    const ozonMarketplace = await this.infoService.findMarketplace({ title: 'Озон' });
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    try {
+      let items: Items[];
+      if (getItemsListDto.itemsIds) {
+        items = await queryRunner.manager.find(Items, {
+          where: { id: In(getItemsListDto.itemsIds), marketplaceId: ozonMarketplace.id }
+        });
+      } else {
+        items = await queryRunner.manager.find(Items, { where: { marketplaceId: ozonMarketplace.id } });
+      }
+      return items.map(item => ({ id: item.id, sku: item.sku }));
+    } catch (error) {
+      this.logger.error(error);
+      this.logger.error('Не смог получить список товаров');
+    } finally {
+      await queryRunner.release();
+    }
+  }
 
   async findItem(where: FindOptionsWhere<Items>, queryRunner: QueryRunner) {
     return queryRunner.manager.findOne(Items, { where });
