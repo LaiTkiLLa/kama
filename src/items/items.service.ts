@@ -27,9 +27,9 @@ export class ItemsService {
     await queryRunner.connect();
     try {
       let items: Items[];
-      if (getItemsListDto.itemsIds) {
+      if (getItemsListDto.itemsId) {
         items = await queryRunner.manager.find(Items, {
-          where: { id: In(getItemsListDto.itemsIds), marketplaceId: ozonMarketplace.id }
+          where: { id: In(getItemsListDto.itemsId), marketplaceId: ozonMarketplace.id }
         });
       } else {
         items = await queryRunner.manager.find(Items, { where: { marketplaceId: ozonMarketplace.id } });
