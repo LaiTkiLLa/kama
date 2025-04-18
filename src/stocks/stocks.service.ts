@@ -10,6 +10,7 @@ import { Stocks } from './entities/stocks.entity';
 import { GetWbStocks } from './interfaces/wb-stocks.intrerface';
 import { GetCurrentStocksDto } from './dto/get-current-stocks.dto';
 import { GetCurrentStocks } from './interfaces/get-current-stocks.interface';
+import { GetYandexStocks, ItemTypes } from './interfaces/yandex-stocks.interface';
 
 @Injectable()
 export class StocksService {
@@ -237,132 +238,160 @@ export class StocksService {
     return;
   }
 
-  // @Cron(CronExpression.EVERY_10_SECONDS)
-  // async getYandexStocks() {
-  //   const yandexToken = await this.configService.get('yandexToken');
-  //   const clientId = await this.configService.get('yandexClientId');
-  //   const urlStocks = `https://api.partner.market.yandex.ru/campaigns/${clientId}/offers/stocks?limit=200`;
-  //   const { data }: { data: GetYandexStocks } = await axios.post(
-  //     urlStocks,
-  //     {
-  //       withTurnover: true
-  //     },
-  //     {
-  //       headers: {
-  //         'Api-Key': yandexToken
-  //       }
-  //     }
-  //   );
-  //   const stocks: {
-  //     warehouseId: number;
-  //     supplierArticle: string;
-  //     stocks: { type: ItemTypes; count: number }[];
-  //   }[] = [];
-  //
-  //   for (const warehouse of data.result.warehouses) {
-  //     warehouse.offers.map(offer => {
-  //       stocks.push({
-  //         warehouseId: warehouse.warehouseId,
-  //         supplierArticle: offer.offerId,
-  //         stocks: offer.stocks
-  //       });
-  //     });
-  //   }
-  //   const findMarketplace = await this.infoService.findMarketplace({ title: 'Yandex' });
-  //   for (const stock of stocks) {
-  //     const queryRunner = await this.dataSource.createQueryRunner();
-  //     await queryRunner.connect();
-  //     try {
-  //       const findWarehouse = await this.infoService.findOrCreateWarehouses(
-  //         { marketplaceId: String(stock.warehouseId) },
-  //         queryRunner
-  //       );
-  //       const findItem = await this.itemsService.findItem({ article: stock.supplierArticle }, queryRunner);
-  //       if (!findItem) {
-  //         console.log(stock)
-  //         continue;
-  //       }
-  //       // for (const stock of stocks) {
-  //       //   //Резерв
-  //       //   let reserved = 0;
-  //       //   //Карантин
-  //       //   let quarantine = 0;
-  //       //   //Годный
-  //       //   let fit = 0;
-  //       //   //Утилизация
-  //       //   let utilization = 0;
-  //       //   //Брак
-  //       //   let defected = 0;
-  //       //   //Истек
-  //       //   let expired = 0;
-  //       //   //Доступный
-  //       //   let available = 0;
-  //       //   stock.stocks.forEach(el => {
-  //       //     switch (el.type) {
-  //       //       case ItemTypes.FIT: {
-  //       //         fit += el.count;
-  //       //         break;
-  //       //       }
-  //       //       case ItemTypes.AVAILABLE: {
-  //       //         available += el.count;
-  //       //         break;
-  //       //       }
-  //       //       case ItemTypes.UTILIZATION: {
-  //       //         utilization += el.count;
-  //       //         break;
-  //       //       }
-  //       //       case ItemTypes.DEFECT: {
-  //       //         defected += el.count;
-  //       //         break;
-  //       //       }
-  //       //       case ItemTypes.QUARANTINE: {
-  //       //         quarantine += el.count;
-  //       //         break;
-  //       //       }
-  //       //       case ItemTypes.EXPIRED: {
-  //       //         expired += el.count;
-  //       //         break;
-  //       //       }
-  //       //     }
-  //       //   });
-  //       // }
-  //       // if (!findItem) {
-  //       //   await queryRunner.commitTransaction();
-  //       //   continue;
-  //       // }
-  //       // const findStock = await queryRunner.manager
-  //       //   .createQueryBuilder(Stocks, 'stocks')
-  //       //   .where("DATE(created_at) = DATE('now')")
-  //       //   .andWhere('item_id = :itemId', { itemId: findItem.id })
-  //       //   .andWhere('warehouse_id = :warehouseId', { warehouseId: findWarehouse.id })
-  //       //   .getOne();
-  //       // if (findStock) {
-  //       //   await queryRunner.manager.update(
-  //       //     Stocks,
-  //       //     { id: findStock.id },
-  //       //     {
-  //       //       currentValue: stock.current,
-  //       //       reserved: stock.reserved,
-  //       //       promised: stock.promised
-  //       //     }
-  //       //   );
-  //       // } else {
-  //       //   const createStock = await queryRunner.manager.create(Stocks, {
-  //       //     itemId: findItem.id,
-  //       //     warehouseId: findWarehouse.id,
-  //       //     currentValue: stock.current,
-  //       //     reserved: stock.reserved,
-  //       //     promised: stock.promised,
-  //       //     marketplaceId: findMarketplace.id
-  //       //   });
-  //       //   await queryRunner.manager.save(Stocks, createStock);
-  //       // }
-  //     } catch (error) {
-  //       this.logger.error('Не смог обновить остатки Yandex');
-  //       this.logger.error(error);
-  //     } finally {
-  //       await queryRunner.release();
-  //     }
-  //   }
-  // }
+  @Cron('0 */22 * * * *')
+  async getYandexStocks() {
+    const yandexToken = await this.configService.get('yandexToken');
+    const clientId = await this.configService.get('yandexClientId');
+    const urlStocks = `https://api.partner.market.yandex.ru/campaigns/${clientId}/offers/stocks?limit=200`;
+    const { data }: { data: GetYandexStocks } = await axios.post(
+      urlStocks,
+      {
+        withTurnover: true
+      },
+      {
+        headers: {
+          'Api-Key': yandexToken
+        }
+      }
+    );
+    const stocks: {
+      warehouseId: number;
+      items: {
+        supplierArticle: string;
+        stocks: { type: ItemTypes; count: number }[];
+      }[];
+    }[] = [];
+
+    for (const warehouse of data.result.warehouses) {
+      warehouse.offers.map(offer => {
+        const findWarehouse = stocks.find(stock => stock.warehouseId === warehouse.warehouseId);
+        if (findWarehouse) {
+          findWarehouse.items.push({ supplierArticle: offer.offerId, stocks: offer.stocks });
+        } else {
+          stocks.push({
+            warehouseId: warehouse.warehouseId,
+            items: [
+              {
+                supplierArticle: offer.offerId,
+                stocks: offer.stocks
+              }
+            ]
+          });
+        }
+      });
+    }
+
+    const findMarketplace = await this.infoService.findMarketplace({ title: 'Yandex' });
+    const result: {
+      itemId: number;
+      warehouseId: number;
+      currentValue: number;
+      reserved: number;
+      promised: number;
+      marketplaceId: number;
+    }[] = [];
+    const queryRunner = await this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    try {
+      for (const stock of stocks) {
+        const findWarehouse = await this.infoService.findOrCreateWarehouses(
+          { marketplaceId: String(stock.warehouseId) },
+          queryRunner
+        );
+        for (const item of stock.items) {
+          const findItem = await this.itemsService.findItem({ article: item.supplierArticle }, queryRunner);
+          if (!findItem) {
+            continue;
+          }
+          //Карантин
+          let quarantine = 0;
+          //Годный
+          let fit = 0;
+          //   //Утилизация
+          //   let utilization = 0;
+          //   //Брак
+          //   let defected = 0;
+          //   //Истек
+          //   let expired = 0;
+          //Доступный
+          let available = 0;
+          item.stocks.forEach(el => {
+            switch (el.type) {
+              case ItemTypes.FIT: {
+                fit += el.count;
+                break;
+              }
+              case ItemTypes.AVAILABLE: {
+                available += el.count;
+                break;
+              }
+              // case ItemTypes.UTILIZATION: {
+              //   utilization += el.count;
+              //   break;
+              // }
+              // case ItemTypes.DEFECT: {
+              //   defected += el.count;
+              //   break;
+              // }
+              case ItemTypes.QUARANTINE: {
+                quarantine += el.count;
+                break;
+              }
+              // case ItemTypes.EXPIRED: {
+              //   expired += el.count;
+              //   break;
+              // }
+            }
+          });
+          //Резерв
+          let reserved = 0;
+          if (fit > available) {
+            reserved = fit - available;
+          }
+          result.push({
+            itemId: findItem.id,
+            warehouseId: findWarehouse.id,
+            currentValue: available,
+            reserved: reserved,
+            promised: quarantine,
+            marketplaceId: findMarketplace.id
+          });
+        }
+      }
+      for (const item of result) {
+        const findStock = await queryRunner.manager
+          .createQueryBuilder(Stocks, 'stocks')
+          .where("DATE(created_at) = DATE('now')")
+          .andWhere('item_id = :itemId', { itemId: item.itemId })
+          .andWhere('warehouse_id = :warehouseId', { warehouseId: item.warehouseId })
+          .getOne();
+        if (findStock) {
+          await queryRunner.manager.update(
+            Stocks,
+            { id: findStock.id },
+            {
+              currentValue: item.currentValue,
+              reserved: item.reserved,
+              promised: item.promised
+            }
+          );
+        } else {
+          const createStock = await queryRunner.manager.create(Stocks, {
+            itemId: item.itemId,
+            warehouseId: item.warehouseId,
+            currentValue: item.currentValue,
+            reserved: item.reserved,
+            promised: item.promised,
+            marketplaceId: findMarketplace.id
+          });
+          await queryRunner.manager.save(Stocks, createStock);
+        }
+      }
+    } catch (error) {
+      this.logger.error('Не смог обновить остатки Yandex');
+      this.logger.error(error);
+    } finally {
+      await queryRunner.release();
+    }
+  }
 }

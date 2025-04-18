@@ -29,8 +29,7 @@ export class Marketplaces {
     type: 'timestamp',
     nullable: false,
     name: 'created_at',
-    default: new Date(),
-    select: false
+    default: new Date()
   })
   createdAt: Date;
 
@@ -38,8 +37,7 @@ export class Marketplaces {
     type: 'timestamp',
     nullable: false,
     name: 'updated_at',
-    default: new Date(),
-    select: false
+    default: new Date()
   })
   updatedAt: Date;
 
