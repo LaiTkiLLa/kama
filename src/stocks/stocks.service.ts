@@ -94,7 +94,7 @@ export class StocksService {
           queryRunner
         );
         const findItem = await this.itemsService.findItem(
-          { marketplaceIdentifier: String(stock.nmId) },
+          { marketplaceIdentifier: String(stock.nmId), marketplaceId: findMarketplace.id },
           queryRunner
         );
         if (!findItem) {
@@ -194,7 +194,10 @@ export class StocksService {
           { title: stock.warehouse },
           queryRunner
         );
-        const findItem = await this.itemsService.findItem({ sku: stock.sku }, queryRunner);
+        const findItem = await this.itemsService.findItem(
+          { sku: stock.sku, marketplaceId: findMarketplace.id },
+          queryRunner
+        );
         if (!findItem) {
           await queryRunner.commitTransaction();
           continue;
@@ -299,7 +302,10 @@ export class StocksService {
           queryRunner
         );
         for (const item of stock.items) {
-          const findItem = await this.itemsService.findItem({ article: item.supplierArticle }, queryRunner);
+          const findItem = await this.itemsService.findItem(
+            { article: item.supplierArticle, marketplaceId: findMarketplace.id },
+            queryRunner
+          );
           if (!findItem) {
             continue;
           }
