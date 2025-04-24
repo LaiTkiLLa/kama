@@ -6,4 +6,5 @@ export interface GetStocksByDate {
   promised: string;
   date: string;
   article: string;
+  marketplaceTitle: string
 }
