@@ -11,6 +11,8 @@ import { GetWbStocks } from './interfaces/wb-stocks.intrerface';
 import { GetCurrentStocksDto } from './dto/get-current-stocks.dto';
 import { GetCurrentStocks } from './interfaces/get-current-stocks.interface';
 import { GetYandexStocks, ItemTypes } from './interfaces/yandex-stocks.interface';
+import { GetStocksByDateDto } from './dto/get-stocks-by-date.dto';
+import { GetStocksByDate } from './interfaces/get-stocks-by-date.interface';
 
 @Injectable()
 export class StocksService {
@@ -69,6 +71,37 @@ export class StocksService {
       }
       return acc;
     }, []);
+  }
+
+  async getStocksByDate(getStocksByDateDto: GetStocksByDateDto): Promise<GetStocksByDate[]> {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    try {
+      return queryRunner.manager
+        .createQueryBuilder(Stocks, 'stocks')
+        .select([
+          'stocks.item_id AS "itemId"',
+          'stocks.marketplace_id AS "marketplaceId"',
+          'SUM(stocks.current_value) AS "currentValue"',
+          'SUM(stocks.reserved) AS "reserved"',
+          'SUM(stocks.promised) AS "promised"',
+          'DATE(stocks.created_at) as "date"',
+          'item.article AS "article"'
+        ])
+        .leftJoin('stocks.item', 'item')
+        .where('DATE(stocks.created_at) IN (:...date)', { date: getStocksByDateDto.date })
+        .groupBy('stocks.item_id')
+        .addGroupBy('stocks.marketplace_id')
+        .addGroupBy('DATE(stocks.created_at)')
+        .addGroupBy('item.article')
+        .getRawMany();
+    } catch (error) {
+      this.logger.error(error);
+      this.logger.error('Не смог получить список остатков на дату');
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
   }
 
   @Cron('0 */18 * * * *')
