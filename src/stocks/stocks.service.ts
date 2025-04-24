@@ -86,14 +86,17 @@ export class StocksService {
           'SUM(stocks.reserved) AS "reserved"',
           'SUM(stocks.promised) AS "promised"',
           'DATE(stocks.created_at) as "date"',
-          'item.article AS "article"'
+          'item.article AS "article"',
+          'marketplace.title as "marketplaceTitle"'
         ])
         .leftJoin('stocks.item', 'item')
+        .leftJoin('stocks.marketplace', 'marketplace')
         .where('DATE(stocks.created_at) IN (:...date)', { date: getStocksByDateDto.date })
         .groupBy('stocks.item_id')
         .addGroupBy('stocks.marketplace_id')
         .addGroupBy('DATE(stocks.created_at)')
         .addGroupBy('item.article')
+        .addGroupBy('marketplace.title')
         .getRawMany();
     } catch (error) {
       this.logger.error(error);
