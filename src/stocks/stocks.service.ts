@@ -178,102 +178,18 @@ export class StocksService {
   }
 
   @Cron('0 */25 * * * *')
-  async getOzonStocks() {
+  async getOzonStocksFirst() {
     const ozonToken = await this.configService.get('ozonToken');
     const clientId = await this.configService.get('ozonClientId');
-    const headers = {
-      'Client-Id': clientId,
-      'Api-Key': ozonToken
-    };
-    const urlStocks = 'https://api-seller.ozon.ru/v2/analytics/stock_on_warehouses';
-    let hasMoreData = true;
-    let offset = 0;
+    await this.getOzonStocks(clientId, ozonToken)
+    return;
+  }
 
-    const stocks: StocksResult[] = [];
-
-    while (hasMoreData) {
-      const { data }: { data: OzonStocks } = await axios.post(
-        urlStocks,
-        {
-          filter: {
-            visibility: 'ALL'
-          },
-          limit: 1000,
-          offset
-        },
-        { headers }
-      );
-
-      if (!data.result.rows.length) {
-        hasMoreData = false;
-      } else {
-        for (const item of data.result.rows) {
-          stocks.push({
-            article: item.item_code,
-            sku: String(item.sku),
-            reserved: item.reserved_amount,
-            current: item.free_to_sell_amount,
-            promised: item.promised_amount,
-            warehouse: item.warehouse_name
-          });
-        }
-        offset += 1000;
-      }
-    }
-    const findMarketplace = await this.infoService.findMarketplace({ title: 'Озон' });
-    for (const stock of stocks) {
-      const queryRunner = await this.dataSource.createQueryRunner();
-      await queryRunner.connect();
-      await queryRunner.startTransaction();
-      try {
-        const findWarehouse = await this.infoService.findOrCreateWarehouses(
-          { title: stock.warehouse },
-          queryRunner
-        );
-        const findItem = await this.itemsService.findItem(
-          { sku: stock.sku, marketplaceId: findMarketplace.id },
-          queryRunner
-        );
-        if (!findItem) {
-          await queryRunner.commitTransaction();
-          continue;
-        }
-        const findStock = await queryRunner.manager
-          .createQueryBuilder(Stocks, 'stocks')
-          .where("DATE(created_at) = DATE('now')")
-          .andWhere('item_id = :itemId', { itemId: findItem.id })
-          .andWhere('warehouse_id = :warehouseId', { warehouseId: findWarehouse.id })
-          .getOne();
-        if (findStock) {
-          await queryRunner.manager.update(
-            Stocks,
-            { id: findStock.id },
-            {
-              currentValue: stock.current,
-              reserved: stock.reserved,
-              promised: stock.promised
-            }
-          );
-        } else {
-          const createStock = await queryRunner.manager.create(Stocks, {
-            itemId: findItem.id,
-            warehouseId: findWarehouse.id,
-            currentValue: stock.current,
-            reserved: stock.reserved,
-            promised: stock.promised,
-            marketplaceId: findMarketplace.id
-          });
-          await queryRunner.manager.save(Stocks, createStock);
-        }
-        await queryRunner.commitTransaction();
-      } catch (error) {
-        await queryRunner.rollbackTransaction();
-        this.logger.error('Не смог обновить остатки Ozon');
-        this.logger.error(error);
-      } finally {
-        await queryRunner.release();
-      }
-    }
+  @Cron('0 */26 * * * *')
+  async getOzonStocksSecond() {
+    const ozonToken = await this.configService.get('ozonSecondToken');
+    const clientId = await this.configService.get('ozonSecondClientId');
+    await this.getOzonStocks(clientId, ozonToken)
     return;
   }
 
@@ -435,5 +351,102 @@ export class StocksService {
     } finally {
       await queryRunner.release();
     }
+  }
+
+  async getOzonStocks(clientId: string, ozonToken: string){
+    const headers = {
+      'Client-Id': clientId,
+      'Api-Key': ozonToken
+    };
+    const urlStocks = 'https://api-seller.ozon.ru/v2/analytics/stock_on_warehouses';
+    let hasMoreData = true;
+    let offset = 0;
+
+    const stocks: StocksResult[] = [];
+
+    while (hasMoreData) {
+      const { data }: { data: OzonStocks } = await axios.post(
+        urlStocks,
+        {
+          filter: {
+            visibility: 'ALL'
+          },
+          limit: 1000,
+          offset
+        },
+        { headers }
+      );
+
+      if (!data.result.rows.length) {
+        hasMoreData = false;
+      } else {
+        for (const item of data.result.rows) {
+          stocks.push({
+            article: item.item_code,
+            sku: String(item.sku),
+            reserved: item.reserved_amount,
+            current: item.free_to_sell_amount,
+            promised: item.promised_amount,
+            warehouse: item.warehouse_name
+          });
+        }
+        offset += 1000;
+      }
+    }
+    const findMarketplace = await this.infoService.findMarketplace({ title: 'Озон' });
+    for (const stock of stocks) {
+      const queryRunner = await this.dataSource.createQueryRunner();
+      await queryRunner.connect();
+      await queryRunner.startTransaction();
+      try {
+        const findWarehouse = await this.infoService.findOrCreateWarehouses(
+          { title: stock.warehouse },
+          queryRunner
+        );
+        const findItem = await this.itemsService.findItem(
+          { sku: stock.sku, marketplaceId: findMarketplace.id },
+          queryRunner
+        );
+        if (!findItem) {
+          await queryRunner.commitTransaction();
+          continue;
+        }
+        const findStock = await queryRunner.manager
+          .createQueryBuilder(Stocks, 'stocks')
+          .where("DATE(created_at) = DATE('now')")
+          .andWhere('item_id = :itemId', { itemId: findItem.id })
+          .andWhere('warehouse_id = :warehouseId', { warehouseId: findWarehouse.id })
+          .getOne();
+        if (findStock) {
+          await queryRunner.manager.update(
+            Stocks,
+            { id: findStock.id },
+            {
+              currentValue: stock.current,
+              reserved: stock.reserved,
+              promised: stock.promised
+            }
+          );
+        } else {
+          const createStock = await queryRunner.manager.create(Stocks, {
+            itemId: findItem.id,
+            warehouseId: findWarehouse.id,
+            currentValue: stock.current,
+            reserved: stock.reserved,
+            promised: stock.promised,
+            marketplaceId: findMarketplace.id
+          });
+          await queryRunner.manager.save(Stocks, createStock);
+        }
+        await queryRunner.commitTransaction();
+      } catch (error) {
+        await queryRunner.rollbackTransaction();
+        this.logger.error('Не смог обновить остатки Ozon');
+        this.logger.error(error);
+      } finally {
+        await queryRunner.release();
+      }
+    }
+    return
   }
 }

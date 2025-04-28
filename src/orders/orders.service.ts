@@ -101,9 +101,22 @@ export class OrdersService {
   }
 
   @Cron('0 */22 * * * *')
-  async getOrdersOzon() {
+  async getOrdersOzonFirst() {
     const ozonToken = await this.configService.get('ozonToken');
     const clientId = await this.configService.get('ozonClientId');
+    await this.getOrdersOzon(ozonToken, clientId)
+    return;
+  }
+
+  @Cron('0 */24 * * * *')
+  async getOrdersOzonSecond() {
+    const ozonToken = await this.configService.get('ozonSecondToken');
+    const clientId = await this.configService.get('ozonSecondClientId');
+    await this.getOrdersOzon(ozonToken, clientId)
+    return;
+  }
+
+  async getOrdersOzon(ozonToken: string, clientId: string){
     const headers = {
       'Client-Id': clientId,
       'Api-Key': ozonToken
@@ -217,6 +230,6 @@ export class OrdersService {
         await queryRunner.release();
       }
     }
-    return;
+    return
   }
 }

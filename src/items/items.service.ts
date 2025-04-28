@@ -133,11 +133,86 @@ export class ItemsService {
   }
 
   @Cron('0 */42 * * * *')
-  async getOzonItems() {
-    const itemsUrl = 'https://api-seller.ozon.ru/v3/product/list';
-    const ozonMarketplace = await this.infoService.findMarketplace({ title: 'Озон' });
+  async getOzonItemsFirst() {
     const ozonToken = await this.configService.get('ozonToken');
     const clientId = await this.configService.get('ozonClientId');
+    await this.getOzonItems(ozonToken, clientId)
+    return;
+  }
+
+  @Cron('0 */46 * * * *')
+  async getOzonItemsSecond() {
+    const ozonToken = await this.configService.get('ozonSecondToken');
+    const clientId = await this.configService.get('ozonSecondClientId');
+    await this.getOzonItems(ozonToken, clientId);
+    return;
+  }
+
+  @Cron('0 */44 * * * *')
+  async getYandexItems() {
+    const businessId = await this.configService.get('yandexBusinessId');
+    const itemsUrl = `https://api.partner.market.yandex.ru/businesses/${businessId}/offer-mappings?limit=200`;
+    const { data }: { data: YandexItems } = await axios.post(
+      itemsUrl,
+      {},
+      {
+        headers: {
+          'Api-Key': 'ACMA:1pUUUtGUjFw0frKFuYg5ymG5nEs5RKNtz5NbW9OQ:226d6e1d'
+        }
+      }
+    );
+    const yandexMarketplace = await this.infoService.findMarketplace({ title: 'Yandex' });
+    for (const item of data.result.offerMappings) {
+      const queryRunner = await this.dataSource.createQueryRunner();
+      await queryRunner.connect();
+      try {
+        await queryRunner.startTransaction();
+        if (!item.mapping.marketSku) {
+          continue;
+        }
+        const findItem = await queryRunner.manager.findOne(Items, {
+          where: {
+            marketplaceIdentifier: String(item.mapping.marketSku),
+            marketplaceId: yandexMarketplace.id
+          }
+        });
+        if (!findItem) {
+          const createItem = await queryRunner.manager.create(Items, {
+            article: item.offer.offerId,
+            category: item.offer.category ?? item.mapping.marketCategoryName,
+            title: item.offer.name,
+            barcode: item.offer.barcodes[0],
+            sku: String(0),
+            marketplaceIdentifier: String(item.mapping.marketSku),
+            imageUrl: item.offer.pictures[0],
+            marketplaceId: yandexMarketplace.id
+          });
+          await queryRunner.manager.save(Items, createItem);
+        } else {
+          await queryRunner.manager.update(
+            Items,
+            { id: findItem.id },
+            {
+              article: item.offer.offerId,
+              title: item.offer.name,
+              category: item.offer.category ?? item.mapping.marketCategoryName
+            }
+          );
+        }
+        await queryRunner.commitTransaction();
+      } catch (error) {
+        await queryRunner.rollbackTransaction();
+        this.logger.error(error);
+        this.logger.error('Не смог получить товары Яндекс');
+      } finally {
+        await queryRunner.release();
+      }
+    }
+  }
+
+  async getOzonItems(clientId: string, ozonToken: string) {
+    const itemsUrl = 'https://api-seller.ozon.ru/v3/product/list';
+    const ozonMarketplace = await this.infoService.findMarketplace({ title: 'Озон' });
     const headers = {
       'Client-Id': clientId,
       'Api-Key': ozonToken
@@ -216,68 +291,6 @@ export class ItemsService {
         await queryRunner.release();
       }
     }
-    return;
-  }
-
-  @Cron('0 */44 * * * *')
-  async getYandexItems() {
-    const businessId = await this.configService.get('yandexBusinessId');
-    const itemsUrl = `https://api.partner.market.yandex.ru/businesses/${businessId}/offer-mappings?limit=200`;
-    const { data }: { data: YandexItems } = await axios.post(
-      itemsUrl,
-      {},
-      {
-        headers: {
-          'Api-Key': 'ACMA:1pUUUtGUjFw0frKFuYg5ymG5nEs5RKNtz5NbW9OQ:226d6e1d'
-        }
-      }
-    );
-    const yandexMarketplace = await this.infoService.findMarketplace({ title: 'Yandex' });
-    for (const item of data.result.offerMappings) {
-      const queryRunner = await this.dataSource.createQueryRunner();
-      await queryRunner.connect();
-      try {
-        await queryRunner.startTransaction();
-        if (!item.mapping.marketSku) {
-          continue;
-        }
-        const findItem = await queryRunner.manager.findOne(Items, {
-          where: {
-            marketplaceIdentifier: String(item.mapping.marketSku),
-            marketplaceId: yandexMarketplace.id
-          }
-        });
-        if (!findItem) {
-          const createItem = await queryRunner.manager.create(Items, {
-            article: item.offer.offerId,
-            category: item.offer.category ?? item.mapping.marketCategoryName,
-            title: item.offer.name,
-            barcode: item.offer.barcodes[0],
-            sku: String(0),
-            marketplaceIdentifier: String(item.mapping.marketSku),
-            imageUrl: item.offer.pictures[0],
-            marketplaceId: yandexMarketplace.id
-          });
-          await queryRunner.manager.save(Items, createItem);
-        } else {
-          await queryRunner.manager.update(
-            Items,
-            { id: findItem.id },
-            {
-              article: item.offer.offerId,
-              title: item.offer.name,
-              category: item.offer.category ?? item.mapping.marketCategoryName
-            }
-          );
-        }
-        await queryRunner.commitTransaction();
-      } catch (error) {
-        await queryRunner.rollbackTransaction();
-        this.logger.error(error);
-        this.logger.error('Не смог получить товары Яндекс');
-      } finally {
-        await queryRunner.release();
-      }
-    }
+    return
   }
 }
