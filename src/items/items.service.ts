@@ -136,7 +136,8 @@ export class ItemsService {
   async getOzonItemsFirst() {
     const ozonToken = await this.configService.get('ozonToken');
     const clientId = await this.configService.get('ozonClientId');
-    await this.getOzonItems(ozonToken, clientId)
+    const ozonMarketplace = await this.infoService.findMarketplace({ title: 'Озон' });
+    await this.getOzonItems(ozonToken, clientId, ozonMarketplace.id);
     return;
   }
 
@@ -144,7 +145,8 @@ export class ItemsService {
   async getOzonItemsSecond() {
     const ozonToken = await this.configService.get('ozonSecondToken');
     const clientId = await this.configService.get('ozonSecondClientId');
-    await this.getOzonItems(ozonToken, clientId);
+    const ozonMarketplace = await this.infoService.findMarketplace({ title: 'Ozon Second' });
+    await this.getOzonItems(ozonToken, clientId, ozonMarketplace.id);
     return;
   }
 
@@ -210,9 +212,8 @@ export class ItemsService {
     }
   }
 
-  async getOzonItems(clientId: string, ozonToken: string) {
+  async getOzonItems(ozonToken: string, clientId: string, marketplaceId: number) {
     const itemsUrl = 'https://api-seller.ozon.ru/v3/product/list';
-    const ozonMarketplace = await this.infoService.findMarketplace({ title: 'Озон' });
     const headers = {
       'Client-Id': clientId,
       'Api-Key': ozonToken
@@ -258,7 +259,7 @@ export class ItemsService {
           continue;
         }
         const findItem = await queryRunner.manager.findOne(Items, {
-          where: { marketplaceIdentifier: String(item.id), marketplaceId: ozonMarketplace.id }
+          where: { marketplaceIdentifier: String(item.id), marketplaceId }
         });
         if (!findItem) {
           const createItem = await queryRunner.manager.create(Items, {
@@ -269,7 +270,7 @@ export class ItemsService {
             sku: String(item.sources[0].sku),
             marketplaceIdentifier: String(item.id),
             imageUrl: item.primary_image[0],
-            marketplaceId: ozonMarketplace.id
+            marketplaceId
           });
           await queryRunner.manager.save(Items, createItem);
         } else {
@@ -291,6 +292,6 @@ export class ItemsService {
         await queryRunner.release();
       }
     }
-    return
+    return;
   }
 }

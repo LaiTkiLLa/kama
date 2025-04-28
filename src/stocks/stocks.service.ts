@@ -181,7 +181,8 @@ export class StocksService {
   async getOzonStocksFirst() {
     const ozonToken = await this.configService.get('ozonToken');
     const clientId = await this.configService.get('ozonClientId');
-    await this.getOzonStocks(clientId, ozonToken)
+    const findMarketplace = await this.infoService.findMarketplace({ title: 'Озон' });
+    await this.getOzonStocks(clientId, ozonToken, findMarketplace.id)
     return;
   }
 
@@ -189,7 +190,8 @@ export class StocksService {
   async getOzonStocksSecond() {
     const ozonToken = await this.configService.get('ozonSecondToken');
     const clientId = await this.configService.get('ozonSecondClientId');
-    await this.getOzonStocks(clientId, ozonToken)
+    const findMarketplace = await this.infoService.findMarketplace({ title: 'Ozon Second' });
+    await this.getOzonStocks(clientId, ozonToken, findMarketplace.id)
     return;
   }
 
@@ -353,7 +355,7 @@ export class StocksService {
     }
   }
 
-  async getOzonStocks(clientId: string, ozonToken: string){
+  async getOzonStocks(clientId: string, ozonToken: string, marketplaceId: number){
     const headers = {
       'Client-Id': clientId,
       'Api-Key': ozonToken
@@ -393,7 +395,6 @@ export class StocksService {
         offset += 1000;
       }
     }
-    const findMarketplace = await this.infoService.findMarketplace({ title: 'Озон' });
     for (const stock of stocks) {
       const queryRunner = await this.dataSource.createQueryRunner();
       await queryRunner.connect();
@@ -404,7 +405,7 @@ export class StocksService {
           queryRunner
         );
         const findItem = await this.itemsService.findItem(
-          { sku: stock.sku, marketplaceId: findMarketplace.id },
+          { sku: stock.sku, marketplaceId },
           queryRunner
         );
         if (!findItem) {
@@ -434,7 +435,7 @@ export class StocksService {
             currentValue: stock.current,
             reserved: stock.reserved,
             promised: stock.promised,
-            marketplaceId: findMarketplace.id
+            marketplaceId
           });
           await queryRunner.manager.save(Stocks, createStock);
         }

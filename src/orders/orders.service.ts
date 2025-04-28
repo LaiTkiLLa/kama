@@ -104,7 +104,8 @@ export class OrdersService {
   async getOrdersOzonFirst() {
     const ozonToken = await this.configService.get('ozonToken');
     const clientId = await this.configService.get('ozonClientId');
-    await this.getOrdersOzon(ozonToken, clientId)
+    const findMarketplace = await this.infoService.findMarketplace({ title: 'Озон' });
+    await this.getOrdersOzon(ozonToken, clientId, findMarketplace.id)
     return;
   }
 
@@ -112,11 +113,12 @@ export class OrdersService {
   async getOrdersOzonSecond() {
     const ozonToken = await this.configService.get('ozonSecondToken');
     const clientId = await this.configService.get('ozonSecondClientId');
-    await this.getOrdersOzon(ozonToken, clientId)
+    const findMarketplace = await this.infoService.findMarketplace({ title: 'Ozon Second' });
+    await this.getOrdersOzon(ozonToken, clientId, findMarketplace.id)
     return;
   }
 
-  async getOrdersOzon(ozonToken: string, clientId: string){
+  async getOrdersOzon(ozonToken: string, clientId: string, marketplaceId: number){
     const headers = {
       'Client-Id': clientId,
       'Api-Key': ozonToken
@@ -176,7 +178,6 @@ export class OrdersService {
         }
       }
     }
-    const findMarketplace = await this.infoService.findMarketplace({ title: 'Озон' });
     for (const order of orders) {
       const queryRunner = await this.dataSource.createQueryRunner();
       await queryRunner.connect();
@@ -208,7 +209,7 @@ export class OrdersService {
             itemId: findItem.id,
             warehouseId: findWarehouse.id,
             createdAt: new Date(order.createdAt),
-            marketplaceId: findMarketplace.id
+            marketplaceId
           });
           await queryRunner.manager.save(Orders, createOrder);
         } else {
