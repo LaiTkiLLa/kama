@@ -10,6 +10,7 @@ import { WbItem, WbItems } from './interfaces/wb-items.interface';
 import { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
 import { YandexItems } from './interfaces/yandex-items.interface';
 import { GetItemsListDto } from './dto/get-items-list.dto';
+import { Marketplaces } from '../info/entities/marketplaces.entity';
 
 @Injectable()
 export class ItemsService {
@@ -22,17 +23,22 @@ export class ItemsService {
   private logger: Logger = new Logger(ItemsService.name);
 
   async getOzonItemsList(getItemsListDto: GetItemsListDto) {
-    const ozonMarketplace = await this.infoService.findMarketplace({ title: 'Озон' });
+    let marketplace: Marketplaces;
+    if (getItemsListDto.marketplaceTitle === 'Ozon') {
+      marketplace = await this.infoService.findMarketplace({ title: 'Озон' });
+    } else {
+      marketplace = await this.infoService.findMarketplace({ title: 'WB' });
+    }
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     try {
       let items: Items[];
       if (getItemsListDto.itemsId) {
         items = await queryRunner.manager.find(Items, {
-          where: { id: In(getItemsListDto.itemsId), marketplaceId: ozonMarketplace.id }
+          where: { id: In(getItemsListDto.itemsId), marketplaceId: marketplace.id }
         });
       } else {
-        items = await queryRunner.manager.find(Items, { where: { marketplaceId: ozonMarketplace.id } });
+        items = await queryRunner.manager.find(Items, { where: { marketplaceId: marketplace.id } });
       }
       return items.map(item => ({ id: item.id, sku: item.sku }));
     } catch (error) {
