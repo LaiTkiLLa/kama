@@ -22,7 +22,7 @@ export class ItemsService {
 
   private logger: Logger = new Logger(ItemsService.name);
 
-  async getOzonItemsList(getItemsListDto: GetItemsListDto) {
+  async getItemsList(getItemsListDto: GetItemsListDto): Promise<{ id: number; identifier: string }[]> {
     let marketplace: Marketplaces;
     if (getItemsListDto.marketplaceTitle === 'Ozon') {
       marketplace = await this.infoService.findMarketplace({ title: 'Озон' });
@@ -40,10 +40,14 @@ export class ItemsService {
       } else {
         items = await queryRunner.manager.find(Items, { where: { marketplaceId: marketplace.id } });
       }
-      return items.map(item => ({ id: item.id, sku: item.sku }));
+      if (getItemsListDto.marketplaceTitle === 'Ozon') {
+        return items.map(item => ({ id: item.id, identifier: item.sku }));
+      }
+      return items.map(item => ({ id: item.id, identifier: item.marketplaceIdentifier }));
     } catch (error) {
       this.logger.error(error);
       this.logger.error('Не смог получить список товаров');
+      throw error;
     } finally {
       await queryRunner.release();
     }

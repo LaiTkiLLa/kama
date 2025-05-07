@@ -7,6 +7,6 @@ export class ItemsController {
   constructor(private itemsService: ItemsService) {}
   @Get('list')
   async getItemsList(@Headers('api-key') apiKey: string, @Query() getItemsListDto: GetItemsListDto) {
-    return this.itemsService.getOzonItemsList(getItemsListDto);
+    return this.itemsService.getItemsList(getItemsListDto);
   }
 }
