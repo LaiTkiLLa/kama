@@ -7,6 +7,8 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 import { GetYandexWarehouses } from './interfaces/yandex-warehouses.interface';
+import { Directions } from './entities/directions.entity';
+import { Statuses } from './entities/statuses.entity';
 
 @Injectable()
 export class InfoService {
@@ -34,6 +36,22 @@ export class InfoService {
       throw new NotFoundException('Маркетплейс не найден');
     }
     return findMarketplace;
+  }
+
+  async findStatus(queryRunner: QueryRunner, where: FindOptionsWhere<Statuses>) {
+    const findStatus = await queryRunner.manager.findOne(Statuses, { where });
+    if (!findStatus) {
+      throw new NotFoundException('Статус не найден');
+    }
+    return findStatus;
+  }
+
+  async findDirection(queryRunner: QueryRunner, where: FindOptionsWhere<Directions>) {
+    const findDirection = await queryRunner.manager.findOne(Directions, { where });
+    if (!findDirection) {
+      throw new NotFoundException('Направление не найдено');
+    }
+    return findDirection;
   }
 
   @Cron(CronExpression.EVERY_6_HOURS)

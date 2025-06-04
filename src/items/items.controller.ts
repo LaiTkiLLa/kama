@@ -1,12 +1,19 @@
-import { Controller, Get, Headers, Query } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Param, ParseIntPipe, Patch, Query } from '@nestjs/common';
 import { ItemsService } from './items.service';
 import { GetItemsListDto } from './dto/get-items-list.dto';
+import { UpdateItemInfoDto } from './dto/update-item-info.dto';
 
 @Controller('items')
 export class ItemsController {
   constructor(private itemsService: ItemsService) {}
+
   @Get('list')
   async getItemsList(@Headers('api-key') apiKey: string, @Query() getItemsListDto: GetItemsListDto) {
     return this.itemsService.getItemsList(getItemsListDto);
+  }
+
+  @Patch('info/:id')
+  async updateItemInfo(@Headers('api-key') apiKey: string, @Param('id', ParseIntPipe) id: number, @Body() updateItemInfoDto: UpdateItemInfoDto) {
+    return this.itemsService.updateItemInfo(id, updateItemInfoDto);
   }
 }

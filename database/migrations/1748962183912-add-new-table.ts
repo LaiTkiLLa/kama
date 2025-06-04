@@ -75,11 +75,37 @@ export class AddNewTable1748962183912 implements MigrationInterface {
         ]
       })
     );
+    await queryRunner.query(`
+      INSERT INTO directions (title)
+      VALUES 
+        ('Йога'),
+        ('Пилатес'),
+        ('Фитнес'),
+        ('Растяжка'),
+        ('Другое'),
+        ('Распаковка'),
+        ('Гимнастика'),
+        ('Любое')
+    `);
+    await queryRunner.query(`
+      INSERT INTO statuses (title, type)
+      VALUES 
+        ('Можно', 'Отправка'),
+        ('Нельзя', 'Отправка'),
+        ('Желательно', 'Отправка'),
+        ('Новинка', 'Отправка'),
+        ('Можно (ручная)', 'Отправка'),
+        ('Нельзя (ручная)', 'Отправка'),
+        ('Top', 'Отправка')
+    `);
+    const findNewStatus = await queryRunner.query(`SELECT id from statuses WHERE title = 'Новинка' 
+    AND type = 'Отправка'`);
     await queryRunner.addColumns('items', [
       new TableColumn({
-        name: 'can_be_send_status_id',
-        isNullable: true,
-        type: 'int'
+        name: 'send_status_id',
+        isNullable: false,
+        type: 'int',
+        default: findNewStatus[0].id
       }),
       new TableColumn({
         name: 'direction_id',
@@ -97,7 +123,7 @@ export class AddNewTable1748962183912 implements MigrationInterface {
         referencedTableName: 'directions'
       }),
       new TableForeignKey({
-        columnNames: ['can_be_send_status_id'],
+        columnNames: ['send_status_id'],
         onDelete: 'CASCADE',
         onUpdate: 'CASCADE',
         referencedColumnNames: ['id'],

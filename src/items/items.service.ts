@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { DataSource, FindOptionsWhere, In, QueryRunner } from 'typeorm';
 import axios from 'axios';
@@ -11,6 +11,7 @@ import { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity
 import { YandexItems } from './interfaces/yandex-items.interface';
 import { GetItemsListDto } from './dto/get-items-list.dto';
 import { Marketplaces } from '../info/entities/marketplaces.entity';
+import { UpdateItemInfoDto } from './dto/update-item-info.dto';
 
 @Injectable()
 export class ItemsService {
@@ -47,6 +48,34 @@ export class ItemsService {
     } catch (error) {
       this.logger.error(error);
       this.logger.error('Не смог получить список товаров');
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  async updateItemInfo(id: number, updateItemInfoDto: UpdateItemInfoDto): Promise<{ id: number }> {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+    try {
+      const findItem = await queryRunner.manager.findOne(Items, { where: { id } });
+      if (!findItem) {
+        throw new NotFoundException('Товар не найден');
+      }
+      await this.infoService.findStatus(queryRunner, { id: updateItemInfoDto.statusId });
+      await this.infoService.findDirection(queryRunner, { id: updateItemInfoDto.directionId });
+      await queryRunner.manager.update(
+        Items,
+        { id },
+        { directionId: updateItemInfoDto.directionId, sendStatusId: updateItemInfoDto.statusId }
+      );
+      await queryRunner.commitTransaction();
+      return { id };
+    } catch (error) {
+      this.logger.error(error);
+      this.logger.error('Не смог обновить товар');
+      await queryRunner.rollbackTransaction();
       throw error;
     } finally {
       await queryRunner.release();

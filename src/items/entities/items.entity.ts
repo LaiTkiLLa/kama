@@ -11,6 +11,8 @@ import {
 import { Stocks } from '../../stocks/entities/stocks.entity';
 import { Marketplaces } from '../../info/entities/marketplaces.entity';
 import { Orders } from '../../orders/entities/orders.entity';
+import { Directions } from '../../info/entities/directions.entity';
+import { Statuses } from '../../info/entities/statuses.entity';
 
 @Entity({
   name: 'items'
@@ -61,6 +63,12 @@ export class Items {
   @Column({ type: 'int', nullable: false, name: 'marketplace_id' })
   marketplaceId: number;
 
+  @Column({ type: 'int', name: 'send_status_id', nullable: true })
+  sendStatusId: number;
+
+  @Column({ type: 'int', name: 'direction_id', nullable: false })
+  directionId: number;
+
   @CreateDateColumn({
     type: 'timestamp',
     nullable: false,
@@ -88,4 +96,16 @@ export class Items {
 
   @OneToMany(() => Orders, orders => orders.item)
   orders: Orders[];
+
+  @ManyToOne(() => Directions, direction => direction.items)
+  @JoinColumn({
+    name: 'direction_id'
+  })
+  direction: Directions;
+
+  @ManyToOne(() => Statuses, sendStatus => sendStatus.items)
+  @JoinColumn({
+    name: 'send_status_id'
+  })
+  sendStatus: Statuses;
 }

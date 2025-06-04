@@ -1,4 +1,5 @@
-import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import { Column, CreateDateColumn, Entity, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import { Items } from '../../items/entities/items.entity';
 
 @Entity({
     name: 'directions'
@@ -30,4 +31,7 @@ export class Directions {
         default: new Date()
     })
     updatedAt: Date;
+
+    @OneToMany(() => Items, items => items.sendStatus)
+    items: Items[];
 }
