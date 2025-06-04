@@ -303,7 +303,7 @@ export class ItemsService {
         if (!findItem) {
           const createItem = await queryRunner.manager.create(Items, {
             article: item.offer_id,
-            category: categoryList[item.description_category_id],
+            category: categoryList[item.description_category_id] ?? 'Другое',
             title: item.name,
             barcode: item.barcodes[0],
             sku: String(item.sources[0].sku),
