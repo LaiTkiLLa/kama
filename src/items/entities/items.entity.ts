@@ -63,8 +63,8 @@ export class Items {
   @Column({ type: 'int', nullable: false, name: 'marketplace_id' })
   marketplaceId: number;
 
-  @Column({ type: 'int', name: 'can_be_send_status_id', nullable: true })
-  canBeSendStatusId: number;
+  @Column({ type: 'int', name: 'send_status_id', nullable: true })
+  sendStatusId: number;
 
   @Column({ type: 'int', name: 'direction_id', nullable: false })
   directionId: number;
