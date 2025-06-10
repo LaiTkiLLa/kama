@@ -68,7 +68,7 @@ export class ItemsService {
       await queryRunner.manager.update(
         Items,
         { id },
-        { directionId: updateItemInfoDto.directionId, sendStatusId: updateItemInfoDto.statusId }
+        { directionId: updateItemInfoDto.directionId, canBeSendStatusId: updateItemInfoDto.statusId }
       );
       await queryRunner.commitTransaction();
       return { id };
@@ -76,6 +76,28 @@ export class ItemsService {
       this.logger.error(error);
       this.logger.error('Не смог обновить товар');
       await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  async getItemStopsList() {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    try {
+      const findItems = await queryRunner.manager.createQueryBuilder(Items, 'items')
+          .leftJoinAndSelect('items.marketplace', 'marketplace')
+          .leftJoinAndSelect('items.stocks', 'stocks')
+          .leftJoinAndSelect('items.orders', 'orders')
+          .leftJoinAndSelect('items.direction', 'direction')
+          .leftJoinAndSelect('items.sendStatus', 'sendStatus')
+          .groupBy('items.article')
+          .getMany()
+      return
+    } catch (error) {
+      this.logger.error(error);
+      this.logger.error('Не смог получить список товаров');
       throw error;
     } finally {
       await queryRunner.release();
