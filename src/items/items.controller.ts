@@ -16,4 +16,9 @@ export class ItemsController {
   async updateItemInfo(@Headers('api-key') apiKey: string, @Param('id', ParseIntPipe) id: number, @Body() updateItemInfoDto: UpdateItemInfoDto) {
     return this.itemsService.updateItemInfo(id, updateItemInfoDto);
   }
+
+  @Get('stop-list')
+  async getItemsStopList(@Headers('api-key') apiKey: string) {
+    return this.itemsService.getItemStopsList();
+  }
 }

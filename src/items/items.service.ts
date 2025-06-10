@@ -12,6 +12,8 @@ import { YandexItems } from './interfaces/yandex-items.interface';
 import { GetItemsListDto } from './dto/get-items-list.dto';
 import { Marketplaces } from '../info/entities/marketplaces.entity';
 import { UpdateItemInfoDto } from './dto/update-item-info.dto';
+import { Stocks } from '../stocks/entities/stocks.entity';
+import { StopListResponse } from './interfaces/stop-list.interface';
 
 @Injectable()
 export class ItemsService {
@@ -76,6 +78,72 @@ export class ItemsService {
       this.logger.error(error);
       this.logger.error('Не смог обновить товар');
       await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  async getItemStopsList() {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    try {
+      const monthAgo = new Date(new Date().setDate(new Date().getDate() - 30));
+      const findItems = await queryRunner.manager
+        .createQueryBuilder(Items, 'items')
+        .innerJoinAndSelect('items.marketplace', 'marketplace', 'marketplace.title != :title', {
+          title: 'Ozon Second'
+        })
+        .leftJoinAndSelect('items.stocks', 'stocks', 'stocks.created_at = CURRENT_DATE')
+        .leftJoinAndSelect('items.orders', 'orders', 'orders.created_at >= DATE(:monthAgo)', { monthAgo })
+        .leftJoinAndSelect('items.direction', 'direction')
+        .leftJoinAndSelect('items.sendStatus', 'sendStatus')
+        .getMany();
+      return findItems.reduce((acc: StopListResponse[], item) => {
+        const findArticle = acc.find(el => el.article === item.article);
+        const orders = item.orders.reduce((acc, el) => {
+          acc += el.quantity;
+          return acc;
+        }, 0);
+        if (findArticle) {
+          findArticle.marketplace.push({
+            id: item.marketplaceId,
+            title: item.marketplace.title,
+            orders,
+            stocks: item.stocks[0]?.currentValue ?? 0,
+            sendStatus: {
+              id: item.sendStatusId,
+              title: item.sendStatus.title
+            }
+          });
+        } else {
+          acc.push({
+            article: item.article,
+            image: item.imageUrl,
+            title: item.title,
+            marketplace: [
+              {
+                id: item.marketplaceId,
+                title: item.marketplace.title,
+                orders,
+                stocks: item.stocks[0]?.currentValue ?? 0,
+                sendStatus: {
+                  id: item.sendStatusId,
+                  title: item.sendStatus.title
+                }
+              }
+            ],
+            direction: {
+              id: item.directionId,
+              title: item.direction.title
+            }
+          });
+        }
+        return acc;
+      }, []);
+    } catch (error) {
+      this.logger.error(error);
+      this.logger.error('Не смог получить список стоп листа');
       throw error;
     } finally {
       await queryRunner.release();
