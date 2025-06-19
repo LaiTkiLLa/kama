@@ -118,12 +118,16 @@ export class ItemsService {
           acc += el.quantity;
           return acc;
         }, 0);
+        const stocks = item.stocks.reduce((acc, el) => {
+          acc += el.currentValue;
+          return acc;
+        }, 0);
         if (findArticle) {
           findArticle.marketplace.push({
             id: item.marketplaceId,
             title: item.marketplace.title,
             orders,
-            stocks: item.stocks[0]?.currentValue ?? 0,
+            stocks,
             sendStatus: {
               id: item.sendStatusId,
               title: item.sendStatus.title
@@ -139,7 +143,7 @@ export class ItemsService {
                 id: item.marketplaceId,
                 title: item.marketplace.title,
                 orders,
-                stocks: item.stocks[0]?.currentValue ?? 0,
+                stocks,
                 sendStatus: {
                   id: item.sendStatusId,
                   title: item.sendStatus.title
