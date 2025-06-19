@@ -2,7 +2,7 @@ import { Controller, Get, Headers, Query } from '@nestjs/common';
 import { InfoService } from './info.service';
 import { GetStatusesListDto } from './dto/get-statuses-list.dto';
 
-@Controller('items')
+@Controller('info')
 export class InfoController {
   constructor(private infoService: InfoService) {}
 
