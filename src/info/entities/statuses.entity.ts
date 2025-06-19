@@ -7,6 +7,7 @@ import {
   UpdateDateColumn
 } from 'typeorm';
 import { Items } from '../../items/entities/items.entity';
+import { StatusesTypes } from '../enum/statuses.enum';
 
 @Entity({
   name: 'statuses'
@@ -27,7 +28,7 @@ export class Statuses {
     type: 'varchar',
     nullable: false
   })
-  type: string;
+  type: StatusesTypes;
 
   @CreateDateColumn({
     type: 'timestamp',
