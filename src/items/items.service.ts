@@ -1,6 +1,6 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
-import { DataSource, FindOptionsWhere, In, QueryRunner } from 'typeorm';
+import { Brackets, DataSource, FindOptionsWhere, In, QueryRunner } from 'typeorm';
 import axios from 'axios';
 import { InfoService } from '../info/info.service';
 import { ConfigService } from '@nestjs/config';
@@ -14,6 +14,7 @@ import { Marketplaces } from '../info/entities/marketplaces.entity';
 import { UpdateItemInfoDto } from './dto/update-item-info.dto';
 import { Stocks } from '../stocks/entities/stocks.entity';
 import { StopListResponse } from './interfaces/stop-list.interface';
+import { GetItemsStopListDto } from './dto/get-items-stop-list.dto';
 
 @Injectable()
 export class ItemsService {
@@ -84,12 +85,12 @@ export class ItemsService {
     }
   }
 
-  async getItemStopsList() {
+  async getItemStopsList(getItemsStopListDto: GetItemsStopListDto) {
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     try {
       const monthAgo = new Date(new Date().setDate(new Date().getDate() - 30));
-      const findItems = await queryRunner.manager
+      const queryBuilder = await queryRunner.manager
         .createQueryBuilder(Items, 'items')
         .innerJoinAndSelect('items.marketplace', 'marketplace', 'marketplace.title != :title', {
           title: 'Ozon Second'
@@ -97,8 +98,20 @@ export class ItemsService {
         .leftJoinAndSelect('items.stocks', 'stocks', 'DATE(stocks.createdAt) = CURRENT_DATE')
         .leftJoinAndSelect('items.orders', 'orders', 'orders.created_at >= DATE(:monthAgo)', { monthAgo })
         .leftJoinAndSelect('items.direction', 'direction')
-        .leftJoinAndSelect('items.sendStatus', 'sendStatus')
-        .getMany();
+        .leftJoinAndSelect('items.sendStatus', 'sendStatus');
+      if (getItemsStopListDto.searchString) {
+        const search = `%${getItemsStopListDto.searchString}%`;
+        queryBuilder.andWhere(
+          new Brackets(qb => {
+            qb.where('items.article ILIKE :search', {
+              search
+            }).orWhere('items.title ILIKE :search', {
+              search
+            });
+          })
+        );
+      }
+      const findItems = await queryBuilder.getMany();
       return findItems.reduce((acc: StopListResponse[], item) => {
         const findArticle = acc.find(el => el.article === item.article);
         const orders = item.orders.reduce((acc, el) => {

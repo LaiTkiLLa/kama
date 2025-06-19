@@ -2,6 +2,7 @@ import { Body, Controller, Get, Headers, Param, ParseIntPipe, Patch, Query } fro
 import { ItemsService } from './items.service';
 import { GetItemsListDto } from './dto/get-items-list.dto';
 import { UpdateItemInfoDto } from './dto/update-item-info.dto';
+import { GetItemsStopListDto } from './dto/get-items-stop-list.dto';
 
 @Controller('items')
 export class ItemsController {
@@ -13,12 +14,19 @@ export class ItemsController {
   }
 
   @Patch('info/:id')
-  async updateItemInfo(@Headers('api-key') apiKey: string, @Param('id', ParseIntPipe) id: number, @Body() updateItemInfoDto: UpdateItemInfoDto) {
+  async updateItemInfo(
+    @Headers('api-key') apiKey: string,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updateItemInfoDto: UpdateItemInfoDto
+  ) {
     return this.itemsService.updateItemInfo(id, updateItemInfoDto);
   }
 
   @Get('stop-list')
-  async getItemsStopList(@Headers('api-key') apiKey: string) {
-    return this.itemsService.getItemStopsList();
+  async getItemsStopList(
+    @Headers('api-key') apiKey: string,
+    @Query() getItemsStopListDto: GetItemsStopListDto
+  ) {
+    return this.itemsService.getItemStopsList(getItemsStopListDto);
   }
 }
