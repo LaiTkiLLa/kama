@@ -85,23 +85,19 @@ export class ItemsService {
     }
   }
 
-  async getItemStopsList(getItemsStopListDto: GetItemsStopListDto) {
+  async getItemStopsList(
+    getItemsStopListDto: GetItemsStopListDto
+  ): Promise<{ total: number; rows: StopListResponse[] }> {
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     try {
       const monthAgo = new Date(new Date().setDate(new Date().getDate() - 30));
-      const queryBuilder = await queryRunner.manager
+      const itemsQueryBuilder = await queryRunner.manager
         .createQueryBuilder(Items, 'items')
-        .innerJoinAndSelect('items.marketplace', 'marketplace', 'marketplace.title != :title', {
-          title: 'Ozon Second'
-        })
-        .leftJoinAndSelect('items.stocks', 'stocks', 'DATE(stocks.createdAt) = CURRENT_DATE')
-        .leftJoinAndSelect('items.orders', 'orders', 'orders.created_at >= DATE(:monthAgo)', { monthAgo })
-        .leftJoinAndSelect('items.direction', 'direction')
-        .leftJoinAndSelect('items.sendStatus', 'sendStatus');
+        .select('DISTINCT items.article', 'article');
       if (getItemsStopListDto.searchString) {
         const search = `%${getItemsStopListDto.searchString}%`;
-        queryBuilder.andWhere(
+        itemsQueryBuilder.where(
           new Brackets(qb => {
             qb.where('items.article ILIKE :search', {
               search
@@ -111,8 +107,30 @@ export class ItemsService {
           })
         );
       }
-      const findItems = await queryBuilder.getMany();
-      return findItems.reduce((acc: StopListResponse[], item) => {
+      const findItems = await itemsQueryBuilder
+        .orderBy('items.article')
+        .take(getItemsStopListDto.limit)
+        .skip(getItemsStopListDto.offset)
+        .getRawMany();
+      const mappedArticles = findItems.map(item => item.article);
+      if (!mappedArticles.length) {
+        return {
+          total: 0,
+          rows: []
+        };
+      }
+      const result = await queryRunner.manager
+        .createQueryBuilder(Items, 'items')
+        .innerJoinAndSelect('items.marketplace', 'marketplace', 'marketplace.title != :title', {
+          title: 'Ozon Second'
+        })
+        .leftJoinAndSelect('items.stocks', 'stocks', 'DATE(stocks.createdAt) = CURRENT_DATE')
+        .leftJoinAndSelect('items.orders', 'orders', 'orders.created_at >= DATE(:monthAgo)', { monthAgo })
+        .leftJoinAndSelect('items.direction', 'direction')
+        .leftJoinAndSelect('items.sendStatus', 'sendStatus')
+        .where('items.article in (:...articles)', { articles: mappedArticles })
+        .getManyAndCount();
+      const mappedResult = result[0].reduce((acc: StopListResponse[], item) => {
         const findArticle = acc.find(el => el.article === item.article);
         const orders = item.orders.reduce((acc, el) => {
           acc += el.quantity;
@@ -158,6 +176,10 @@ export class ItemsService {
         }
         return acc;
       }, []);
+      return {
+        total: result[1],
+        rows: mappedResult
+      };
     } catch (error) {
       this.logger.error(error);
       this.logger.error('Не смог получить список стоп листа');
