@@ -1,19 +1,20 @@
 export interface StopListResponse {
-  article: string
-  image: string
-  title: string
+  article: string;
+  image: string;
+  title: string;
   marketplace: {
-    id: number,
-    title: string
-    orders: number
-    stocks: number
+    id: number;
+    title: string;
+    orders: number;
+    stocks: number;
+    itemId: number;
     sendStatus: {
-      id: number
-      title: string
-    }
-  }[]
+      id: number;
+      title: string;
+    };
+  }[];
   direction: {
-    id: number
-    title: string
-  }
+    id: number;
+    title: string;
+  };
 }

@@ -12,8 +12,8 @@ import { YandexItems } from './interfaces/yandex-items.interface';
 import { GetItemsListDto } from './dto/get-items-list.dto';
 import { Marketplaces } from '../info/entities/marketplaces.entity';
 import { UpdateItemInfoDto } from './dto/update-item-info.dto';
-import { StopListResponse } from '../../dist/src/items/interfaces/stop-list.interface';
-import { GetItemsStopListDto } from '../../dist/src/items/dto/get-items-stop-list.dto';
+import { StopListResponse } from './interfaces/stop-list.interface';
+import { GetItemsStopListDto } from './dto/get-items-stop-list.dto';
 
 @Injectable()
 export class ItemsService {
