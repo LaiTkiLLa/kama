@@ -94,7 +94,7 @@ export class ItemsService {
         .innerJoinAndSelect('items.marketplace', 'marketplace', 'marketplace.title != :title', {
           title: 'Ozon Second'
         })
-        .leftJoinAndSelect('items.stocks', 'stocks', 'stocks.created_at = CURRENT_DATE')
+        .leftJoinAndSelect('items.stocks', 'stocks', 'DATE(stocks.createdAt) = CURRENT_DATE')
         .leftJoinAndSelect('items.orders', 'orders', 'orders.created_at >= DATE(:monthAgo)', { monthAgo })
         .leftJoinAndSelect('items.direction', 'direction')
         .leftJoinAndSelect('items.sendStatus', 'sendStatus')
