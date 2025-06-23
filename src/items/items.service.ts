@@ -84,41 +84,45 @@ export class ItemsService {
     }
   }
 
-  async getItemStopsList(
-    getItemsStopListDto: GetItemsStopListDto
-  ): Promise<{ total: number; rows: StopListResponse[] }> {
+  async getItemStopsList(getItemsStopListDto: GetItemsStopListDto): Promise<StopListResponse[]> {
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     try {
       const monthAgo = new Date(new Date().setDate(new Date().getDate() - 30));
-      const itemsQueryBuilder = await queryRunner.manager
-        .createQueryBuilder(Items, 'items')
-        .select('DISTINCT items.article', 'article');
-      if (getItemsStopListDto.searchString) {
-        const search = `%${getItemsStopListDto.searchString}%`;
-        itemsQueryBuilder.where(
-          new Brackets(qb => {
-            qb.where('items.article ILIKE :search', {
-              search
-            }).orWhere('items.title ILIKE :search', {
-              search
-            });
-          })
-        );
-      }
-      const findItems = await itemsQueryBuilder
-        .orderBy('items.article')
-        .take(getItemsStopListDto.limit)
-        .skip(getItemsStopListDto.offset)
-        .getRawMany();
-      const mappedArticles = findItems.map(item => item.article);
-      if (!mappedArticles.length) {
-        return {
-          total: 0,
-          rows: []
-        };
-      }
-      const result = await queryRunner.manager
+      // const itemsQueryBuilder = queryRunner.manager
+      //   .createQueryBuilder(Items, 'items')
+      //   .select('items.article', 'article')
+      //   .innerJoin('items.marketplace', 'marketplace', 'marketplace.title != :title', {
+      //     title: 'Ozon Second'
+      //   });
+      // if (getItemsStopListDto.searchString) {
+      //   const search = `%${getItemsStopListDto.searchString}%`;
+      //   itemsQueryBuilder.where(
+      //     new Brackets(qb => {
+      //       qb.where('items.article ILIKE :search', { search }).orWhere('items.title ILIKE :search', {
+      //         search
+      //       });
+      //     })
+      //   );
+      // }
+      //
+      // const findItems = await queryRunner.manager
+      //   .createQueryBuilder()
+      //   .select('DISTINCT sub.article', 'article')
+      //   .from('(' + itemsQueryBuilder.getQuery() + ')', 'sub')
+      //   .setParameters(itemsQueryBuilder.getParameters())
+      //   .orderBy('sub.article')
+      //   .take(getItemsStopListDto.limit)
+      //   .skip(getItemsStopListDto.offset)
+      //   .getRawMany();
+      // const mappedArticles = findItems.map(item => item[1].article);
+      // if (!mappedArticles.length) {
+      //   return {
+      //     total: 0,
+      //     rows: []
+      //   };
+      // }
+      const queryBuilder = await queryRunner.manager
         .createQueryBuilder(Items, 'items')
         .innerJoinAndSelect('items.marketplace', 'marketplace', 'marketplace.title != :title', {
           title: 'Ozon Second'
@@ -126,10 +130,19 @@ export class ItemsService {
         .leftJoinAndSelect('items.stocks', 'stocks', 'DATE(stocks.createdAt) = CURRENT_DATE')
         .leftJoinAndSelect('items.orders', 'orders', 'orders.created_at >= DATE(:monthAgo)', { monthAgo })
         .leftJoinAndSelect('items.direction', 'direction')
-        .leftJoinAndSelect('items.sendStatus', 'sendStatus')
-        .where('items.article in (:...articles)', { articles: mappedArticles })
-        .getManyAndCount();
-      const mappedResult = result[0].reduce((acc: StopListResponse[], item) => {
+        .leftJoinAndSelect('items.sendStatus', 'sendStatus');
+      if (getItemsStopListDto.searchString) {
+        const search = `%${getItemsStopListDto.searchString}%`;
+        queryBuilder.where(
+          new Brackets(qb => {
+            qb.where('items.article ILIKE :search', { search }).orWhere('items.title ILIKE :search', {
+              search
+            });
+          })
+        );
+      }
+      const result = await queryBuilder.getMany();
+      return result.reduce((acc: StopListResponse[], item) => {
         const findArticle = acc.find(el => el.article === item.article);
         const orders = item.orders.reduce((acc, el) => {
           acc += el.quantity;
@@ -177,10 +190,6 @@ export class ItemsService {
         }
         return acc;
       }, []);
-      return {
-        total: result[1],
-        rows: mappedResult
-      };
     } catch (error) {
       this.logger.error(error);
       this.logger.error('Не смог получить список стоп листа');
