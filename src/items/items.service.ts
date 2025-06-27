@@ -88,6 +88,7 @@ export class ItemsService {
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     try {
+      console.log('start', new Date());
       const monthAgo = new Date(new Date().setDate(new Date().getDate() - 30));
       const queryBuilder = await queryRunner.manager
         .createQueryBuilder(Items, 'items')
@@ -110,7 +111,7 @@ export class ItemsService {
             .where('ord.item_id = items.id')
             .andWhere('ord.created_at >= DATE(:monthAgo)', { monthAgo });
         }, 'ordersSum');
-
+      console.log('middle', new Date());
       if (getItemsStopListDto.searchString) {
         const search = `%${getItemsStopListDto.searchString}%`;
         queryBuilder.andWhere(
@@ -122,6 +123,7 @@ export class ItemsService {
         );
       }
       const result = await queryBuilder.getRawAndEntities();
+      console.log('end', new Date());
       const mappedItems: StopListResponse[] = [];
       result.entities.forEach((item, index) => {
         const findArticle = mappedItems.find(el => el.article === item.article);
@@ -163,6 +165,7 @@ export class ItemsService {
           });
         }
       });
+      console.log('result', new Date());
       return mappedItems;
     } catch (error) {
       this.logger.error(error);
