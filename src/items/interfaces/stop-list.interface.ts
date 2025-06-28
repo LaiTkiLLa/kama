@@ -18,3 +18,9 @@ export interface StopListResponse {
     title: string;
   };
 }
+
+export interface StopListCronResult {
+  orders: number;
+  stocks: number;
+  itemId: number;
+}

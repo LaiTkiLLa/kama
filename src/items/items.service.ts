@@ -1,5 +1,5 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { Cron } from '@nestjs/schedule';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { Brackets, DataSource, FindOptionsWhere, In, QueryRunner } from 'typeorm';
 import axios from 'axios';
 import { InfoService } from '../info/info.service';
@@ -12,7 +12,7 @@ import { YandexItems } from './interfaces/yandex-items.interface';
 import { GetItemsListDto } from './dto/get-items-list.dto';
 import { Marketplaces } from '../info/entities/marketplaces.entity';
 import { UpdateItemInfoDto } from './dto/update-item-info.dto';
-import { StopListResponse } from './interfaces/stop-list.interface';
+import { StopListCronResult, StopListResponse } from './interfaces/stop-list.interface';
 import { GetItemsStopListDto } from './dto/get-items-stop-list.dto';
 import { UpdateStopListItems } from './dto/update-status-stop-list.dto';
 import { StatusesTypes } from '../info/enum/statuses.enum';
@@ -504,5 +504,83 @@ export class ItemsService {
       }
     }
     return;
+  }
+
+  @Cron(CronExpression.EVERY_5_MINUTES)
+  async updateItemSendStatus() {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+    try {
+      const monthAgo = new Date(new Date().setDate(new Date().getDate() - 30));
+      const queryBuilder = await queryRunner.manager
+        .createQueryBuilder(Items, 'items')
+        .innerJoinAndSelect('items.sendStatus', 'sendStatus', 'sendStatus.title NOT IN (:...titles)', {
+          titles: ['Нельзя (ручная)', 'Можно (ручная)', 'Top', 'Новинка']
+        })
+        .addSelect(subQuery => {
+          return subQuery
+            .select('COALESCE(SUM(stock.currentValue), 0)', 'stocksSum')
+            .from('stocks', 'stock')
+            .where('stock.item_id = items.id')
+            .andWhere('DATE(stock.createdAt) = CURRENT_DATE');
+        }, 'stocksSum')
+        .addSelect(subQuery => {
+          return subQuery
+            .select('COALESCE(SUM(ord.quantity), 0)', 'ordersSum')
+            .from('orders', 'ord')
+            .where('ord.item_id = items.id')
+            .andWhere('ord.created_at >= DATE(:monthAgo)', { monthAgo });
+        }, 'ordersSum');
+      const result = await queryBuilder.getRawAndEntities();
+      const mappedItems: StopListCronResult[] = [];
+      result.entities.forEach((item, index) => {
+        const raw = result.raw[index];
+        mappedItems.push({
+          orders: Number(raw.ordersSum),
+          stocks: Number(raw.stocksSum),
+          itemId: item.id
+        });
+      });
+      const findSuccessStatus = await this.infoService.findStatus(queryRunner, {
+        title: 'Можно',
+        type: StatusesTypes.Отправка
+      });
+      const findRecommendedStatus = await this.infoService.findStatus(queryRunner, {
+        title: 'Желательно',
+        type: StatusesTypes.Отправка
+      });
+      const findRejectStatus = await this.infoService.findStatus(queryRunner, {
+        title: 'Нельзя',
+        type: StatusesTypes.Отправка
+      });
+      for (const item of mappedItems) {
+        const result = item.stocks / item.orders;
+        if (result >= 2) {
+          await queryRunner.manager.update(
+            Items,
+            { id: item.itemId },
+            { sendStatusId: findRecommendedStatus.id }
+          );
+        }
+        if (result <= 0) {
+          await queryRunner.manager.update(Items, { id: item.itemId }, { sendStatusId: findRejectStatus.id });
+        }
+        if (result > 0) {
+          await queryRunner.manager.update(
+            Items,
+            { id: item.itemId },
+            { sendStatusId: findSuccessStatus.id }
+          );
+        }
+      }
+      await queryRunner.commitTransaction();
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      this.logger.error(error);
+      this.logger.error('Не смог изменить статусы отправки');
+    } finally {
+      await queryRunner.release();
+    }
   }
 }
