@@ -252,6 +252,7 @@ export class ItemsService {
           );
         }
       }
+      await queryRunner.commitTransaction()
       return { success: true };
     } catch (error) {
       await queryRunner.rollbackTransaction();
