@@ -31,7 +31,7 @@ export class ItemsController {
     return this.itemsService.getItemStopsList(getItemsStopListDto);
   }
 
-  @Patch('stop-list/:id')
+  @Patch('stop-list')
   async updateItemsStopList(
     @Headers('api-key') apiKey: string,
     @Body() updateStopListItems: UpdateStopListItems
