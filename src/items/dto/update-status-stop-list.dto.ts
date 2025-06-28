@@ -23,6 +23,6 @@ export class UpdateStopListItems {
     each: true
   })
   @Type(() => UpdateStopListDto)
-  @IsArray({ message: 'itemsInfo должен передаваться массивом объектов' })
+  @IsArray({ message: 'items должен передаваться массивом объектов' })
   items: UpdateStopListDto[];
 }
