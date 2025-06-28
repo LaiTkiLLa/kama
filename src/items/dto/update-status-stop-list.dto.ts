@@ -13,7 +13,12 @@ export class UpdateStopListDto {
   @IsString()
   itemArticle: string;
 
+  @ValidateNested({
+    message: 'statuses должен передаваться массивом из объектов',
+    each: true
+  })
   @Type(() => StatusesInfo)
+  @IsArray({ message: 'statuses должен передаваться массивом объектов' })
   statuses: { marketplace: string; status: string }[];
 }
 
