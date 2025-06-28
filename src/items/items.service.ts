@@ -14,6 +14,8 @@ import { Marketplaces } from '../info/entities/marketplaces.entity';
 import { UpdateItemInfoDto } from './dto/update-item-info.dto';
 import { StopListResponse } from './interfaces/stop-list.interface';
 import { GetItemsStopListDto } from './dto/get-items-stop-list.dto';
+import { UpdateStopListItems } from './dto/update-status-stop-list.dto';
+import { StatusesTypes } from '../info/enum/statuses.enum';
 
 @Injectable()
 export class ItemsService {
@@ -88,7 +90,6 @@ export class ItemsService {
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     try {
-      console.log('start', new Date());
       const monthAgo = new Date(new Date().setDate(new Date().getDate() - 30));
       const queryBuilder = await queryRunner.manager
         .createQueryBuilder(Items, 'items')
@@ -111,7 +112,6 @@ export class ItemsService {
             .where('ord.item_id = items.id')
             .andWhere('ord.created_at >= DATE(:monthAgo)', { monthAgo });
         }, 'ordersSum');
-      console.log('middle', new Date());
       if (getItemsStopListDto.searchString) {
         const search = `%${getItemsStopListDto.searchString}%`;
         queryBuilder.andWhere(
@@ -123,7 +123,6 @@ export class ItemsService {
         );
       }
       const result = await queryBuilder.getRawAndEntities();
-      console.log('end', new Date());
       const mappedItems: StopListResponse[] = [];
       result.entities.forEach((item, index) => {
         const findArticle = mappedItems.find(el => el.article === item.article);
@@ -165,7 +164,6 @@ export class ItemsService {
           });
         }
       });
-      console.log('result', new Date());
       return mappedItems;
     } catch (error) {
       this.logger.error(error);
@@ -174,6 +172,86 @@ export class ItemsService {
     } finally {
       await queryRunner.release();
     }
+  }
+
+  async updateItemsStopList(updateStopListItems: UpdateStopListItems) {
+    const items = updateStopListItems.items.flatMap(item =>
+      item.statuses.map(el => {
+        let wbStatus;
+        let ozonStatus;
+        let yandexStatus;
+        if (el.marketplace === 'WB') {
+          wbStatus = el.status;
+        }
+        if (el.marketplace === 'Озон') {
+          ozonStatus = el.status;
+        }
+        if (el.marketplace === 'Yandex') {
+          yandexStatus = el.status;
+        }
+        return {
+          article: item.itemArticle,
+          wbStatus,
+          yandexStatus,
+          ozonStatus
+        };
+      })
+    );
+    const findMarketplaceYandex = await this.infoService.findMarketplace({
+      title: 'Yandex'
+    });
+    const findMarketplaceWB = await this.infoService.findMarketplace({
+      title: 'WB'
+    });
+    const findMarketplaceOzon = await this.infoService.findMarketplace({
+      title: 'Озон'
+    });
+    for (const item of items) {
+      const queryRunner = this.dataSource.createQueryRunner();
+      await queryRunner.connect();
+      await queryRunner.startTransaction();
+      try {
+        const findItem = await this.findItem({ article: item.article }, queryRunner);
+        if (!findItem) {
+          throw new NotFoundException('Товар не найден');
+        }
+
+        const findStatusOzon = await this.infoService.findStatus(queryRunner, {
+          title: item.ozonStatus,
+          type: StatusesTypes.Отправка
+        });
+        const findStatusWB = await this.infoService.findStatus(queryRunner, {
+          title: item.wbStatus,
+          type: StatusesTypes.Отправка
+        });
+        const findStatusYandex = await this.infoService.findStatus(queryRunner, {
+          title: item.yandexStatus,
+          type: StatusesTypes.Отправка
+        });
+        await queryRunner.manager.update(
+          Items,
+          { marketplaceId: findMarketplaceWB.id, article: item.article },
+          { sendStatusId: findStatusWB.id }
+        );
+        await queryRunner.manager.update(
+          Items,
+          { marketplaceId: findMarketplaceOzon.id, article: item.article },
+          { sendStatusId: findStatusOzon.id }
+        );
+        await queryRunner.manager.update(
+          Items,
+          { marketplaceId: findMarketplaceYandex.id, article: item.article },
+          { sendStatusId: findStatusYandex.id }
+        );
+      } catch (error) {
+        await queryRunner.rollbackTransaction();
+        this.logger.error(error);
+        this.logger.error('Не смог изменить товар в стоп листе');
+      } finally {
+        await queryRunner.release();
+      }
+    }
+    return { success: true };
   }
 
   async findItem(where: FindOptionsWhere<Items>, queryRunner: QueryRunner) {

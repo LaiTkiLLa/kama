@@ -3,6 +3,7 @@ import { ItemsService } from './items.service';
 import { GetItemsListDto } from './dto/get-items-list.dto';
 import { UpdateItemInfoDto } from './dto/update-item-info.dto';
 import { GetItemsStopListDto } from './dto/get-items-stop-list.dto';
+import { UpdateStopListItems } from './dto/update-status-stop-list.dto';
 
 @Controller('items')
 export class ItemsController {
@@ -28,5 +29,13 @@ export class ItemsController {
     @Query() getItemsStopListDto: GetItemsStopListDto
   ) {
     return this.itemsService.getItemStopsList(getItemsStopListDto);
+  }
+
+  @Patch('stop-list/:id')
+  async updateItemsStopList(
+    @Headers('api-key') apiKey: string,
+    @Body() updateStopListItems: UpdateStopListItems
+  ) {
+    return this.itemsService.updateItemsStopList(updateStopListItems);
   }
 }
