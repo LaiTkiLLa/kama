@@ -513,7 +513,7 @@ export class ItemsService {
     await queryRunner.startTransaction();
     try {
       const monthAgo = new Date(new Date().setDate(new Date().getDate() - 30));
-      const queryBuilder = await queryRunner.manager
+      const findItems = await queryRunner.manager
         .createQueryBuilder(Items, 'items')
         .innerJoinAndSelect('items.sendStatus', 'sendStatus', 'sendStatus.title NOT IN (:...titles)', {
           titles: ['Нельзя (ручная)', 'Можно (ручная)', 'Top', 'Новинка']
@@ -531,11 +531,11 @@ export class ItemsService {
             .from('orders', 'ord')
             .where('ord.item_id = items.id')
             .andWhere('ord.created_at >= DATE(:monthAgo)', { monthAgo });
-        }, 'ordersSum');
-      const result = await queryBuilder.getRawAndEntities();
+        }, 'ordersSum')
+        .getRawAndEntities();
       const mappedItems: StopListCronResult[] = [];
-      result.entities.forEach((item, index) => {
-        const raw = result.raw[index];
+      findItems.entities.forEach((item, index) => {
+        const raw = findItems.raw[index];
         mappedItems.push({
           orders: Number(raw.ordersSum),
           stocks: Number(raw.stocksSum),
