@@ -175,29 +175,28 @@ export class ItemsService {
   }
 
   async updateItemsStopList(updateStopListItems: UpdateStopListItems) {
-    const items = updateStopListItems.items.flatMap(item =>
-      item.statuses.map(el => {
-        let wbStatus: undefined | string;
-        let ozonStatus: undefined | string;
-        let yandexStatus: undefined | string;
-        if (el.marketplace === 'WB') {
-          wbStatus = el.status;
+    const items = updateStopListItems.items.map(item => {
+      let wbStatus: string | undefined = undefined;
+      let ozonStatus: string | undefined = undefined;
+      let yandexStatus: string | undefined = undefined;
+      item.statuses.forEach(status => {
+        if (status.marketplace === 'WB') {
+          wbStatus = status.status;
         }
-        if (el.marketplace === 'Озон') {
-          ozonStatus = el.status;
+        if (status.marketplace === 'Озон') {
+          ozonStatus = status.status;
         }
-        if (el.marketplace === 'Yandex') {
-          yandexStatus = el.status;
+        if (status.marketplace === 'Yandex') {
+          yandexStatus = status.status;
         }
-        return {
-          article: item.itemArticle,
-          wbStatus,
-          yandexStatus,
-          ozonStatus
-        };
-      })
-    );
-    console.log(items);
+      });
+      return {
+        article: item.itemArticle,
+        wbStatus,
+        yandexStatus,
+        ozonStatus
+      };
+    });
     const findMarketplaceYandex = await this.infoService.findMarketplace({
       title: 'Yandex'
     });
