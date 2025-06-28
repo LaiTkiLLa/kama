@@ -206,11 +206,12 @@ export class ItemsService {
     const findMarketplaceOzon = await this.infoService.findMarketplace({
       title: 'Озон'
     });
-    for (const item of items) {
-      const queryRunner = this.dataSource.createQueryRunner();
-      await queryRunner.connect();
-      await queryRunner.startTransaction();
-      try {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+    try {
+      for (const item of items) {
+        console.log(item)
         const findItem = await this.findItem({ article: item.article }, queryRunner);
         if (!findItem) {
           throw new NotFoundException('Товар не найден');
@@ -243,15 +244,15 @@ export class ItemsService {
           { marketplaceId: findMarketplaceYandex.id, article: item.article },
           { sendStatusId: findStatusYandex.id }
         );
-      } catch (error) {
-        await queryRunner.rollbackTransaction();
-        this.logger.error(error);
-        this.logger.error('Не смог изменить товар в стоп листе');
-      } finally {
-        await queryRunner.release();
       }
+      return { success: true };
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      this.logger.error(error);
+      this.logger.error('Не смог изменить товар в стоп листе');
+    } finally {
+      await queryRunner.release();
     }
-    return { success: true };
   }
 
   async findItem(where: FindOptionsWhere<Items>, queryRunner: QueryRunner) {
