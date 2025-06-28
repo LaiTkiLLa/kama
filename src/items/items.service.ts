@@ -177,9 +177,9 @@ export class ItemsService {
   async updateItemsStopList(updateStopListItems: UpdateStopListItems) {
     const items = updateStopListItems.items.flatMap(item =>
       item.statuses.map(el => {
-        let wbStatus;
-        let ozonStatus;
-        let yandexStatus;
+        let wbStatus: undefined | string;
+        let ozonStatus: undefined | string;
+        let yandexStatus: undefined | string;
         if (el.marketplace === 'WB') {
           wbStatus = el.status;
         }
@@ -197,6 +197,7 @@ export class ItemsService {
         };
       })
     );
+    console.log(items);
     const findMarketplaceYandex = await this.infoService.findMarketplace({
       title: 'Yandex'
     });
@@ -211,39 +212,46 @@ export class ItemsService {
     await queryRunner.startTransaction();
     try {
       for (const item of items) {
-        console.log(item)
         const findItem = await this.findItem({ article: item.article }, queryRunner);
         if (!findItem) {
           throw new NotFoundException('Товар не найден');
         }
-
-        const findStatusOzon = await this.infoService.findStatus(queryRunner, {
-          title: item.ozonStatus,
-          type: StatusesTypes.Отправка
-        });
-        const findStatusWB = await this.infoService.findStatus(queryRunner, {
-          title: item.wbStatus,
-          type: StatusesTypes.Отправка
-        });
-        const findStatusYandex = await this.infoService.findStatus(queryRunner, {
-          title: item.yandexStatus,
-          type: StatusesTypes.Отправка
-        });
-        await queryRunner.manager.update(
-          Items,
-          { marketplaceId: findMarketplaceWB.id, article: item.article },
-          { sendStatusId: findStatusWB.id }
-        );
-        await queryRunner.manager.update(
-          Items,
-          { marketplaceId: findMarketplaceOzon.id, article: item.article },
-          { sendStatusId: findStatusOzon.id }
-        );
-        await queryRunner.manager.update(
-          Items,
-          { marketplaceId: findMarketplaceYandex.id, article: item.article },
-          { sendStatusId: findStatusYandex.id }
-        );
+        let findStatusOzon;
+        let findStatusWB;
+        let findStatusYandex;
+        if (item.ozonStatus) {
+          findStatusOzon = await this.infoService.findStatus(queryRunner, {
+            title: item.ozonStatus,
+            type: StatusesTypes.Отправка
+          });
+          await queryRunner.manager.update(
+            Items,
+            { marketplaceId: findMarketplaceOzon.id, article: item.article },
+            { sendStatusId: findStatusOzon.id }
+          );
+        }
+        if (item.wbStatus) {
+          findStatusWB = await this.infoService.findStatus(queryRunner, {
+            title: item.wbStatus,
+            type: StatusesTypes.Отправка
+          });
+          await queryRunner.manager.update(
+            Items,
+            { marketplaceId: findMarketplaceWB.id, article: item.article },
+            { sendStatusId: findStatusWB.id }
+          );
+        }
+        if (item.yandexStatus) {
+          findStatusYandex = await this.infoService.findStatus(queryRunner, {
+            title: item.yandexStatus,
+            type: StatusesTypes.Отправка
+          });
+          await queryRunner.manager.update(
+            Items,
+            { marketplaceId: findMarketplaceYandex.id, article: item.article },
+            { sendStatusId: findStatusYandex.id }
+          );
+        }
       }
       return { success: true };
     } catch (error) {
