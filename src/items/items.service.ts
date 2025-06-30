@@ -213,7 +213,7 @@ export class ItemsService {
       for (const item of items) {
         const findItem = await this.findItem({ article: item.article }, queryRunner);
         if (!findItem) {
-          throw new NotFoundException('Товар не найден');
+          continue;
         }
         let findStatusOzon;
         let findStatusWB;
@@ -252,7 +252,7 @@ export class ItemsService {
           );
         }
       }
-      await queryRunner.commitTransaction()
+      await queryRunner.commitTransaction();
       return { success: true };
     } catch (error) {
       await queryRunner.rollbackTransaction();

@@ -1,13 +1,14 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
-import { Cron } from '@nestjs/schedule';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import axios from 'axios';
 import { GetOrdersOzon, GetOrdersResult } from './interfaces/get-orders-ozon.interface';
 import { ItemsService } from '../items/items.service';
 import { InfoService } from '../info/info.service';
 import { Orders } from './entities/orders.entity';
 import { GetOrdersWb } from './interfaces/get-orders-wb.interface';
+import { GetOrdersYandex, YandexOrderInfo } from './interfaces/get-orders-yandex.interface';
 
 @Injectable()
 export class OrdersService {
@@ -53,7 +54,7 @@ export class OrdersService {
           await queryRunner.commitTransaction();
           continue;
         }
-        const orderDate = new Date(`${order.date}Z`)
+        const orderDate = new Date(`${order.date}Z`);
         const findOrder = await queryRunner.manager.findOne(Orders, {
           where: {
             marketplaceOrderIdentification: order.gNumber,
@@ -75,6 +76,7 @@ export class OrdersService {
             createdAt: orderDate,
             marketplaceId: findMarketplace.id
           });
+          ``;
           await queryRunner.manager.save(Orders, createOrder);
         } else {
           await queryRunner.manager.update(
@@ -100,12 +102,136 @@ export class OrdersService {
     return;
   }
 
+  @Cron('0 */21 * * * *')
+  async getOrdersYandex() {
+    const monthAgo = new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split('T')[0];
+    const finalEndDate = new Date().toISOString().split('T')[0];
+    const apiToken = await this.configService.get('yandexToken');
+    const companyId = await this.configService.get('yandexCLientId');
+    let urlOrders = `https://api.partner.market.yandex.ru/campaigns/${companyId}/stats/orders`;
+
+    let hasMoreData = true;
+    let pageToken;
+
+    const ordersData: YandexOrderInfo[] = [];
+
+    const rejectedStatuses = [
+      'CANCELLED_BEFORE_PROCESSING',
+      'CANCELLED_IN_DELIVERY',
+      'CANCELLED_IN_PROCESSING',
+      'RETURNED'
+    ];
+
+    while (hasMoreData) {
+      const { data }: { data: GetOrdersYandex } = await axios.post(
+        urlOrders,
+        {
+          dateFrom: monthAgo,
+          dateTo: finalEndDate,
+          hasCis: false
+        },
+        {
+          headers: {
+            'Api-Key': apiToken
+          }
+        }
+      );
+      for (const order of data.result.orders) {
+        order.items.forEach(item => {
+          const findRejectedStatus = rejectedStatuses.find(el => el === order.status);
+          const price = item.prices.find(price => price.type === 'BUYER');
+          ordersData.push({
+            orderId: String(order.id),
+            marketSku: item.marketSku,
+            shopSku: item.shopSku,
+            count: !item.details.length ? item.count : 0,
+            orderDate: order.creationDate,
+            warehouse: {
+              id: item.warehouse.id,
+              name: item.warehouse.name
+            },
+            orderSum: price ? price.total : 0,
+            isCancel: findRejectedStatus ? true : false
+          });
+        });
+      }
+      if (data.result.paging.nextPageToken) {
+        hasMoreData = true;
+        pageToken = data.result.paging.nextPageToken;
+        urlOrders = `https://api.partner.market.yandex.ru/campaigns/${companyId}/stats/orders?page_token=${pageToken}`;
+      } else {
+        hasMoreData = false;
+      }
+    }
+    const findMarketplace = await this.infoService.findMarketplace({ title: 'Yandex' });
+    for (const order of ordersData) {
+      const queryRunner = await this.dataSource.createQueryRunner();
+      await queryRunner.connect();
+      await queryRunner.startTransaction();
+      try {
+        const findItem = await this.itemsService.findItem(
+          { marketplaceIdentifier: String(order.marketSku) },
+          queryRunner
+        );
+        if (!findItem) {
+          await queryRunner.commitTransaction();
+          continue;
+        }
+        const findWarehouse = await this.infoService.findOrCreateWarehouses(
+          { title: order.warehouse.name, id: order.warehouse.id },
+          queryRunner
+        );
+
+        const orderDate = new Date(`${order.orderDate}Z`);
+        const findOrder = await queryRunner.manager.findOne(Orders, {
+          where: {
+            marketplaceOrderIdentification: order.orderId,
+            createdAt: orderDate,
+            itemId: findItem.id
+          }
+        });
+        if (!findOrder) {
+          const createOrder = await queryRunner.manager.create(Orders, {
+            quantity: order.count,
+            sum: order.orderSum,
+            marketplaceOrderIdentification: String(order.orderId),
+            isCanceled: order.isCancel,
+            itemId: findItem.id,
+            totalPrice: order.orderSum,
+            warehouseId: findWarehouse.id,
+            createdAt: orderDate,
+            marketplaceId: findMarketplace.id
+          });
+          await queryRunner.manager.save(Orders, createOrder);
+        } else {
+          await queryRunner.manager.update(
+            Orders,
+            { id: findOrder.id },
+            {
+              quantity: order.count,
+              sum: order.orderSum,
+              isCanceled: order.isCancel,
+              totalPrice: order.orderSum
+            }
+          );
+        }
+        await queryRunner.commitTransaction();
+      } catch (error) {
+        this.logger.error(error);
+        this.logger.error('Не смог добавить заказы Yandex');
+      } finally {
+        await queryRunner.release();
+      }
+    }
+    return;
+  }
+
   @Cron('0 */22 * * * *')
   async getOrdersOzonFirst() {
     const ozonToken = await this.configService.get('ozonToken');
     const clientId = await this.configService.get('ozonClientId');
     const findMarketplace = await this.infoService.findMarketplace({ title: 'Озон' });
-    await this.getOrdersOzon(ozonToken, clientId, findMarketplace.id)
+    await this.getOrdersOzon(ozonToken, clientId, findMarketplace.id);
     return;
   }
 
@@ -114,11 +240,11 @@ export class OrdersService {
     const ozonToken = await this.configService.get('ozonSecondToken');
     const clientId = await this.configService.get('ozonSecondClientId');
     const findMarketplace = await this.infoService.findMarketplace({ title: 'Ozon Second' });
-    await this.getOrdersOzon(ozonToken, clientId, findMarketplace.id)
+    await this.getOrdersOzon(ozonToken, clientId, findMarketplace.id);
     return;
   }
 
-  async getOrdersOzon(ozonToken: string, clientId: string, marketplaceId: number){
+  async getOrdersOzon(ozonToken: string, clientId: string, marketplaceId: number) {
     const headers = {
       'Client-Id': clientId,
       'Api-Key': ozonToken
@@ -231,6 +357,6 @@ export class OrdersService {
         await queryRunner.release();
       }
     }
-    return
+    return;
   }
 }
