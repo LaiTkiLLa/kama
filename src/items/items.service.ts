@@ -322,6 +322,7 @@ export class ItemsService {
       await queryRunner.connect();
       await queryRunner.startTransaction();
       try {
+        const findColor = item.characteristics.find(el => el.name === 'Цвет');
         const findItem = await queryRunner.manager.findOne(Items, {
           where: { marketplaceIdentifier: String(item.nmID), marketplaceId: wbMarketplace.id }
         });
@@ -334,14 +335,20 @@ export class ItemsService {
             sku: '0',
             marketplaceIdentifier: String(item.nmID),
             imageUrl: item.photos[0].big,
-            marketplaceId: wbMarketplace.id
+            marketplaceId: wbMarketplace.id,
+            color: findColor ? findColor.value[0] : ''
           });
           await queryRunner.manager.save(Items, createItem);
         } else {
           await queryRunner.manager.update(
             Items,
             { id: findItem.id },
-            { article: item.vendorCode, category: item.subjectName, title: item.title }
+            {
+              article: item.vendorCode,
+              category: item.subjectName,
+              title: item.title,
+              color: findColor ? findColor.value[0] : ''
+            }
           );
         }
         await queryRunner.commitTransaction();

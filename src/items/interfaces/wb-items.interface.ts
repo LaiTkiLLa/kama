@@ -19,7 +19,7 @@ export interface WbItem {
   needKiz: boolean;
   dimensions: [];
   photos: { big: string }[];
-  characteristics: [];
+  characteristics: [{ id: number; name: string; value: string[] }];
   sizes: [];
   createdAt: string;
   updatedAt: string;
