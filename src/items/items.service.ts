@@ -127,6 +127,11 @@ export class ItemsService {
       result.entities.forEach((item, index) => {
         const findArticle = mappedItems.find(el => el.article === item.article);
         const raw = result.raw[index];
+        const wbBarcode = !item.barcode
+          ? item.marketplace.title === 'WB'
+            ? item.barcode
+            : ''
+          : item.barcode;
         if (findArticle) {
           findArticle.marketplace.push({
             id: item.marketplaceId,
@@ -137,19 +142,22 @@ export class ItemsService {
             sendStatus: {
               id: item.sendStatusId,
               title: item.sendStatus.title
-            }
+            },
+            wbBarcode
           });
         } else {
           mappedItems.push({
             article: item.article,
             image: item.imageUrl,
             title: item.title,
+            color: item.color,
             marketplace: [
               {
                 id: item.marketplaceId,
                 title: item.marketplace.title,
                 itemId: item.id,
                 orders: Number(raw.ordersSum),
+                wbBarcode,
                 stocks: Number(raw.stocksSum),
                 sendStatus: {
                   id: item.sendStatusId,

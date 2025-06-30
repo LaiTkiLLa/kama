@@ -38,6 +38,9 @@ export class Items {
   @Column({ type: 'varchar', nullable: false })
   sku: string;
 
+  @Column({ type: 'varchar', nullable: true })
+  color: string;
+
   @Column({ type: 'varchar', nullable: false, name: 'marketplace_identifier' })
   marketplaceIdentifier: string;
 
