@@ -127,11 +127,7 @@ export class ItemsService {
       result.entities.forEach((item, index) => {
         const findArticle = mappedItems.find(el => el.article === item.article);
         const raw = result.raw[index];
-        const wbBarcode = !item.barcode
-          ? item.marketplace.title === 'WB'
-            ? item.barcode
-            : ''
-          : item.barcode;
+        const wbBarcode = item.barcode ? item.barcode : item.marketplace.title === 'WB' ? item.barcode : '';
         if (findArticle) {
           findArticle.marketplace.push({
             id: item.marketplaceId,
