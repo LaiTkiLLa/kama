@@ -129,6 +129,7 @@ export class ItemsService {
         const raw = result.raw[index];
         const wbBarcode = item.barcode ? item.barcode : item.marketplace.title === 'WB' ? item.barcode : '';
         if (findArticle) {
+          findArticle.wbBarcode = wbBarcode;
           findArticle.marketplace.push({
             id: item.marketplaceId,
             title: item.marketplace.title,
@@ -138,8 +139,7 @@ export class ItemsService {
             sendStatus: {
               id: item.sendStatusId,
               title: item.sendStatus.title
-            },
-            wbBarcode
+            }
           });
         } else {
           mappedItems.push({
@@ -147,13 +147,13 @@ export class ItemsService {
             image: item.imageUrl,
             title: item.title,
             color: item.color,
+            wbBarcode,
             marketplace: [
               {
                 id: item.marketplaceId,
                 title: item.marketplace.title,
                 itemId: item.id,
                 orders: Number(raw.ordersSum),
-                wbBarcode,
                 stocks: Number(raw.stocksSum),
                 sendStatus: {
                   id: item.sendStatusId,
