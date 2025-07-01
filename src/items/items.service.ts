@@ -135,6 +135,7 @@ export class ItemsService {
             : '';
         if (findArticle) {
           findArticle.wbBarcode = wbBarcode;
+          findArticle.wbIdentifier = wbIdentifier;
           findArticle.marketplace.push({
             id: item.marketplaceId,
             title: item.marketplace.title,
