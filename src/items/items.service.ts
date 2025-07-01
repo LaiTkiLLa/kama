@@ -127,11 +127,15 @@ export class ItemsService {
       result.entities.forEach((item, index) => {
         const findArticle = mappedItems.find(el => el.article === item.article);
         const raw = result.raw[index];
-        const wbBarcode = item.marketplace.title === 'WB' ? item.barcode : '';
-        const wbIdentifier = item.marketplace.title === 'WB' ? item.marketplaceIdentifier : '';
+        const wbBarcode = item.marketplace.title === 'WB' ? item.barcode : undefined;
+        const wbIdentifier = item.marketplace.title === 'WB' ? item.marketplaceIdentifier : undefined;
         if (findArticle) {
-          findArticle.wbBarcode = wbBarcode;
-          findArticle.wbIdentifier = wbIdentifier;
+          if (wbBarcode) {
+            findArticle.wbBarcode = wbBarcode;
+          }
+          if (wbIdentifier) {
+            findArticle.wbIdentifier = wbIdentifier;
+          }
           findArticle.marketplace.push({
             id: item.marketplaceId,
             title: item.marketplace.title,
@@ -149,8 +153,8 @@ export class ItemsService {
             image: item.imageUrl,
             title: item.title,
             color: item.color,
-            wbBarcode,
-            wbIdentifier,
+            wbBarcode: wbBarcode ? wbBarcode : null,
+            wbIdentifier: wbIdentifier ? wbIdentifier : null,
             marketplace: [
               {
                 id: item.marketplaceId,

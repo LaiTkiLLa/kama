@@ -3,8 +3,8 @@ export interface StopListResponse {
   image: string;
   title: string;
   color: string;
-  wbBarcode: string;
-  wbIdentifier: string;
+  wbBarcode: string | null;
+  wbIdentifier: string | null;
   marketplace: {
     id: number;
     title: string;
