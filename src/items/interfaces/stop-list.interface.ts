@@ -4,6 +4,7 @@ export interface StopListResponse {
   title: string;
   color: string;
   wbBarcode: string;
+  wbIdentifier: string;
   marketplace: {
     id: number;
     title: string;

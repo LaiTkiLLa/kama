@@ -128,6 +128,11 @@ export class ItemsService {
         const findArticle = mappedItems.find(el => el.article === item.article);
         const raw = result.raw[index];
         const wbBarcode = item.barcode ? item.barcode : item.marketplace.title === 'WB' ? item.barcode : '';
+        const wbIdentifier = item.marketplaceIdentifier
+          ? item.marketplaceIdentifier
+          : item.marketplace.title === 'WB'
+            ? item.marketplaceIdentifier
+            : '';
         if (findArticle) {
           findArticle.wbBarcode = wbBarcode;
           findArticle.marketplace.push({
@@ -148,6 +153,7 @@ export class ItemsService {
             title: item.title,
             color: item.color,
             wbBarcode,
+            wbIdentifier,
             marketplace: [
               {
                 id: item.marketplaceId,
