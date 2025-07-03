@@ -21,7 +21,8 @@ export class OrdersService {
 
   private logger: Logger = new Logger(OrdersService.name);
 
-  @Cron('0 */23 * * * *')
+  // @Cron('0 */23 * * * *')
+  @Cron(CronExpression.EVERY_5_MINUTES)
   async getOrdersWb() {
     const today = new Date();
     const todayMorning = new Date(today.setHours(3, 0, 0, 0));
@@ -29,8 +30,8 @@ export class OrdersService {
     const urlOrders = 'https://statistics-api.wildberries.ru/api/v1/supplier/orders';
     const { data }: { data: GetOrdersWb[] } = await axios.get(urlOrders, {
       params: {
-        dateFrom: todayMorning,
-        flag: 1
+        dateFrom: '2025-03-17',
+        flag: 0
       },
       headers: {
         Authorization: apiToken
@@ -57,7 +58,7 @@ export class OrdersService {
         const orderDate = new Date(`${order.date}Z`);
         const findOrder = await queryRunner.manager.findOne(Orders, {
           where: {
-            marketplaceOrderIdentification: order.gNumber,
+            marketplaceOrderIdentification: order.srid,
             createdAt: orderDate,
             itemId: findItem.id
           }
@@ -66,7 +67,7 @@ export class OrdersService {
           const createOrder = await queryRunner.manager.create(Orders, {
             quantity: 1,
             sum: order.finishedPrice,
-            marketplaceOrderIdentification: String(order.gNumber),
+            marketplaceOrderIdentification: order.srid,
             isCanceled: order.isCancel,
             itemId: findItem.id,
             totalPrice: order.totalPrice,
@@ -76,7 +77,6 @@ export class OrdersService {
             createdAt: orderDate,
             marketplaceId: findMarketplace.id
           });
-          ``;
           await queryRunner.manager.save(Orders, createOrder);
         } else {
           await queryRunner.manager.update(
