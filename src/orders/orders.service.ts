@@ -21,16 +21,14 @@ export class OrdersService {
 
   private logger: Logger = new Logger(OrdersService.name);
 
-  // @Cron('0 */23 * * * *')
-  @Cron(CronExpression.EVERY_5_MINUTES)
+  @Cron('0 */23 * * * *')
   async getOrdersWb() {
-    const today = new Date();
-    const todayMorning = new Date(today.setHours(3, 0, 0, 0));
+    const tenDaysAgo = new Date(new Date().setDate(new Date().getDate() - 10));
     const apiToken = await this.configService.get('wbToken');
     const urlOrders = 'https://statistics-api.wildberries.ru/api/v1/supplier/orders';
     const { data }: { data: GetOrdersWb[] } = await axios.get(urlOrders, {
       params: {
-        dateFrom: '2025-03-17',
+        dateFrom: tenDaysAgo,
         flag: 0
       },
       headers: {
