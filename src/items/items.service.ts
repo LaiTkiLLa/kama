@@ -589,9 +589,11 @@ export class ItemsService {
             { id: item.itemId },
             { sendStatusId: findRecommendedStatus.id }
           );
+          continue;
         }
         if (result <= 0) {
           await queryRunner.manager.update(Items, { id: item.itemId }, { sendStatusId: findRejectStatus.id });
+          continue;
         }
         if (result > 0) {
           await queryRunner.manager.update(
