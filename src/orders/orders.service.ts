@@ -62,7 +62,7 @@ export class OrdersService {
           }
         });
         if (!findOrder) {
-          const createOrder = await queryRunner.manager.create(Orders, {
+          const createOrder = queryRunner.manager.create(Orders, {
             quantity: 1,
             sum: order.finishedPrice,
             marketplaceOrderIdentification: order.srid,
@@ -142,7 +142,7 @@ export class OrdersService {
             orderId: String(order.id),
             marketSku: item.marketSku,
             shopSku: item.shopSku,
-            count: !item.details.length ? item.count : 0,
+            count: !item?.details?.length ? item.count : 0,
             orderDate: order.creationDate,
             warehouse: {
               id: item.warehouse.id,
@@ -189,7 +189,7 @@ export class OrdersService {
           }
         });
         if (!findOrder) {
-          const createOrder = await queryRunner.manager.create(Orders, {
+          const createOrder = queryRunner.manager.create(Orders, {
             quantity: order.count,
             sum: order.orderSum,
             marketplaceOrderIdentification: String(order.orderId),
