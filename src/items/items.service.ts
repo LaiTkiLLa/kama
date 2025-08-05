@@ -388,8 +388,8 @@ export class ItemsService {
     return;
   }
 
-  // @Cron('0 */44 * * * *')
-  @Cron(CronExpression.EVERY_MINUTE)
+  @Cron('0 */44 * * * *')
+  // @Cron(CronExpression.EVERY_MINUTE)
   async getYandexItems() {
     const businessId = await this.configService.get('yandexBusinessId');
     const itemsUrl = `https://api.partner.market.yandex.ru/businesses/${businessId}/offer-mappings?limit=200`;
@@ -404,7 +404,6 @@ export class ItemsService {
     );
     const yandexMarketplace = await this.infoService.findMarketplace({ title: 'Yandex' });
     for (const item of data.result.offerMappings) {
-      console.log(item);
       const queryRunner = await this.dataSource.createQueryRunner();
       await queryRunner.connect();
       try {
