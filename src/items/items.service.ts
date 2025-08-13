@@ -91,7 +91,7 @@ export class ItemsService {
     await queryRunner.connect();
     try {
       const monthAgo = new Date(new Date().setDate(new Date().getDate() - 30));
-      const queryBuilder = await queryRunner.manager
+      const queryBuilder = queryRunner.manager
         .createQueryBuilder(Items, 'items')
         .innerJoinAndSelect('items.marketplace', 'marketplace', 'marketplace.title != :title', {
           title: 'Ozon Second'
@@ -121,6 +121,16 @@ export class ItemsService {
             });
           })
         );
+      }
+      if (getItemsStopListDto.marketplaceTitle) {
+        queryBuilder.andWhere('marketplace.title = :marketplaceTitle', {
+          marketplaceTitle: getItemsStopListDto.marketplaceTitle
+        });
+      }
+      if (getItemsStopListDto.withActiveStatus) {
+        queryBuilder.andWhere('sendStatus.title IN (:...activeStatuses)', {
+          activeStatuses: ['Новинка', 'Top', 'Желательно', 'Можно', 'Можно (ручная)']
+        });
       }
       const result = await queryBuilder.getRawAndEntities();
       const mappedItems: StopListResponse[] = [];

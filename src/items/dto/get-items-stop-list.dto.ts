@@ -1,4 +1,5 @@
-import { IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsBoolean, IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
+import { Transform } from 'class-transformer';
 
 export class GetItemsStopListDto {
   // @Type(() => Number)
@@ -16,4 +17,14 @@ export class GetItemsStopListDto {
   @IsOptional()
   @MaxLength(100)
   searchString: string;
+
+  @IsString()
+  @IsOptional()
+  @IsIn(['WB', 'Озон', 'Yandex'])
+  marketplaceTitle: string;
+
+  @Transform(({ value }) => value === 'true' || value === true)
+  @IsBoolean()
+  @IsOptional()
+  withActiveStatus: boolean;
 }
