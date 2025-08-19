@@ -129,7 +129,7 @@ export class ItemsService {
       }
       if (getItemsStopListDto.withActiveStatus) {
         queryBuilder.andWhere('sendStatus.title IN (:...activeStatuses)', {
-          activeStatuses: ['Новинка', 'Top', 'Желательно', 'Можно', 'Можно (ручная)']
+          activeStatuses: ['Новинка', 'Top']
         });
       }
       const result = await queryBuilder.getRawAndEntities();
