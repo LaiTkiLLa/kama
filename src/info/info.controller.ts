@@ -10,4 +10,9 @@ export class InfoController {
   async getStatusesList(@Headers('api-key') apiKey: string, @Query() getStatusesListDto: GetStatusesListDto) {
     return this.infoService.getStatusesList(getStatusesListDto);
   }
+
+  @Get('suppliers')
+  async getSuppliersList(@Headers('api-key') apiKey: string) {
+    return this.infoService.getSuppliersList();
+  }
 }

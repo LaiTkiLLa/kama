@@ -58,6 +58,34 @@ export class ItemsService {
     }
   }
 
+  async getItemsDirectoryList() {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    try {
+      const findItems = await queryRunner.manager
+        .createQueryBuilder(Items, 'items')
+        .leftJoinAndSelect('items.supplier', 'supplier')
+        .distinctOn(['items.article'])
+        .getMany();
+      return findItems.map(item => {
+        return {
+          article: item.article,
+          category: item.category,
+          image: item.imageUrl,
+          barcode: item.barcode,
+          supplierTitle: item.supplier ? item.supplier.title : null,
+          title: item.title,
+        };
+      });
+    } catch (error) {
+      this.logger.error(error);
+      this.logger.error('Не смог получить справочник товаров');
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
   async updateItemInfo(id: number, updateItemInfoDto: UpdateItemInfoDto): Promise<{ id: number }> {
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();

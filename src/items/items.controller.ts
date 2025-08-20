@@ -14,6 +14,11 @@ export class ItemsController {
     return this.itemsService.getItemsList(getItemsListDto);
   }
 
+  @Get('directory/list')
+  async getItemsDirectoryList(@Headers('api-key') apiKey: string) {
+    return this.itemsService.getItemsDirectoryList();
+  }
+
   @Patch('info/:id')
   async updateItemInfo(
     @Headers('api-key') apiKey: string,

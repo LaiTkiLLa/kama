@@ -1,10 +1,10 @@
-import { MigrationInterface, QueryRunner, Table } from 'typeorm';
+import { MigrationInterface, QueryRunner, Table, TableColumn } from 'typeorm';
 
-export class CreateWarehousesEntity1741708948443 implements MigrationInterface {
+export class AddSuppliersTable1755678261744 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.createTable(
       new Table({
-        name: 'warehouses',
+        name: 'suppliers',
         columns: [
           {
             name: 'id',
@@ -34,9 +34,31 @@ export class CreateWarehousesEntity1741708948443 implements MigrationInterface {
         ]
       })
     );
+    await queryRunner.addColumn(
+      'items',
+      new TableColumn({
+        name: 'supplier_id',
+        isNullable: true,
+        type: 'int'
+      })
+    );
+    await queryRunner.query(`
+      INSERT INTO suppliers (title)
+      VALUES 
+        ('Paidu'),
+        ('DeepFit'),
+        ('Avec Sports'),
+        ('Huayi sports'),
+        ('Yiwulifeng'),
+        ('Tianlong reap'),
+        ('Miska Sports'),
+        ('Gymbo'),
+        ('Amyups')
+    `);
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.dropTable('warehouses')
+    await queryRunner.dropTable('suppliers');
+    await queryRunner.dropColumn('items', 'supplier_id');
   }
 }

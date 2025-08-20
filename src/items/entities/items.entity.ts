@@ -13,6 +13,7 @@ import { Marketplaces } from '../../info/entities/marketplaces.entity';
 import { Orders } from '../../orders/entities/orders.entity';
 import { Directions } from '../../info/entities/directions.entity';
 import { Statuses } from '../../info/entities/statuses.entity';
+import { Suppliers } from '../../info/entities/suppliers.entity';
 
 @Entity({
   name: 'items'
@@ -72,6 +73,9 @@ export class Items {
   @Column({ type: 'int', name: 'direction_id', nullable: false })
   directionId: number;
 
+  @Column({ type: 'int', name: 'supplier_id', nullable: true })
+  supplierId: number;
+
   @CreateDateColumn({
     type: 'timestamp',
     nullable: false,
@@ -105,6 +109,12 @@ export class Items {
     name: 'direction_id'
   })
   direction: Directions;
+
+  @ManyToOne(() => Suppliers, supplier => supplier.items)
+  @JoinColumn({
+    name: 'supplier_id'
+  })
+  supplier: Suppliers;
 
   @ManyToOne(() => Statuses, sendStatus => sendStatus.items)
   @JoinColumn({

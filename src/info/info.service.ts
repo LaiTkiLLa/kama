@@ -71,6 +71,24 @@ export class InfoService {
     }
   }
 
+  async getSuppliersList() {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    try {
+      const findSuppliers = await queryRunner.manager.find(Statuses, {});
+      return findSuppliers.map(supplier => ({
+        id: supplier.id,
+        title: supplier.title
+      }));
+    } catch (error) {
+      this.logger.error(error);
+      this.logger.error('Не смог получить список поставщиков');
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
   async findDirection(queryRunner: QueryRunner, where: FindOptionsWhere<Directions>) {
     const findDirection = await queryRunner.manager.findOne(Directions, { where });
     if (!findDirection) {
