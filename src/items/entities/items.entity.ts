@@ -30,6 +30,10 @@ export class Items {
   @Column({ type: 'varchar', nullable: false })
   category: string;
 
+  //Свое наименование категории
+  @Column({ type: 'varchar', nullable: true, name: 'own_category' })
+  ownCategory: string;
+
   @Column({ type: 'varchar', nullable: false })
   title: string;
 

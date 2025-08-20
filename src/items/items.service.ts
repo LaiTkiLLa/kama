@@ -16,6 +16,8 @@ import { StopListCronResult, StopListResponse } from './interfaces/stop-list.int
 import { GetItemsStopListDto } from './dto/get-items-stop-list.dto';
 import { UpdateStopListItems } from './dto/update-status-stop-list.dto';
 import { StatusesTypes } from '../info/enum/statuses.enum';
+import { UpdateArrayDirectoryItemsInfoDto } from './dto/update-directory-item-info.dto';
+import { Suppliers } from '../info/entities/suppliers.entity';
 
 @Injectable()
 export class ItemsService {
@@ -70,13 +72,53 @@ export class ItemsService {
       return findItems.map(item => {
         return {
           article: item.article,
-          category: item.category,
+          ownCategory: item.ownCategory,
           image: item.imageUrl,
           barcode: item.barcode,
           supplierTitle: item.supplier ? item.supplier.title : null,
-          title: item.title,
+          title: item.title
         };
       });
+    } catch (error) {
+      this.logger.error(error);
+      this.logger.error('Не смог получить справочник товаров');
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  async updateArrayDirectoryItemsInfo(updateArrayDirectoryItemsInfoDto: UpdateArrayDirectoryItemsInfoDto) {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    try {
+      for (const item of updateArrayDirectoryItemsInfoDto.items) {
+        const findItems = await queryRunner.manager.find(Items, {
+          where: {
+            article: item.article
+          }
+        });
+        if (!findItems) {
+          throw new NotFoundException('Артикул не найден');
+        }
+        const findSupplier = await queryRunner.manager.findOne(Suppliers, {
+          where: {
+            title: item.supplier
+          }
+        });
+        if (!findSupplier) {
+          throw new NotFoundException('Поставщик не найден');
+        }
+        await queryRunner.manager.update(
+          Items,
+          { id: In(findItems.map(el => el.id)) },
+          {
+            supplierId: item.supplier ? findSupplier.id : undefined,
+            ownCategory: item.ownCategory ? item.ownCategory : undefined
+          }
+        );
+      }
+      return { success: true };
     } catch (error) {
       this.logger.error(error);
       this.logger.error('Не смог получить справочник товаров');

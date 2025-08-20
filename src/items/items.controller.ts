@@ -4,6 +4,7 @@ import { GetItemsListDto } from './dto/get-items-list.dto';
 import { UpdateItemInfoDto } from './dto/update-item-info.dto';
 import { GetItemsStopListDto } from './dto/get-items-stop-list.dto';
 import { UpdateStopListItems } from './dto/update-status-stop-list.dto';
+import { UpdateArrayDirectoryItemsInfoDto, UpdateDirectoryItemInfoDto } from './dto/update-directory-item-info.dto';
 
 @Controller('items')
 export class ItemsController {
@@ -17,6 +18,14 @@ export class ItemsController {
   @Get('directory/list')
   async getItemsDirectoryList(@Headers('api-key') apiKey: string) {
     return this.itemsService.getItemsDirectoryList();
+  }
+
+  @Patch('directory/info')
+  async updateArrayDirectoryItemsInfo(
+    @Headers('api-key') apiKey: string,
+    @Body() updateArrayDirectoryItemsInfoDto: UpdateArrayDirectoryItemsInfoDto
+  ) {
+    return this.itemsService.updateArrayDirectoryItemsInfo(updateArrayDirectoryItemsInfoDto);
   }
 
   @Patch('info/:id')
