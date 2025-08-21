@@ -78,7 +78,7 @@ export class Items {
   directionId: number;
 
   @Column({ type: 'int', name: 'supplier_id', nullable: true })
-  supplierId: number;
+  supplierId: number | null;
 
   @CreateDateColumn({
     type: 'timestamp',

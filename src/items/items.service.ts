@@ -101,20 +101,24 @@ export class ItemsService {
         if (!findItems) {
           throw new NotFoundException('Артикул не найден');
         }
-        const findSupplier = await queryRunner.manager.findOne(Suppliers, {
-          where: {
-            title: item.supplier
+        let supplierId: number | null = null;
+        if (item.supplier) {
+          const findSupplier = await queryRunner.manager.findOne(Suppliers, {
+            where: {
+              title: item.supplier
+            }
+          });
+          if (!findSupplier) {
+            throw new NotFoundException('Поставщик не найден');
           }
-        });
-        if (!findSupplier) {
-          throw new NotFoundException('Поставщик не найден');
+          supplierId = findSupplier.id;
         }
         await queryRunner.manager.update(
           Items,
           { id: In(findItems.map(el => el.id)) },
           {
-            supplierId: item.supplier ? findSupplier.id : undefined,
-            ownCategory: item.ownCategory ? item.ownCategory : undefined
+            supplierId,
+            ownCategory: item.ownCategory
           }
         );
       }
