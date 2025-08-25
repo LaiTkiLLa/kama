@@ -92,9 +92,17 @@ export class Items {
   @Column({ type: 'varchar', nullable: true, name: 'box_number' })
   boxNumber: string
 
-  //Номер короба
+  //Размеры факт
   @Column({ type: 'varchar', nullable: true, name: 'dimensions_fact' })
   dimensionsFact: string
+
+  //Размеры WB д/ш/в/вес
+  @Column({ type: 'varchar', nullable: true, name: 'dimensions_wb' })
+  dimensionsWB: string
+
+  //Размеры Ozon
+  @Column({ type: 'varchar', nullable: true, name: 'dimensions_ozon' })
+  dimensionsOzon: string
 
   //Объем товара
   @Column({ type: 'varchar', nullable: true })
