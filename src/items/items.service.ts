@@ -428,7 +428,7 @@ export class ItemsService {
           where: { marketplaceIdentifier: String(item.nmID), marketplaceId: wbMarketplace.id }
         });
         if (!findItem) {
-          const createItem = await queryRunner.manager.create(Items, {
+          const createItem = queryRunner.manager.create(Items, {
             article: item.vendorCode,
             category: item.subjectName,
             title: item.title,
@@ -437,7 +437,8 @@ export class ItemsService {
             marketplaceIdentifier: String(item.nmID),
             imageUrl: item.photos[0].big,
             marketplaceId: wbMarketplace.id,
-            color: findColor ? findColor.value[0] : ''
+            color: findColor ? findColor.value[0] : '',
+            dimensionsWB: `${item.dimensions.length}/${item.dimensions.width}/${item.dimensions.height}/${item.dimensions.weightBrutto}`
           });
           await queryRunner.manager.save(Items, createItem);
         } else {
@@ -448,7 +449,8 @@ export class ItemsService {
               article: item.vendorCode,
               category: item.subjectName,
               title: item.title,
-              color: findColor ? findColor.value[0] : ''
+              color: findColor ? findColor.value[0] : '',
+              dimensionsWB: `${item.dimensions.length}/${item.dimensions.width}/${item.dimensions.height}/${item.dimensions.weightBrutto}`
             }
           );
         }

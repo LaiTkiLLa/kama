@@ -17,7 +17,12 @@ export interface WbItem {
   brand: string;
   title: string;
   needKiz: boolean;
-  dimensions: [];
+  dimensions: {
+    width: number;
+    height: number;
+    length: number;
+    weightBrutto: number
+  };
   photos: { big: string }[];
   characteristics: [{ id: number; name: string; value: string[] }];
   sizes: [];
