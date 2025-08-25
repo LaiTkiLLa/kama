@@ -13,6 +13,26 @@ export class UpdateDirectoryItemInfoDto {
   @IsString()
   @IsOptional()
   article: string;
+
+  @IsString()
+  @IsOptional()
+  classification: string;
+
+  @IsString()
+  @IsOptional()
+  multiplicity: string;
+
+  @IsString()
+  @IsOptional()
+  boxNumber: string;
+
+  @IsString()
+  @IsOptional()
+  dimensionsFact: string;
+
+  @IsString()
+  @IsOptional()
+  volume: string;
 }
 
 export class UpdateArrayDirectoryItemsInfoDto {
