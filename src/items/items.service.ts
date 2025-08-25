@@ -118,7 +118,12 @@ export class ItemsService {
           { id: In(findItems.map(el => el.id)) },
           {
             supplierId,
-            ownCategory: item.ownCategory
+            ownCategory: item.ownCategory,
+            classification: item.classification,
+            multiplicity: item.multiplicity,
+            boxNumber: item.boxNumber,
+            dimensionsFact: item.dimensionsFact,
+            volume: item.volume
           }
         );
       }

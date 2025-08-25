@@ -80,6 +80,26 @@ export class Items {
   @Column({ type: 'int', name: 'supplier_id', nullable: true })
   supplierId: number | null;
 
+  //Классификация товара
+  @Column({ type: 'varchar', nullable: true })
+  classification: string
+
+  //Кратность товара
+  @Column({ type: 'varchar', nullable: true })
+  multiplicity: string
+
+  //Номер короба
+  @Column({ type: 'varchar', nullable: true, name: 'box_number' })
+  boxNumber: string
+
+  //Номер короба
+  @Column({ type: 'varchar', nullable: true, name: 'dimensions_fact' })
+  dimensionsFact: string
+
+  //Объем товара
+  @Column({ type: 'varchar', nullable: true })
+  volume: string
+
   @CreateDateColumn({
     type: 'timestamp',
     nullable: false,
