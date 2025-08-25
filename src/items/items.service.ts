@@ -76,7 +76,12 @@ export class ItemsService {
           image: item.imageUrl,
           barcode: item.barcode,
           supplierTitle: item.supplier ? item.supplier.title : null,
-          title: item.title
+          title: item.title,
+          classification: item.classification,
+          multiplicity: item.multiplicity,
+          boxNumber: item.boxNumber,
+          dimensionsFact: item.dimensionsFact,
+          volume: item.volume
         };
       });
     } catch (error) {
