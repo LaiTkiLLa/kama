@@ -4,7 +4,6 @@ import { Brackets, DataSource, FindOptionsWhere, In, QueryRunner } from 'typeorm
 import axios from 'axios';
 import { InfoService } from '../info/info.service';
 import { ConfigService } from '@nestjs/config';
-import { OzomItemsInfo, OzonItems } from './interfaces/ozon-items.interface';
 import { Items } from './entities/items.entity';
 import { WbItem, WbItems } from './interfaces/wb-items.interface';
 import { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
@@ -18,6 +17,8 @@ import { UpdateStopListItems } from './dto/update-status-stop-list.dto';
 import { StatusesTypes } from '../info/enum/statuses.enum';
 import { UpdateArrayDirectoryItemsInfoDto } from './dto/update-directory-item-info.dto';
 import { Suppliers } from '../info/entities/suppliers.entity';
+import { OzonItemsInfo } from './interfaces/ozon-items-info.interface';
+import { GetItemsDirectoryList } from './interfaces/get-items-directory-list.interface';
 
 @Injectable()
 export class ItemsService {
@@ -67,23 +68,35 @@ export class ItemsService {
       const findItems = await queryRunner.manager
         .createQueryBuilder(Items, 'items')
         .leftJoinAndSelect('items.supplier', 'supplier')
-        .distinctOn(['items.article'])
+        .leftJoinAndSelect('items.marketplace', 'marketplace')
         .getMany();
-      return findItems.map(item => {
-        return {
-          article: item.article,
-          ownCategory: item.ownCategory,
-          image: item.imageUrl,
-          barcode: item.barcode,
-          supplierTitle: item.supplier ? item.supplier.title : null,
-          title: item.title,
-          classification: item.classification,
-          multiplicity: item.multiplicity,
-          boxNumber: item.boxNumber,
-          dimensionsFact: item.dimensionsFact,
-          volume: item.volume
-        };
-      });
+      return findItems.reduce<GetItemsDirectoryList[]>((acc, item) => {
+        const findItem = acc.find(el => el.article);
+        if (!findItem) {
+          acc.push({
+            article: item.article,
+            ownCategory: item.ownCategory,
+            image: item.imageUrl,
+            barcode: item.barcode,
+            supplierTitle: item.supplier ? item.supplier.title : null,
+            title: item.title,
+            classification: item.classification,
+            multiplicity: item.multiplicity,
+            boxNumber: item.boxNumber,
+            dimensionsFact: item.dimensionsFact,
+            dimensionsWB: item.dimensionsWB,
+            dimensionsOzon: item.dimensionsOzon,
+            volume: item.volume
+          });
+        } else {
+          if (item.marketplace.title === 'WB') {
+            findItem.dimensionsWB = item.dimensionsWB;
+          } else if (item.marketplace.title === 'Озон') {
+            findItem.dimensionsOzon = item.dimensionsOzon;
+          }
+        }
+        return acc;
+      }, []);
     } catch (error) {
       this.logger.error(error);
       this.logger.error('Не смог получить справочник товаров');
@@ -419,7 +432,7 @@ export class ItemsService {
     }
     const wbMarketplace = await this.infoService.findMarketplace({ title: 'WB' });
     for (const item of items) {
-      const queryRunner = await this.dataSource.createQueryRunner();
+      const queryRunner = this.dataSource.createQueryRunner();
       await queryRunner.connect();
       await queryRunner.startTransaction();
       try {
@@ -438,6 +451,8 @@ export class ItemsService {
             imageUrl: item.photos[0].big,
             marketplaceId: wbMarketplace.id,
             color: findColor ? findColor.value[0] : '',
+            createdAt: item.createdAt,
+            //Размеры в см, вес в кг
             dimensionsWB: `${item.dimensions.length}/${item.dimensions.width}/${item.dimensions.height}/${item.dimensions.weightBrutto}`
           });
           await queryRunner.manager.save(Items, createItem);
@@ -450,6 +465,7 @@ export class ItemsService {
               category: item.subjectName,
               title: item.title,
               color: findColor ? findColor.value[0] : '',
+              //Размеры в см, вес в кг
               dimensionsWB: `${item.dimensions.length}/${item.dimensions.width}/${item.dimensions.height}/${item.dimensions.weightBrutto}`
             }
           );
@@ -514,7 +530,7 @@ export class ItemsService {
           }
         });
         if (!findItem) {
-          const createItem = await queryRunner.manager.create(Items, {
+          const createItem = queryRunner.manager.create(Items, {
             article: item.offer.offerId,
             category: item.offer.category ?? item.mapping.marketCategoryName,
             title: item.offer.name,
@@ -548,13 +564,18 @@ export class ItemsService {
   }
 
   async getOzonItems(ozonToken: string, clientId: string, marketplaceId: number) {
-    const itemsUrl = 'https://api-seller.ozon.ru/v3/product/list';
     const headers = {
       'Client-Id': clientId,
       'Api-Key': ozonToken
     };
-    const getOzonItems: { data: { result: OzonItems } } = await axios.post(
-      itemsUrl,
+    const categoryList = {
+      17028709: 'Фитнес и йога',
+      17028698: 'Туристическая посуда',
+      17028707: 'Гантели'
+    };
+    const ozonUrlItemsInfo = 'https://api-seller.ozon.ru/v4/product/info/attributes';
+    const { data }: { data: { result: OzonItemsInfo[] } } = await axios.post(
+      ozonUrlItemsInfo,
       {
         limit: 1000,
         last_id: '',
@@ -564,48 +585,29 @@ export class ItemsService {
       },
       { headers }
     );
-    const itemsInfo: { article: string; marketplaceIdentifier: string }[] = [];
-    for (const item of getOzonItems.data.result.items) {
-      itemsInfo.push({
-        article: item.offer_id,
-        marketplaceIdentifier: item.product_id.toString()
-      });
-    }
-    const ozonUrlListItems = 'https://api-seller.ozon.ru/v3/product/info/list';
-
-    const { data }: { data: OzomItemsInfo } = await axios.post(
-      ozonUrlListItems,
-      {
-        product_id: itemsInfo.map(item => item.marketplaceIdentifier)
-      },
-      { headers }
-    );
-    const categoryList = {
-      17028709: 'Фитнес и йога',
-      17028698: 'Туристическая посуда',
-      17028707: 'Гантели'
-    };
-    for (const item of data.items) {
-      const queryRunner = await this.dataSource.createQueryRunner();
+    for (const item of data.result) {
+      const queryRunner = this.dataSource.createQueryRunner();
       await queryRunner.connect();
       try {
         await queryRunner.startTransaction();
-        if (!item.sources.length) {
+        if (!item.sku) {
           continue;
         }
         const findItem = await queryRunner.manager.findOne(Items, {
           where: { marketplaceIdentifier: String(item.id), marketplaceId }
         });
         if (!findItem) {
-          const createItem = await queryRunner.manager.create(Items, {
+          const createItem = queryRunner.manager.create(Items, {
             article: item.offer_id,
             category: categoryList[item.description_category_id] ?? 'Другое',
             title: item.name,
-            barcode: item.barcodes[0],
-            sku: String(item.sources[0].sku),
+            barcode: item.barcode,
+            sku: String(item.sku),
             marketplaceIdentifier: String(item.id),
-            imageUrl: item.primary_image[0],
-            marketplaceId
+            imageUrl: item.primary_image,
+            marketplaceId,
+            //Переводим размеры в см, вес в кг
+            dimensionsOzon: `${Number((item.depth / 10).toFixed(2))}/${Number((item.width / 10).toFixed(2))}/${Number((item.height / 10).toFixed(2))}/${Number((item.weight / 1000).toFixed(3))}`
           });
           await queryRunner.manager.save(Items, createItem);
         } else {
@@ -614,7 +616,9 @@ export class ItemsService {
             { id: findItem.id },
             {
               article: item.offer_id,
-              title: item.name
+              title: item.name,
+              //Переводим размеры в см, вес в кг
+              dimensionsOzon: `${Number((item.depth / 10).toFixed(2))}/${Number((item.width / 10).toFixed(2))}/${Number((item.height / 10).toFixed(2))}/${Number((item.weight / 1000).toFixed(3))}`
             }
           );
         }
