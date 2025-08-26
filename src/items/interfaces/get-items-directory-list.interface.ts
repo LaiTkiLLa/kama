@@ -12,4 +12,5 @@ export interface GetItemsDirectoryList {
   dimensionsWB: string;
   dimensionsOzon: string;
   volume: string;
+  wbCreatedAt: Date
 }

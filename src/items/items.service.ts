@@ -86,11 +86,13 @@ export class ItemsService {
             dimensionsFact: item.dimensionsFact,
             dimensionsWB: item.dimensionsWB,
             dimensionsOzon: item.dimensionsOzon,
-            volume: item.volume
+            volume: item.volume,
+            wbCreatedAt: item.wbCreatedAt
           });
         } else {
           if (item.marketplace.title === 'WB') {
             findItem.dimensionsWB = item.dimensionsWB;
+            findItem.wbCreatedAt = item.wbCreatedAt;
           } else if (item.marketplace.title === 'Озон') {
             findItem.dimensionsOzon = item.dimensionsOzon;
           }
@@ -451,7 +453,7 @@ export class ItemsService {
             imageUrl: item.photos[0].big,
             marketplaceId: wbMarketplace.id,
             color: findColor ? findColor.value[0] : '',
-            createdAt: item.createdAt,
+            wbCreatedAt: item.createdAt,
             //Размеры в см, вес в кг
             dimensionsWB: `${item.dimensions.length}/${item.dimensions.width}/${item.dimensions.height}/${item.dimensions.weightBrutto}`
           });
