@@ -4,7 +4,7 @@ import { GetItemsListDto } from './dto/get-items-list.dto';
 import { UpdateItemInfoDto } from './dto/update-item-info.dto';
 import { GetItemsStopListDto } from './dto/get-items-stop-list.dto';
 import { UpdateStopListItems } from './dto/update-status-stop-list.dto';
-import { UpdateArrayDirectoryItemsInfoDto, UpdateDirectoryItemInfoDto } from './dto/update-directory-item-info.dto';
+import { UpdateArrayDirectoryItemsInfoDto } from './dto/update-directory-item-info.dto';
 
 @Controller('items')
 export class ItemsController {

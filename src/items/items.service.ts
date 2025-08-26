@@ -71,7 +71,7 @@ export class ItemsService {
         .leftJoinAndSelect('items.marketplace', 'marketplace')
         .getMany();
       return findItems.reduce<GetItemsDirectoryList[]>((acc, item) => {
-        const findItem = acc.find(el => el.article);
+        const findItem = acc.find(el => el.article === item.article);
         if (!findItem) {
           acc.push({
             article: item.article,
