@@ -82,31 +82,39 @@ export class Items {
 
   //Классификация товара
   @Column({ type: 'varchar', nullable: true })
-  classification: string
+  classification: string;
 
   //Кратность товара
   @Column({ type: 'varchar', nullable: true })
-  multiplicity: string
+  multiplicity: string;
 
   //Номер короба
   @Column({ type: 'varchar', nullable: true, name: 'box_number' })
-  boxNumber: string
+  boxNumber: string;
 
   //Размеры факт
   @Column({ type: 'varchar', nullable: true, name: 'dimensions_fact' })
-  dimensionsFact: string
+  dimensionsFact: string;
 
   //Размеры WB д/ш/в/вес
   @Column({ type: 'varchar', nullable: true, name: 'dimensions_wb' })
-  dimensionsWB: string
+  dimensionsWB: string;
 
-  //Размеры Ozon
+  //Размеры Ozon д/ш/в/вес
   @Column({ type: 'varchar', nullable: true, name: 'dimensions_ozon' })
-  dimensionsOzon: string
+  dimensionsOzon: string;
 
   //Объем товара
   @Column({ type: 'varchar', nullable: true })
-  volume: string
+  volume: string;
+
+  //Дата создания товара на WB
+  @Column({
+    type: 'timestamp',
+    nullable: true,
+    name: 'wb_created_at'
+  })
+  wbCreatedAt: Date;
 
   @CreateDateColumn({
     type: 'timestamp',
