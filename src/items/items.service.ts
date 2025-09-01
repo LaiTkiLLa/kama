@@ -80,6 +80,8 @@ export class ItemsService {
             barcode: item.barcode,
             supplierTitle: item.supplier ? item.supplier.title : null,
             title: item.title,
+            color: item.color,
+            articleOld: item.articleOld,
             classification: item.classification,
             multiplicity: item.multiplicity,
             boxNumber: item.boxNumber,

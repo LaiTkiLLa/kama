@@ -102,7 +102,7 @@ export class AddNewTable1748962183912 implements MigrationInterface {
     AND type = 'Отправка'`);
     await queryRunner.addColumns('items', [
       new TableColumn({
-        name: 'can_be_send_status_id',
+        name: 'send_status_id',
         isNullable: false,
         type: 'int',
         default: findNewStatus[0].id
@@ -123,7 +123,7 @@ export class AddNewTable1748962183912 implements MigrationInterface {
         referencedTableName: 'directions'
       }),
       new TableForeignKey({
-        columnNames: ['can_be_send_status_id'],
+        columnNames: ['send_status_id'],
         onDelete: 'CASCADE',
         onUpdate: 'CASCADE',
         referencedColumnNames: ['id'],
@@ -133,7 +133,7 @@ export class AddNewTable1748962183912 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.dropColumn('items', 'can_be_send_status_id');
+    await queryRunner.dropColumn('items', 'send_status_id');
     await queryRunner.dropColumn('items', 'direction_id');
     await queryRunner.dropTable('directions');
     await queryRunner.dropTable('statuses');

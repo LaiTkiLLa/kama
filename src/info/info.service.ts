@@ -25,7 +25,7 @@ export class InfoService {
     let findWarehouse = await queryRunner.manager.findOne(Warehouses, { where });
     if (!findWarehouse) {
       const createData = { title: where.title } as { title: string };
-      const createWarehouse = await queryRunner.manager.create(Warehouses, createData);
+      const createWarehouse = queryRunner.manager.create(Warehouses, createData);
       findWarehouse = await queryRunner.manager.save(Warehouses, createWarehouse);
     }
     return findWarehouse;
@@ -41,7 +41,7 @@ export class InfoService {
     return findMarketplace;
   }
 
-  async findStatus(queryRunner: QueryRunner, where: FindOptionsWhere<Statuses>) {
+  async findStatus(queryRunner: QueryRunner, where: FindOptionsWhere<Statuses>): Promise<Statuses> {
     const findStatus = await queryRunner.manager.findOne(Statuses, { where });
     if (!findStatus) {
       throw new NotFoundException('Статус не найден');
@@ -99,7 +99,7 @@ export class InfoService {
 
   @Cron(CronExpression.EVERY_6_HOURS)
   async getYandexWarehouses() {
-    const yandexToken = await this.configService.get('yandexToken');
+    const yandexToken: string = await this.configService.get('yandexToken');
     const warehousesUrl = 'https://api.partner.market.yandex.ru/warehouses';
     const { data }: { data: GetYandexWarehouses } = await axios.get(warehousesUrl, {
       headers: {
@@ -114,13 +114,15 @@ export class InfoService {
           where: { marketplaceId: String(warehouse.id) }
         });
         if (!findWarehouse) {
-          const createWarehouse = await queryRunner.manager.create(Warehouses, {
+          const createWarehouse = queryRunner.manager.create(Warehouses, {
             title: warehouse.name,
             marketplaceId: String(warehouse.id)
           });
           await queryRunner.manager.insert(Warehouses, createWarehouse);
         }
       } catch (error) {
+        this.logger.error(error);
+        this.logger.error('Не смог получить склады яндекса');
       } finally {
         await queryRunner.release();
       }

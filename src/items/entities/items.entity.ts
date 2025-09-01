@@ -27,6 +27,9 @@ export class Items {
   @Column({ type: 'varchar', nullable: false })
   article: string;
 
+  @Column({ type: 'varchar', nullable: false, name: 'article_old' })
+  articleOld: string;
+
   @Column({ type: 'varchar', nullable: false })
   category: string;
 
