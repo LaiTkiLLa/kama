@@ -99,7 +99,7 @@ export class InfoService {
 
   @Cron(CronExpression.EVERY_6_HOURS)
   async getYandexWarehouses() {
-    const yandexToken: string = await this.configService.get('yandexToken');
+    const yandexToken = await this.configService.get('yandexToken');
     const warehousesUrl = 'https://api.partner.market.yandex.ru/warehouses';
     const { data }: { data: GetYandexWarehouses } = await axios.get(warehousesUrl, {
       headers: {
