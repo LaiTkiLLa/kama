@@ -639,7 +639,7 @@ export class ItemsService {
     return;
   }
 
-  @Cron(CronExpression.EVERY_30_SECONDS)
+  @Cron(CronExpression.EVERY_5_MINUTES)
   async updateItemSendStatus() {
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
