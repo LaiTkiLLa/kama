@@ -469,6 +469,7 @@ export class ItemsService {
               article: item.vendorCode,
               category: item.subjectName,
               title: item.title,
+              wbCreatedAt: item.createdAt,
               color: findColor ? findColor.value[0] : '',
               //Размеры в см, вес в кг
               dimensionsWB: `${item.dimensions.length}/${item.dimensions.width}/${item.dimensions.height}/${item.dimensions.weightBrutto}`
@@ -690,7 +691,7 @@ export class ItemsService {
       });
       for (const item of mappedItems) {
         const result = item.stocks / item.orders;
-        if (item.itemId === 29) {
+        if (item.itemId === 9176) {
           console.log(item);
           console.log('result', result);
           console.log('item.stocks - item.orders ', item.stocks - item.orders);
