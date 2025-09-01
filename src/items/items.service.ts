@@ -690,13 +690,16 @@ export class ItemsService {
         type: StatusesTypes.Отправка
       });
       for (const item of mappedItems) {
-        const result = item.stocks / item.orders;
+        const result = Number((item.stocks / item.orders).toFixed(2));
         if (item.itemId === 9176) {
           console.log(item);
           console.log('result', result);
           console.log('item.stocks - item.orders ', item.stocks - item.orders);
         }
         if (result >= 2) {
+          if (item.itemId === 9176) {
+            console.log('пум пум пум');
+          }
           await queryRunner.manager.update(
             Items,
             { id: item.itemId },
