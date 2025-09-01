@@ -521,7 +521,7 @@ export class ItemsService {
     );
     const yandexMarketplace = await this.infoService.findMarketplace({ title: 'Yandex' });
     for (const item of data.result.offerMappings) {
-      const queryRunner = await this.dataSource.createQueryRunner();
+      const queryRunner = this.dataSource.createQueryRunner();
       await queryRunner.connect();
       try {
         await queryRunner.startTransaction();
@@ -639,7 +639,7 @@ export class ItemsService {
     return;
   }
 
-  @Cron(CronExpression.EVERY_5_MINUTES)
+  @Cron(CronExpression.EVERY_30_SECONDS)
   async updateItemSendStatus() {
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
@@ -666,6 +666,7 @@ export class ItemsService {
             .andWhere('ord.created_at >= DATE(:monthAgo)', { monthAgo });
         }, 'ordersSum')
         .getRawAndEntities();
+      console.log('monthAgo', monthAgo);
       const mappedItems: StopListCronResult[] = [];
       findItems.entities.forEach((item, index) => {
         const raw = findItems.raw[index];
@@ -689,6 +690,11 @@ export class ItemsService {
       });
       for (const item of mappedItems) {
         const result = item.stocks / item.orders;
+        if (item.itemId === 29) {
+          console.log(item);
+          console.log('result', result);
+          console.log('item.stocks - item.orders ', item.stocks - item.orders);
+        }
         if (result >= 2) {
           await queryRunner.manager.update(
             Items,
