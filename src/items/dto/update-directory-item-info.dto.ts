@@ -32,6 +32,10 @@ export class UpdateDirectoryItemInfoDto {
 
   @IsString()
   @IsOptional()
+  articleOld: string;
+
+  @IsString()
+  @IsOptional()
   volume: string;
 }
 

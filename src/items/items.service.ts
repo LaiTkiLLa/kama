@@ -145,7 +145,8 @@ export class ItemsService {
             multiplicity: item.multiplicity,
             boxNumber: item.boxNumber,
             dimensionsFact: item.dimensionsFact,
-            volume: item.volume
+            volume: item.volume,
+            articleOld: item.articleOld
           }
         );
       }
