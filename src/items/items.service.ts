@@ -71,10 +71,10 @@ export class ItemsService {
         .leftJoinAndSelect('items.marketplace', 'marketplace')
         .where('items.isArchive = :isArchive', { isArchive: false })
         .getMany();
-      return findItems.reduce<GetItemsDirectoryList[]>((acc, item) => {
-        const findItem = acc.find(el => el.article === item.article);
-        if (!findItem) {
-          acc.push({
+      const filterWbItems = findItems
+        .filter(item => item.marketplace.title === 'WB')
+        .map(item => {
+          return {
             article: item.article,
             ownCategory: item.ownCategory,
             image: item.imageUrl,
@@ -88,20 +88,19 @@ export class ItemsService {
             boxNumber: item.boxNumber,
             dimensionsFact: item.dimensionsFact,
             dimensionsWB: item.dimensionsWB,
-            dimensionsOzon: item.dimensionsOzon,
+            dimensionsOzon: '',
             volume: item.volume,
             wbCreatedAt: item.wbCreatedAt
-          });
-        } else {
-          if (item.marketplace.title === 'WB') {
-            findItem.dimensionsWB = item.dimensionsWB;
-            findItem.wbCreatedAt = item.wbCreatedAt;
-          } else if (item.marketplace.title === 'Озон') {
-            findItem.dimensionsOzon = item.dimensionsOzon;
-          }
+          };
+        });
+      const filterOzonItems = findItems.filter(item => item.marketplace.title === 'Озон');
+      for (const ozonItem of filterOzonItems) {
+        const findItem = filterWbItems.find(wbItem => wbItem.article === ozonItem.article);
+        if (findItem) {
+          findItem.dimensionsOzon = ozonItem.dimensionsOzon;
         }
-        return acc;
-      }, []);
+      }
+      return filterWbItems;
     } catch (error) {
       this.logger.error(error);
       this.logger.error('Не смог получить справочник товаров');
