@@ -69,6 +69,7 @@ export class ItemsService {
         .createQueryBuilder(Items, 'items')
         .leftJoinAndSelect('items.supplier', 'supplier')
         .leftJoinAndSelect('items.marketplace', 'marketplace')
+        .where('items.isArchive = :isArchive', { isArchive: false })
         .getMany();
       return findItems.reduce<GetItemsDirectoryList[]>((acc, item) => {
         const findItem = acc.find(el => el.article === item.article);

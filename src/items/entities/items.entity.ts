@@ -111,6 +111,14 @@ export class Items {
   @Column({ type: 'varchar', nullable: true })
   volume: string;
 
+  @Column({
+    type: 'boolean',
+    nullable: false,
+    default: false,
+    name: 'is_archive'
+  })
+  isArchive: boolean;
+
   //Дата создания товара на WB
   @Column({
     type: 'timestamp',
