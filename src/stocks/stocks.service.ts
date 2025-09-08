@@ -67,6 +67,7 @@ export class StocksService {
           color: stock.item.color,
           classification: stock.item.classification,
           multiplicity: stock.item.multiplicity,
+          category: stock.item.category,
           boxNumber: stock.item.boxNumber,
           supplier: stock.item.supplier ? stock.item.supplier.title : null,
           supplierOldArticle: stock.item.articleOld,

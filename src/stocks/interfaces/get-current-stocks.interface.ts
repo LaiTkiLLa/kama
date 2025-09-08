@@ -29,4 +29,5 @@ export interface GetCurrentStocks {
   multiplicity: string;
   boxNumber: string;
   supplierOldArticle: string;
+  category: string
 }
