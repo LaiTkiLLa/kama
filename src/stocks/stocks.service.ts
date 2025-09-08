@@ -64,7 +64,12 @@ export class StocksService {
           cost: 0,
           growthPercent: 0,
           salePrice: 0,
-          supplier: '',
+          color: stock.item.color,
+          classification: stock.item.classification,
+          multiplicity: stock.item.multiplicity,
+          boxNumber: stock.item.boxNumber,
+          supplier: stock.item.supplier ? stock.item.supplier.title : null,
+          supplierOldArticle: stock.item.articleOld,
           middlePrice: 0,
           itemId: stock.itemId
         });
@@ -121,7 +126,7 @@ export class StocksService {
     });
     const findMarketplace = await this.infoService.findMarketplace({ title: 'WB' });
     for (const stock of data) {
-      const queryRunner = await this.dataSource.createQueryRunner();
+      const queryRunner = this.dataSource.createQueryRunner();
       await queryRunner.connect();
       await queryRunner.startTransaction();
       try {
@@ -155,7 +160,7 @@ export class StocksService {
             }
           );
         } else {
-          const createStock = await queryRunner.manager.create(Stocks, {
+          const createStock = queryRunner.manager.create(Stocks, {
             itemId: findItem.id,
             warehouseId: findWarehouse.id,
             currentValue: stock.quantity,
@@ -182,7 +187,7 @@ export class StocksService {
     const ozonToken = await this.configService.get('ozonToken');
     const clientId = await this.configService.get('ozonClientId');
     const findMarketplace = await this.infoService.findMarketplace({ title: 'Озон' });
-    await this.getOzonStocks(clientId, ozonToken, findMarketplace.id)
+    await this.getOzonStocks(clientId, ozonToken, findMarketplace.id);
     return;
   }
 
@@ -191,7 +196,7 @@ export class StocksService {
     const ozonToken = await this.configService.get('ozonSecondToken');
     const clientId = await this.configService.get('ozonSecondClientId');
     const findMarketplace = await this.infoService.findMarketplace({ title: 'Ozon Second' });
-    await this.getOzonStocks(clientId, ozonToken, findMarketplace.id)
+    await this.getOzonStocks(clientId, ozonToken, findMarketplace.id);
     return;
   }
 
@@ -247,7 +252,7 @@ export class StocksService {
       promised: number;
       marketplaceId: number;
     }[] = [];
-    const queryRunner = await this.dataSource.createQueryRunner();
+    const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     try {
       for (const stock of stocks) {
@@ -336,7 +341,7 @@ export class StocksService {
             }
           );
         } else {
-          const createStock = await queryRunner.manager.create(Stocks, {
+          const createStock = queryRunner.manager.create(Stocks, {
             itemId: item.itemId,
             warehouseId: item.warehouseId,
             currentValue: item.currentValue,
@@ -355,7 +360,7 @@ export class StocksService {
     }
   }
 
-  async getOzonStocks(clientId: string, ozonToken: string, marketplaceId: number){
+  async getOzonStocks(clientId: string, ozonToken: string, marketplaceId: number) {
     const headers = {
       'Client-Id': clientId,
       'Api-Key': ozonToken
@@ -396,7 +401,7 @@ export class StocksService {
       }
     }
     for (const stock of stocks) {
-      const queryRunner = await this.dataSource.createQueryRunner();
+      const queryRunner = this.dataSource.createQueryRunner();
       await queryRunner.connect();
       await queryRunner.startTransaction();
       try {
@@ -404,10 +409,7 @@ export class StocksService {
           { title: stock.warehouse },
           queryRunner
         );
-        const findItem = await this.itemsService.findItem(
-          { sku: stock.sku, marketplaceId },
-          queryRunner
-        );
+        const findItem = await this.itemsService.findItem({ sku: stock.sku, marketplaceId }, queryRunner);
         if (!findItem) {
           await queryRunner.commitTransaction();
           continue;
@@ -429,7 +431,7 @@ export class StocksService {
             }
           );
         } else {
-          const createStock = await queryRunner.manager.create(Stocks, {
+          const createStock = queryRunner.manager.create(Stocks, {
             itemId: findItem.id,
             warehouseId: findWarehouse.id,
             currentValue: stock.current,
@@ -448,6 +450,6 @@ export class StocksService {
         await queryRunner.release();
       }
     }
-    return
+    return;
   }
 }
