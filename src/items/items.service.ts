@@ -90,7 +90,8 @@ export class ItemsService {
             dimensionsWB: item.dimensionsWB,
             dimensionsOzon: '',
             volume: item.volume,
-            wbCreatedAt: item.wbCreatedAt
+            wbCreatedAt: item.wbCreatedAt,
+            category: item.category,
           };
         });
       const filterOzonItems = findItems.filter(item => item.marketplace.title === 'Озон');
