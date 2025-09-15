@@ -31,6 +31,7 @@ export class StocksService {
       .createQueryBuilder(Stocks, 'stocks')
       .leftJoinAndSelect('stocks.marketplace', 'marketplace')
       .leftJoinAndSelect('stocks.item', 'item')
+      .leftJoinAndSelect('item.supplier', 'supplier')
       .where('marketplace.title = :marketplace', { marketplace: getCurrentStocksDto.marketplace })
       .andWhere('Date(stocks.createdAt) = Date(:today)', { today })
       .getMany();
