@@ -31,4 +31,5 @@ export interface GetCurrentStocks {
   supplierOldArticle: string;
   category: string;
   wbCreatedAt: string | Date;
+  title: string;
 }

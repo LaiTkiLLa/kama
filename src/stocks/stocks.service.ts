@@ -74,7 +74,8 @@ export class StocksService {
           supplierOldArticle: stock.item.articleOld,
           middlePrice: 0,
           itemId: stock.itemId,
-          wbCreatedAt: stock.item.wbCreatedAt
+          wbCreatedAt: stock.item.wbCreatedAt,
+          title: stock.item.title
         });
       }
       return acc;
