@@ -5,10 +5,10 @@ export interface GetCurrentStocks {
   orders: number;
   orderLastMonth: number;
   imageUrl: string;
-  inWayToClient;
+  inWayToClient: number;
   sku: string;
-  inWayFromClient;
-  quantityFull;
+  inWayFromClient: number;
+  quantityFull: number;
   ordersSum: number;
   inAcceptance: number;
   salesSpeed: number;
@@ -29,5 +29,6 @@ export interface GetCurrentStocks {
   multiplicity: string;
   boxNumber: string;
   supplierOldArticle: string;
-  category: string
+  category: string;
+  wbCreatedAt: string | Date;
 }

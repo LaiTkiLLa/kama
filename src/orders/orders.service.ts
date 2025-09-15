@@ -37,7 +37,7 @@ export class OrdersService {
     });
     const findMarketplace = await this.infoService.findMarketplace({ title: 'WB' });
     for (const order of data) {
-      const queryRunner = await this.dataSource.createQueryRunner();
+      const queryRunner = this.dataSource.createQueryRunner();
       await queryRunner.connect();
       await queryRunner.startTransaction();
       try {
@@ -163,7 +163,7 @@ export class OrdersService {
     }
     const findMarketplace = await this.infoService.findMarketplace({ title: 'Yandex' });
     for (const order of ordersData) {
-      const queryRunner = await this.dataSource.createQueryRunner();
+      const queryRunner = this.dataSource.createQueryRunner();
       await queryRunner.connect();
       await queryRunner.startTransaction();
       try {
@@ -303,7 +303,7 @@ export class OrdersService {
       }
     }
     for (const order of orders) {
-      const queryRunner = await this.dataSource.createQueryRunner();
+      const queryRunner = this.dataSource.createQueryRunner();
       await queryRunner.connect();
       await queryRunner.startTransaction();
       try {
@@ -325,7 +325,7 @@ export class OrdersService {
         });
         const isCanceled = order.cancelReasonId ? true : false;
         if (!findOrder) {
-          const createOrder = await queryRunner.manager.create(Orders, {
+          const createOrder = queryRunner.manager.create(Orders, {
             quantity: order.quantity,
             sum: Number(order.sum),
             marketplaceOrderIdentification: String(order.orderId),
