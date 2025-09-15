@@ -673,7 +673,6 @@ export class ItemsService {
             .andWhere('ord.created_at >= DATE(:monthAgo)', { monthAgo });
         }, 'ordersSum')
         .getRawAndEntities();
-      console.log('monthAgo', monthAgo);
       const mappedItems: StopListCronResult[] = [];
       findItems.entities.forEach((item, index) => {
         const raw = findItems.raw[index];
@@ -697,15 +696,7 @@ export class ItemsService {
       });
       for (const item of mappedItems) {
         const result = Number((item.stocks / item.orders).toFixed(2));
-        if (item.itemId === 9176) {
-          console.log(item);
-          console.log('result', result);
-          console.log('item.stocks - item.orders ', item.stocks - item.orders);
-        }
         if (result >= 2) {
-          if (item.itemId === 9176) {
-            console.log('пум пум пум');
-          }
           await queryRunner.manager.update(
             Items,
             { id: item.itemId },
