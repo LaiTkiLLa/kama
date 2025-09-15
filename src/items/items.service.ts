@@ -18,7 +18,7 @@ import { StatusesTypes } from '../info/enum/statuses.enum';
 import { UpdateArrayDirectoryItemsInfoDto } from './dto/update-directory-item-info.dto';
 import { Suppliers } from '../info/entities/suppliers.entity';
 import { OzonItemsInfo } from './interfaces/ozon-items-info.interface';
-import { GetItemsDirectoryList } from './interfaces/get-items-directory-list.interface';
+import { GetDirectoryListDto } from './dto/get-directory-list.dto';
 
 @Injectable()
 export class ItemsService {
@@ -61,16 +61,21 @@ export class ItemsService {
     }
   }
 
-  async getItemsDirectoryList() {
+  async getItemsDirectoryList(getDirectoryListDto: GetDirectoryListDto) {
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     try {
-      const findItems = await queryRunner.manager
+      const queryBuilder = await queryRunner.manager
         .createQueryBuilder(Items, 'items')
         .leftJoinAndSelect('items.supplier', 'supplier')
         .leftJoinAndSelect('items.marketplace', 'marketplace')
-        .where('items.isArchive = :isArchive', { isArchive: false })
-        .getMany();
+        .where('items.isArchive = :isArchive', { isArchive: false });
+      if (getDirectoryListDto.supplierTitle) {
+        queryBuilder.andWhere('supplier.title = :supplierTitle', {
+          supplierTitle: getDirectoryListDto.supplierTitle
+        });
+      }
+      const findItems = await queryBuilder.getMany();
       const filterWbItems = findItems
         .filter(item => item.marketplace.title === 'WB')
         .map(item => {
@@ -90,7 +95,8 @@ export class ItemsService {
             dimensionsWB: item.dimensionsWB,
             dimensionsOzon: '',
             volume: item.volume,
-            wbCreatedAt: item.wbCreatedAt
+            wbCreatedAt: item.wbCreatedAt,
+            category: item.category
           };
         });
       const filterOzonItems = findItems.filter(item => item.marketplace.title === 'Озон');
