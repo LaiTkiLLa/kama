@@ -4,7 +4,7 @@ export interface GetCurrentStocks {
   barcode: number;
   orders: number;
   orderLastMonth: number;
-  imageUrl: string;
+  imageUrl: string | null;
   inWayToClient: number;
   sku: string;
   inWayFromClient: number;
