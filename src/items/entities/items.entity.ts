@@ -68,8 +68,8 @@ export class Items {
   @Column({ type: 'int', nullable: false, default: 10, name: 'shipping_period' })
   shippingPeriod: number;
 
-  @Column({ type: 'varchar', nullable: false, name: 'image_url' })
-  imageUrl: string;
+  @Column({ type: 'varchar', nullable: true, name: 'image_url' })
+  imageUrl: string | null;
 
   @Column({ type: 'int', nullable: false, name: 'marketplace_id' })
   marketplaceId: number;

@@ -23,8 +23,8 @@ export interface WbItem {
     length: number;
     weightBrutto: number
   };
-  photos: { big: string }[];
-  characteristics: [{ id: number; name: string; value: string[] }];
+  photos?: { big: string }[];
+  characteristics?: [{ id: number; name: string; value: string[] }];
   sizes: [];
   createdAt: string;
   updatedAt: string;

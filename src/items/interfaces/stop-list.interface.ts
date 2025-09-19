@@ -1,6 +1,6 @@
 export interface StopListResponse {
   article: string;
-  image: string;
+  image: string | null;
   title: string;
   color: string;
   wbBarcode: string | null;
