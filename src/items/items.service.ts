@@ -65,7 +65,7 @@ export class ItemsService {
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     try {
-      const queryBuilder = await queryRunner.manager
+      const queryBuilder = queryRunner.manager
         .createQueryBuilder(Items, 'items')
         .leftJoinAndSelect('items.supplier', 'supplier')
         .leftJoinAndSelect('items.marketplace', 'marketplace')
@@ -477,6 +477,7 @@ export class ItemsService {
               title: item.title,
               wbCreatedAt: item.createdAt,
               color: findColor ? findColor.value[0] : '',
+              imageUrl: item.photos ? item.photos[0].big : null,
               //Размеры в см, вес в кг
               dimensionsWB: `${item.dimensions.length}/${item.dimensions.width}/${item.dimensions.height}/${item.dimensions.weightBrutto}`
             }
@@ -629,6 +630,7 @@ export class ItemsService {
             {
               article: item.offer_id,
               title: item.name,
+              imageUrl: item.primary_image,
               //Переводим размеры в см, вес в кг
               dimensionsOzon: `${Number((item.depth / 10).toFixed(2))}/${Number((item.width / 10).toFixed(2))}/${Number((item.height / 10).toFixed(2))}/${Number((item.weight / 1000).toFixed(3))}`
             }
