@@ -404,7 +404,8 @@ export class ItemsService {
     return queryRunner.manager.update(Items, where, updateData);
   }
 
-  @Cron('0 */40 * * * *')
+  @Cron(CronExpression.EVERY_MINUTE)
+  // @Cron('0 */40 * * * *')
   async getWbItems() {
     const itemsUrl = 'https://content-api.wildberries.ru/content/v2/get/cards/list';
     const apiToken = await this.configService.get('wbToken');
@@ -456,8 +457,8 @@ export class ItemsService {
             article: item.vendorCode,
             category: item.subjectName,
             title: item.title,
-            barcode: '0',
-            sku: item?.sizes[0]?.skus[0] ?? '0',
+            barcode: item?.sizes[0]?.skus[0] ?? '0',
+            sku: '0',
             marketplaceIdentifier: String(item.nmID),
             imageUrl: item.photos ? item.photos[0].big : null,
             marketplaceId: wbMarketplace.id,
@@ -473,7 +474,8 @@ export class ItemsService {
             { id: findItem.id },
             {
               article: item.vendorCode,
-              sku: item?.sizes[0]?.skus[0] ?? '0',
+              sku: '0',
+              barcode: item?.sizes[0]?.skus[0] ?? '0',
               category: item.subjectName,
               title: item.title,
               wbCreatedAt: item.createdAt,
