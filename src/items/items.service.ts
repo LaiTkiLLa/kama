@@ -457,7 +457,7 @@ export class ItemsService {
             category: item.subjectName,
             title: item.title,
             barcode: '0',
-            sku: '0',
+            sku: item?.sizes[0]?.skus[0] ?? '0',
             marketplaceIdentifier: String(item.nmID),
             imageUrl: item.photos ? item.photos[0].big : null,
             marketplaceId: wbMarketplace.id,
@@ -473,6 +473,7 @@ export class ItemsService {
             { id: findItem.id },
             {
               article: item.vendorCode,
+              sku: item?.sizes[0]?.skus[0] ?? '0',
               category: item.subjectName,
               title: item.title,
               wbCreatedAt: item.createdAt,

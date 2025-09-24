@@ -21,11 +21,16 @@ export interface WbItem {
     width: number;
     height: number;
     length: number;
-    weightBrutto: number
+    weightBrutto: number;
   };
   photos?: { big: string }[];
   characteristics?: [{ id: number; name: string; value: string[] }];
-  sizes: [];
+  sizes: {
+    chrtID: number;
+    techSize: string;
+    wbSize: string;
+    skus: string[];
+  }[];
   createdAt: string;
   updatedAt: string;
 }
