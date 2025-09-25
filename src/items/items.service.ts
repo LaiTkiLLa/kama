@@ -442,6 +442,7 @@ export class ItemsService {
         nmID: data.cursor.nmID
       };
     }
+    console.log(items.length)
     const wbMarketplace = await this.infoService.findMarketplace({ title: 'WB' });
     for (const item of items) {
       const queryRunner = this.dataSource.createQueryRunner();
