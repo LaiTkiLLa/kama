@@ -404,7 +404,8 @@ export class ItemsService {
     return queryRunner.manager.update(Items, where, updateData);
   }
 
-  @Cron('0 */40 * * * *')
+  @Cron(CronExpression.EVERY_MINUTE)
+  // @Cron('0 */40 * * * *')
   async getWbItems() {
     const itemsUrl = 'https://content-api.wildberries.ru/content/v2/get/cards/list';
     const apiToken = await this.configService.get('wbToken');
@@ -420,7 +421,7 @@ export class ItemsService {
           settings: {
             cursor,
             filter: {
-              withPhoto: 0
+              withPhoto: -1
             }
           }
         },
