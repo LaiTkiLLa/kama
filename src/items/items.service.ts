@@ -442,7 +442,7 @@ export class ItemsService {
           settings: {
             cursor,
             filter: {
-              withPhoto: 0
+              withPhoto: -1
             }
           }
         },
