@@ -96,7 +96,18 @@ export class ItemsService {
             dimensionsOzon: '',
             volume: item.volume,
             wbCreatedAt: item.wbCreatedAt,
-            category: item.category
+            category: item.category,
+            planTime: item.planTime,
+            productionAndAssemblyTime: item.productionAndAssemblyTime,
+            deliveryTime: item.deliveryTime,
+            shippingPeriod: item.shippingPeriod,
+            stocksInDays: item.stocksInDays,
+            costInYuan: item.costInYuan,
+            costInRub: item.costInRub,
+            replenishmentPeriod: item.replenishmentPeriod,
+            remainingBalance: item.remainingBalance,
+            frequencyOfSendingCars: item.frequencyOfSendingCars,
+            dailyGrowthPercentage: item.dailyGrowthPercentage
           };
         });
       const filterOzonItems = findItems.filter(item => item.marketplace.title === 'Озон');
@@ -152,7 +163,18 @@ export class ItemsService {
             boxNumber: item.boxNumber,
             dimensionsFact: item.dimensionsFact,
             volume: item.volume,
-            articleOld: item.articleOld
+            articleOld: item.articleOld,
+            planTime: item.planTime,
+            productionAndAssemblyTime: item.productionAndAssemblyTime,
+            deliveryTime: item.deliveryTime,
+            shippingPeriod: item.shippingPeriod,
+            stocksInDays: item.stocksInDays,
+            costInYuan: item.costInYuan,
+            costInRub: item.costInRub,
+            replenishmentPeriod: item.replenishmentPeriod,
+            remainingBalance: item.remainingBalance,
+            frequencyOfSendingCars: item.frequencyOfSendingCars,
+            dailyGrowthPercentage: item.dailyGrowthPercentage
           }
         );
       }
@@ -516,7 +538,6 @@ export class ItemsService {
   }
 
   @Cron('0 */44 * * * *')
-  // @Cron(CronExpression.EVERY_MINUTE)
   async getYandexItems() {
     const businessId = await this.configService.get('yandexBusinessId');
     const itemsUrl = `https://api.partner.market.yandex.ru/businesses/${businessId}/offer-mappings?limit=200`;

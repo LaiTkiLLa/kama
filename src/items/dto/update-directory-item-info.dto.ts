@@ -1,4 +1,12 @@
-import { ArrayMinSize, IsArray, IsNotEmpty, IsOptional, IsString, ValidateNested } from 'class-validator';
+import {
+  ArrayMinSize,
+  IsArray,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+  ValidateNested
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class UpdateDirectoryItemInfoDto {
@@ -37,6 +45,50 @@ export class UpdateDirectoryItemInfoDto {
   @IsString()
   @IsOptional()
   volume: string;
+
+  @IsNumber()
+  @IsOptional()
+  planTime: number;
+
+  @IsNumber()
+  @IsOptional()
+  productionAndAssemblyTime: number;
+
+  @IsNumber()
+  @IsOptional()
+  deliveryTime: number;
+
+  @IsNumber()
+  @IsOptional()
+  shippingPeriod: number;
+
+  @IsNumber()
+  @IsOptional()
+  stocksInDays: number;
+
+  @IsNumber()
+  @IsOptional()
+  costInYuan: number;
+
+  @IsNumber()
+  @IsOptional()
+  costInRub: number;
+
+  @IsNumber()
+  @IsOptional()
+  replenishmentPeriod: number;
+
+  @IsNumber()
+  @IsOptional()
+  remainingBalance: number;
+
+  @IsNumber()
+  @IsOptional()
+  frequencyOfSendingCars: number;
+
+  @IsNumber()
+  @IsOptional()
+  dailyGrowthPercentage: number;
 }
 
 export class UpdateArrayDirectoryItemsInfoDto {

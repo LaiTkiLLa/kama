@@ -52,13 +52,13 @@ export class Items {
   @Column({ type: 'varchar', nullable: false, name: 'marketplace_identifier' })
   marketplaceIdentifier: string;
 
-  //Срок производства
-  @Column({ type: 'int', nullable: false, default: 30, name: 'production_time' })
-  productionTime: number;
+  //Срок планирования
+  @Column({ type: 'int', nullable: false, default: 120, name: 'plan_time' })
+  planTime: number;
 
-  //Срок сборки заказа
-  @Column({ type: 'int', nullable: false, default: 7, name: 'assembly_period' })
-  assemblyPeriod: number;
+  //Срок производства и сборки заказа
+  @Column({ type: 'int', nullable: false, default: 35, name: 'production_and_assembly_time' })
+  productionAndAssemblyTime: number;
 
   //Срок доставки
   @Column({ type: 'int', nullable: false, default: 35, name: 'delivery_time' })
@@ -118,6 +118,34 @@ export class Items {
     name: 'is_archive'
   })
   isArchive: boolean;
+
+  //Запас в днях
+  @Column({ type: 'int', name: 'stocks_in_days', nullable: false, default: 30 })
+  stocksInDays: number;
+
+  //Себестоимость в рублях
+  @Column({ type: 'float', name: 'cost_in_yuan', nullable: true })
+  costInYuan: number;
+
+  //Себестоимость в юанях
+  @Column({ type: 'float', name: 'cost_in_rub', nullable: true })
+  costInRub: number;
+
+  //Срок пополнения в днях
+  @Column({ type: 'int', name: 'replenishment_period', nullable: false, default: 60 })
+  replenishmentPeriod: number;
+
+  //Норматив остатков на ФФ + МП днях
+  @Column({ type: 'int', name: 'remaining_balance', nullable: false, default: 60 })
+  remainingBalance: number;
+
+  //Частота отправки ТС в днях
+  @Column({ type: 'int', name: 'frequency_of_sending_cars', nullable: false, default: 7 })
+  frequencyOfSendingCars: number;
+
+  //Дневной процент роста
+  @Column({ type: 'float', name: 'daily_growth_percentage', nullable: true })
+  dailyGrowthPercentage: number;
 
   //Дата создания товара на WB
   @Column({
