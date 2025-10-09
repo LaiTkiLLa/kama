@@ -155,9 +155,6 @@ export class ItemsService {
           }
           supplierId = findSupplier.id;
         }
-        if (item.article === '0425IV-FTB-PVC-75-BLK') {
-          console.log(item);
-        }
         await queryRunner.manager.update(
           Items,
           { id: In(findItems.map(el => el.id)) },
