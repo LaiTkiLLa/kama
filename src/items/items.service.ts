@@ -109,7 +109,7 @@ export class ItemsService {
             frequencyOfSendingCars: item.frequencyOfSendingCars,
             dailyGrowthPercentage: item.dailyGrowthPercentage,
             volumeWB: item.volumeWB,
-            volumeOzon: item.volumeOzon
+            volumeOzon: ''
           };
         });
       const filterOzonItems = findItems.filter(item => item.marketplace.title === 'Озон');
@@ -117,6 +117,7 @@ export class ItemsService {
         const findItem = filterWbItems.find(wbItem => wbItem.article === ozonItem.article);
         if (findItem) {
           findItem.dimensionsOzon = ozonItem.dimensionsOzon;
+          findItem.volumeOzon = ozonItem.volumeOzon;
         }
       }
       return filterWbItems;
