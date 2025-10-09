@@ -107,7 +107,9 @@ export class ItemsService {
             replenishmentPeriod: item.replenishmentPeriod,
             remainingBalance: item.remainingBalance,
             frequencyOfSendingCars: item.frequencyOfSendingCars,
-            dailyGrowthPercentage: item.dailyGrowthPercentage
+            dailyGrowthPercentage: item.dailyGrowthPercentage,
+            volumeWB: item.volumeWB,
+            volumeOzon: item.volumeOzon
           };
         });
       const filterOzonItems = findItems.filter(item => item.marketplace.title === 'Озон');
