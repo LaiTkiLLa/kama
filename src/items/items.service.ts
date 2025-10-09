@@ -155,6 +155,9 @@ export class ItemsService {
           }
           supplierId = findSupplier.id;
         }
+        if (item.article === '0425IV-FTB-PVC-75-BLK') {
+          console.log(item);
+        }
         await queryRunner.manager.update(
           Items,
           { id: In(findItems.map(el => el.id)) },
@@ -184,7 +187,7 @@ export class ItemsService {
       return { success: true };
     } catch (error) {
       this.logger.error(error);
-      this.logger.error('Не смог получить справочник товаров');
+      this.logger.error('Не смог обновить справочник товаров');
       throw error;
     } finally {
       await queryRunner.release();
