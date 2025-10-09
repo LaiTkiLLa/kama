@@ -107,6 +107,14 @@ export class Items {
   @Column({ type: 'varchar', nullable: true, name: 'dimensions_ozon' })
   dimensionsOzon: string;
 
+  //Объем WB
+  @Column({ type: 'varchar', nullable: true, name: 'volume_wb' })
+  volumeWB: string;
+
+  //Объем Ozon
+  @Column({ type: 'varchar', nullable: true, name: 'volume_ozon' })
+  volumeOzon: string;
+
   //Объем товара
   @Column({ type: 'varchar', nullable: true })
   volume: string;

@@ -473,6 +473,11 @@ export class ItemsService {
         const findItem = await queryRunner.manager.findOne(Items, {
           where: { marketplaceIdentifier: String(item.nmID), marketplaceId: wbMarketplace.id }
         });
+        const volumeWB = (
+          (item.dimensions.length * item.dimensions.width * item.dimensions.height) /
+          1000
+        ).toFixed(2);
+
         if (!findItem) {
           const createItem = queryRunner.manager.create(Items, {
             article: item.vendorCode,
@@ -486,7 +491,8 @@ export class ItemsService {
             color: findColor ? findColor.value[0] : '',
             wbCreatedAt: item.createdAt,
             //Размеры в см, вес в кг
-            dimensionsWB: `${item.dimensions.length}/${item.dimensions.width}/${item.dimensions.height}/${item.dimensions.weightBrutto}`
+            dimensionsWB: `${item.dimensions.length}/${item.dimensions.width}/${item.dimensions.height}/${item.dimensions.weightBrutto}`,
+            volumeWB
           });
           await queryRunner.manager.save(Items, createItem);
         } else {
@@ -503,7 +509,8 @@ export class ItemsService {
               color: findColor ? findColor.value[0] : '',
               imageUrl: item.photos ? item.photos[0].big : null,
               //Размеры в см, вес в кг
-              dimensionsWB: `${item.dimensions.length}/${item.dimensions.width}/${item.dimensions.height}/${item.dimensions.weightBrutto}`
+              dimensionsWB: `${item.dimensions.length}/${item.dimensions.width}/${item.dimensions.height}/${item.dimensions.weightBrutto}`,
+              volumeWB
             }
           );
         }
@@ -632,6 +639,9 @@ export class ItemsService {
         const findItem = await queryRunner.manager.findOne(Items, {
           where: { marketplaceIdentifier: String(item.id), marketplaceId }
         });
+        const volumeOzon = String(
+          Math.ceil(((item.depth / 10) * (item.width / 10) * (item.height / 10)) / 1000)
+        );
         if (!findItem) {
           const createItem = queryRunner.manager.create(Items, {
             article: item.offer_id,
@@ -643,7 +653,8 @@ export class ItemsService {
             imageUrl: item.primary_image,
             marketplaceId,
             //Переводим размеры в см, вес в кг
-            dimensionsOzon: `${Number((item.depth / 10).toFixed(2))}/${Number((item.width / 10).toFixed(2))}/${Number((item.height / 10).toFixed(2))}/${Number((item.weight / 1000).toFixed(3))}`
+            dimensionsOzon: `${Number((item.depth / 10).toFixed(2))}/${Number((item.width / 10).toFixed(2))}/${Number((item.height / 10).toFixed(2))}/${Number((item.weight / 1000).toFixed(3))}`,
+            volumeOzon
           });
           await queryRunner.manager.save(Items, createItem);
         } else {
@@ -655,7 +666,8 @@ export class ItemsService {
               title: item.name,
               imageUrl: item.primary_image,
               //Переводим размеры в см, вес в кг
-              dimensionsOzon: `${Number((item.depth / 10).toFixed(2))}/${Number((item.width / 10).toFixed(2))}/${Number((item.height / 10).toFixed(2))}/${Number((item.weight / 1000).toFixed(3))}`
+              dimensionsOzon: `${Number((item.depth / 10).toFixed(2))}/${Number((item.width / 10).toFixed(2))}/${Number((item.height / 10).toFixed(2))}/${Number((item.weight / 1000).toFixed(3))}`,
+              volumeOzon
             }
           );
         }
