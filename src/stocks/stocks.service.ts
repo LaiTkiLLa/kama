@@ -30,7 +30,7 @@ export class StocksService {
     const findStocks = await this.dataSource.manager
       .createQueryBuilder(Stocks, 'stocks')
       .leftJoinAndSelect('stocks.marketplace', 'marketplace')
-      .leftJoinAndSelect('stocks.item', 'item')
+      .leftJoinAndSelect('stocks.item', 'item', 'item.isArchive = :isArchive', { isArchive: false })
       .leftJoinAndSelect('item.supplier', 'supplier')
       .where('marketplace.title = :marketplace', { marketplace: getCurrentStocksDto.marketplace })
       .andWhere('Date(stocks.createdAt) = Date(:today)', { today })
