@@ -220,6 +220,7 @@ export class ItemsService {
   }
 
   async getItemStopsList(getItemsStopListDto: GetItemsStopListDto) {
+    console.log('start getItemStopsList', new Date());
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     try {
