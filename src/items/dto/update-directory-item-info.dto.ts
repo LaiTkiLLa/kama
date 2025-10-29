@@ -89,6 +89,10 @@ export class UpdateDirectoryItemInfoDto {
   @IsNumber()
   @IsOptional()
   dailyGrowthPercentage: number;
+
+  @IsString()
+  @IsOptional()
+  ownImagesUrl: string;
 }
 
 export class UpdateArrayDirectoryItemsInfoDto {

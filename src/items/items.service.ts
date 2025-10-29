@@ -109,7 +109,8 @@ export class ItemsService {
             frequencyOfSendingCars: item.frequencyOfSendingCars,
             dailyGrowthPercentage: item.dailyGrowthPercentage,
             volumeWB: item.volumeWB,
-            volumeOzon: ''
+            volumeOzon: '',
+            ownImagesUrl: item.ownImagesUrl
           };
         });
       const filterOzonItems = findItems.filter(item => item.marketplace.title === 'Озон');
@@ -177,7 +178,8 @@ export class ItemsService {
             replenishmentPeriod: item.replenishmentPeriod,
             remainingBalance: item.remainingBalance,
             frequencyOfSendingCars: item.frequencyOfSendingCars,
-            dailyGrowthPercentage: item.dailyGrowthPercentage
+            dailyGrowthPercentage: item.dailyGrowthPercentage,
+            ownImagesUrl: item.ownImagesUrl
           }
         );
       }

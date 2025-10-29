@@ -163,6 +163,9 @@ export class Items {
   })
   wbCreatedAt: Date;
 
+  @Column({ type: 'text', nullable: true, name: 'own_images_url' })
+  ownImagesUrl: string | null;
+
   @CreateDateColumn({
     type: 'timestamp',
     nullable: false,
