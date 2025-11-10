@@ -495,7 +495,6 @@ export class ItemsService {
             imageUrl: item.photos ? item.photos[0].big : null,
             marketplaceId: wbMarketplace.id,
             color: findColor ? findColor.value[0] : '',
-            wbCreatedAt: item.createdAt,
             //Размеры в см, вес в кг
             dimensionsWB: `${item.dimensions.length}/${item.dimensions.width}/${item.dimensions.height}/${item.dimensions.weightBrutto}`,
             volumeWB
