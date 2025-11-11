@@ -63,13 +63,13 @@ export class OrdersService {
           }
         });
         if (!findOrder) {
-          await queryRunner.manager.update(
-            Items,
-            { id: findItem.id },
-            {
-              wbCreatedAt: new Date()
-            }
-          );
+          // await queryRunner.manager.update(
+          //   Items,
+          //   { id: findItem.id },
+          //   {
+          //     wbCreatedAt: new Date()
+          //   }
+          // );
           const createOrder = queryRunner.manager.create(Orders, {
             quantity: 1,
             sum: order.finishedPrice,
@@ -197,13 +197,13 @@ export class OrdersService {
           }
         });
         if (!findOrder) {
-          await queryRunner.manager.update(
-            Items,
-            { id: findItem.id },
-            {
-              wbCreatedAt: new Date()
-            }
-          );
+          // await queryRunner.manager.update(
+          //   Items,
+          //   { id: findItem.id },
+          //   {
+          //     wbCreatedAt: new Date()
+          //   }
+          // );
           const createOrder = queryRunner.manager.create(Orders, {
             quantity: order.count,
             sum: order.orderSum,
@@ -340,13 +340,13 @@ export class OrdersService {
         });
         const isCanceled = order.cancelReasonId ? true : false;
         if (!findOrder) {
-          await queryRunner.manager.update(
-            Items,
-            { id: findItem.id },
-            {
-              wbCreatedAt: new Date()
-            }
-          );
+          // await queryRunner.manager.update(
+          //   Items,
+          //   { id: findItem.id },
+          //   {
+          //     wbCreatedAt: new Date()
+          //   }
+          // );
           const createOrder = queryRunner.manager.create(Orders, {
             quantity: order.quantity,
             sum: Number(order.sum),
