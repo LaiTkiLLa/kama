@@ -222,7 +222,6 @@ export class ItemsService {
   }
 
   async getItemStopsList(getItemsStopListDto: GetItemsStopListDto) {
-    console.log('start getItemStopsList', new Date());
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     try {
@@ -275,12 +274,16 @@ export class ItemsService {
         const raw = result.raw[index];
         const wbBarcode = item.marketplace.title === 'WB' ? item.barcode : undefined;
         const wbIdentifier = item.marketplace.title === 'WB' ? item.marketplaceIdentifier : undefined;
+        const ozonIdentifier = item.marketplace.title === 'Озон' ? item.sku : undefined;
         if (findArticle) {
           if (wbBarcode) {
             findArticle.wbBarcode = wbBarcode;
           }
           if (wbIdentifier) {
             findArticle.wbIdentifier = wbIdentifier;
+          }
+          if (ozonIdentifier) {
+            findArticle.ozonIdentifier = ozonIdentifier;
           }
           findArticle.marketplace.push({
             id: item.marketplaceId,
@@ -301,6 +304,7 @@ export class ItemsService {
             color: item.color,
             wbBarcode: wbBarcode ? wbBarcode : null,
             wbIdentifier: wbIdentifier ? wbIdentifier : null,
+            ozonIdentifier: ozonIdentifier ? ozonIdentifier : null,
             marketplace: [
               {
                 id: item.marketplaceId,

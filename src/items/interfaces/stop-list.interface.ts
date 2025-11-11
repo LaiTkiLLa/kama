@@ -5,6 +5,7 @@ export interface StopListResponse {
   color: string;
   wbBarcode: string | null;
   wbIdentifier: string | null;
+  ozonIdentifier: string | null;
   marketplace: {
     id: number;
     title: string;
