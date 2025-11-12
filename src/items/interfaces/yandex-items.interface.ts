@@ -12,7 +12,12 @@ export interface YandexItems {
         barcodes: string[];
         description: string;
         manufacturerCountries: [];
-        weightDimensions: [];
+        weightDimensions: {
+          length: number;
+          width: number;
+          height: number;
+          weight: number;
+        };
         vendorCode: string;
         guaranteePeriod: [];
         customsCommodityCode: string;

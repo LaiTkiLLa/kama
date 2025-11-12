@@ -107,6 +107,10 @@ export class Items {
   @Column({ type: 'varchar', nullable: true, name: 'dimensions_ozon' })
   dimensionsOzon: string;
 
+  //Размеры Yandex д/ш/в/вес
+  @Column({ type: 'varchar', nullable: true, name: 'dimensions_yandex' })
+  dimensionsYandex: string;
+
   //Объем WB
   @Column({ type: 'varchar', nullable: true, name: 'volume_wb' })
   volumeWB: string;
@@ -114,6 +118,14 @@ export class Items {
   //Объем Ozon
   @Column({ type: 'varchar', nullable: true, name: 'volume_ozon' })
   volumeOzon: string;
+
+  //Объем Yandex
+  @Column({ type: 'varchar', nullable: true, name: 'volume_yandex' })
+  volumeYandex: string;
+
+  //Вес Yandex в кг
+  @Column({ type: 'varchar', nullable: true, name: 'weight_yandex' })
+  weightYandex: string;
 
   //Объем товара
   @Column({ type: 'varchar', nullable: true })

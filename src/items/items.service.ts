@@ -581,6 +581,12 @@ export class ItemsService {
             marketplaceId: yandexMarketplace.id
           }
         });
+        const volumeYandex = (
+          (item.offer.weightDimensions.length *
+            item.offer.weightDimensions.width *
+            item.offer.weightDimensions.height) /
+          1000
+        ).toFixed(2);
         if (!findItem) {
           const createItem = queryRunner.manager.create(Items, {
             article: item.offer.offerId,
@@ -590,7 +596,10 @@ export class ItemsService {
             sku: String(0),
             marketplaceIdentifier: String(item.mapping.marketSku),
             imageUrl: item.offer.pictures[0],
-            marketplaceId: yandexMarketplace.id
+            marketplaceId: yandexMarketplace.id,
+            //Размеры в см, вес в кг
+            dimensionsYandex: `${item.offer.weightDimensions.length}/${item.offer.weightDimensions.width}/${item.offer.weightDimensions.height}/${item.offer.weightDimensions.weight}`,
+            volumeYandex
           });
           await queryRunner.manager.save(Items, createItem);
         } else {
@@ -600,7 +609,10 @@ export class ItemsService {
             {
               article: item.offer.offerId,
               title: item.offer.name,
-              category: item.offer.category ?? item.mapping.marketCategoryName
+              category: item.offer.category ?? item.mapping.marketCategoryName,
+              //Размеры в см, вес в кг
+              dimensionsYandex: `${item.offer.weightDimensions.length}/${item.offer.weightDimensions.width}/${item.offer.weightDimensions.height}/${item.offer.weightDimensions.weight}`,
+              volumeYandex
             }
           );
         }
