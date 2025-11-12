@@ -123,10 +123,6 @@ export class Items {
   @Column({ type: 'varchar', nullable: true, name: 'volume_yandex' })
   volumeYandex: string;
 
-  //Вес Yandex в кг
-  @Column({ type: 'varchar', nullable: true, name: 'weight_yandex' })
-  weightYandex: string;
-
   //Объем товара
   @Column({ type: 'varchar', nullable: true })
   volume: string;
