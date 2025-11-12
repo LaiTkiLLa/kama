@@ -93,6 +93,7 @@ export class ItemsService {
             boxNumber: item.boxNumber,
             dimensionsFact: item.dimensionsFact,
             dimensionsWB: item.dimensionsWB,
+            dimensionsYandex: '',
             dimensionsOzon: '',
             volume: item.volume,
             wbCreatedAt: item.wbCreatedAt,
@@ -110,15 +111,24 @@ export class ItemsService {
             dailyGrowthPercentage: item.dailyGrowthPercentage,
             volumeWB: item.volumeWB,
             volumeOzon: '',
+            volumeYandex: '',
             ownImagesUrl: item.ownImagesUrl
           };
         });
       const filterOzonItems = findItems.filter(item => item.marketplace.title === 'Озон');
+      const filterYandexItems = findItems.filter(item => item.marketplace.title === 'Yandex');
       for (const ozonItem of filterOzonItems) {
         const findItem = filterWbItems.find(wbItem => wbItem.article === ozonItem.article);
         if (findItem) {
           findItem.dimensionsOzon = ozonItem.dimensionsOzon;
           findItem.volumeOzon = ozonItem.volumeOzon;
+        }
+      }
+      for (const yandexItem of filterYandexItems) {
+        const findItem = filterWbItems.find(wbItem => wbItem.article === yandexItem.article);
+        if (findItem) {
+          findItem.dimensionsYandex = yandexItem.dimensionsYandex;
+          findItem.volumeYandex = yandexItem.volumeYandex;
         }
       }
       return filterWbItems;
