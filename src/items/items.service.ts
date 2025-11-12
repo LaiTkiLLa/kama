@@ -747,15 +747,12 @@ export class ItemsService {
         mappedItems.push({
           orders: Number(raw.ordersSum),
           stocks: Number(raw.stocksSum),
-          itemId: item.id
+          itemId: item.id,
+          classification: item.classification
         });
       });
       const findSuccessStatus = await this.infoService.findStatus(queryRunner, {
         title: 'Можно',
-        type: StatusesTypes.Отправка
-      });
-      const findRecommendedStatus = await this.infoService.findStatus(queryRunner, {
-        title: 'Желательно',
         type: StatusesTypes.Отправка
       });
       const findRejectStatus = await this.infoService.findStatus(queryRunner, {
@@ -763,12 +760,11 @@ export class ItemsService {
         type: StatusesTypes.Отправка
       });
       for (const item of mappedItems) {
-        const result = Number((item.stocks / item.orders).toFixed(2));
-        if (result >= 2) {
+        if (item.classification === 'Хит продаж / А') {
           await queryRunner.manager.update(
             Items,
             { id: item.itemId },
-            { sendStatusId: findRecommendedStatus.id }
+            { sendStatusId: findSuccessStatus.id }
           );
         } else if (item.stocks - item.orders <= 0) {
           await queryRunner.manager.update(Items, { id: item.itemId }, { sendStatusId: findRejectStatus.id });
