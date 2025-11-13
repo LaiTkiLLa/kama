@@ -760,20 +760,14 @@ export class ItemsService {
         type: StatusesTypes.Отправка
       });
       for (const item of mappedItems) {
-        if (item.classification === 'Хит продаж / А') {
+        if (item.classification === 'Хит продаж / А' && item.stocks - item.orders > 0) {
           await queryRunner.manager.update(
             Items,
             { id: item.itemId },
             { sendStatusId: findSuccessStatus.id }
           );
-        } else if (item.stocks - item.orders <= 0) {
+        } else {
           await queryRunner.manager.update(Items, { id: item.itemId }, { sendStatusId: findRejectStatus.id });
-        } else if (item.stocks - item.orders > 0) {
-          await queryRunner.manager.update(
-            Items,
-            { id: item.itemId },
-            { sendStatusId: findSuccessStatus.id }
-          );
         }
       }
       await queryRunner.commitTransaction();
