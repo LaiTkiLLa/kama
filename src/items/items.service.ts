@@ -761,6 +761,7 @@ export class ItemsService {
       });
       for (const item of mappedItems) {
         if (item.classification === 'Хит продаж / А' && item.stocks - item.orders > 0) {
+          console.log(item.itemId, item.stocks, item.orders);
           await queryRunner.manager.update(
             Items,
             { id: item.itemId },
