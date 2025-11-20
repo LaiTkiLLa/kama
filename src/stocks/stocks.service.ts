@@ -209,18 +209,8 @@ export class StocksService {
   async getYandexStocks() {
     const yandexToken = await this.configService.get('yandexToken');
     const clientId = await this.configService.get('yandexClientId');
-    const urlStocks = `https://api.partner.market.yandex.ru/campaigns/${clientId}/offers/stocks?limit=200`;
-    const { data }: { data: GetYandexStocks } = await axios.post(
-      urlStocks,
-      {
-        withTurnover: true
-      },
-      {
-        headers: {
-          'Api-Key': yandexToken
-        }
-      }
-    );
+
+    let hasMoreData = true;
     const stocks: {
       warehouseId: number;
       items: {
@@ -229,23 +219,47 @@ export class StocksService {
       }[];
     }[] = [];
 
-    for (const warehouse of data.result.warehouses) {
-      warehouse.offers.map(offer => {
-        const findWarehouse = stocks.find(stock => stock.warehouseId === warehouse.warehouseId);
-        if (findWarehouse) {
-          findWarehouse.items.push({ supplierArticle: offer.offerId, stocks: offer.stocks });
-        } else {
-          stocks.push({
-            warehouseId: warehouse.warehouseId,
-            items: [
-              {
-                supplierArticle: offer.offerId,
-                stocks: offer.stocks
-              }
-            ]
-          });
+    let page_token;
+
+    while (hasMoreData) {
+      let urlStocks = `https://api.partner.market.yandex.ru/campaigns/${clientId}/offers/stocks?limit=200`;
+      if (page_token) {
+        urlStocks = `https://api.partner.market.yandex.ru/campaigns/${clientId}/offers/stocks?limit=200&page_token=${page_token}`;
+      }
+      const { data }: { data: GetYandexStocks } = await axios.post(
+        urlStocks,
+        {
+          withTurnover: true
+        },
+        {
+          headers: {
+            'Api-Key': yandexToken
+          }
         }
-      });
+      );
+      for (const warehouse of data.result.warehouses) {
+        warehouse.offers.map(offer => {
+          const findWarehouse = stocks.find(stock => stock.warehouseId === warehouse.warehouseId);
+          if (findWarehouse) {
+            findWarehouse.items.push({ supplierArticle: offer.offerId, stocks: offer.stocks });
+          } else {
+            stocks.push({
+              warehouseId: warehouse.warehouseId,
+              items: [
+                {
+                  supplierArticle: offer.offerId,
+                  stocks: offer.stocks
+                }
+              ]
+            });
+          }
+        });
+      }
+      if (data.result.paging?.nextPageToken) {
+        page_token = data.result.paging.nextPageToken;
+      } else {
+        hasMoreData = false;
+      }
     }
 
     const findMarketplace = await this.infoService.findMarketplace({ title: 'Yandex' });

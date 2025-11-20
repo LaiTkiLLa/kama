@@ -1,9 +1,11 @@
 export interface GetYandexStocks {
   status: 'OK';
   result: {
-    paging: {};
+    paging: {
+      nextPageToken?: string;
+    };
     warehouses: {
-      warehouseId: number
+      warehouseId: number;
       offers: {
         offerId: string;
         turnoverSummary: { turnover: string; turnoverDays: number };
