@@ -219,12 +219,12 @@ export class StocksService {
       }[];
     }[] = [];
 
-    let page_token;
+    let pageToken;
 
     while (hasMoreData) {
       let urlStocks = `https://api.partner.market.yandex.ru/campaigns/${clientId}/offers/stocks?limit=200`;
-      if (page_token) {
-        urlStocks = `https://api.partner.market.yandex.ru/campaigns/${clientId}/offers/stocks?limit=200&page_token=${page_token}`;
+      if (pageToken) {
+        urlStocks = `https://api.partner.market.yandex.ru/campaigns/${clientId}/offers/stocks?limit=200&page_token=${pageToken}`;
       }
       const { data }: { data: GetYandexStocks } = await axios.post(
         urlStocks,
@@ -256,7 +256,7 @@ export class StocksService {
         });
       }
       if (data.result.paging?.nextPageToken) {
-        page_token = data.result.paging.nextPageToken;
+        pageToken = data.result.paging.nextPageToken;
       } else {
         hasMoreData = false;
       }

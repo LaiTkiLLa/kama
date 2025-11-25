@@ -7,7 +7,7 @@ import { ConfigService } from '@nestjs/config';
 import { Items } from './entities/items.entity';
 import { WbItem, WbItems } from './interfaces/wb-items.interface';
 import { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
-import { YandexItems } from './interfaces/yandex-items.interface';
+import { YandexItems, YandexItemsResult } from './interfaces/yandex-items.interface';
 import { GetItemsListDto } from './dto/get-items-list.dto';
 import { Marketplaces } from '../info/entities/marketplaces.entity';
 import { UpdateItemInfoDto } from './dto/update-item-info.dto';
@@ -511,7 +511,8 @@ export class ItemsService {
             color: findColor ? findColor.value[0] : '',
             //Размеры в см, вес в кг
             dimensionsWB: `${item.dimensions.length}/${item.dimensions.width}/${item.dimensions.height}/${item.dimensions.weightBrutto}`,
-            volumeWB
+            volumeWB,
+            wbCreatedAt: item.createdAt
           });
           await queryRunner.manager.save(Items, createItem);
         } else {
@@ -547,8 +548,8 @@ export class ItemsService {
 
   @Cron('0 */42 * * * *')
   async getOzonItemsFirst() {
-    const ozonToken = await this.configService.get('ozonToken');
-    const clientId = await this.configService.get('ozonClientId');
+    const ozonToken: string = await this.configService.get('ozonToken');
+    const clientId: string = await this.configService.get('ozonClientId');
     const ozonMarketplace = await this.infoService.findMarketplace({ title: 'Озон' });
     await this.getOzonItems(ozonToken, clientId, ozonMarketplace.id);
     return;
@@ -556,8 +557,8 @@ export class ItemsService {
 
   @Cron('0 */46 * * * *')
   async getOzonItemsSecond() {
-    const ozonToken = await this.configService.get('ozonSecondToken');
-    const clientId = await this.configService.get('ozonSecondClientId');
+    const ozonToken: string = await this.configService.get('ozonSecondToken');
+    const clientId: string = await this.configService.get('ozonSecondClientId');
     const ozonMarketplace = await this.infoService.findMarketplace({ title: 'Ozon Second' });
     await this.getOzonItems(ozonToken, clientId, ozonMarketplace.id);
     return;
@@ -565,51 +566,84 @@ export class ItemsService {
 
   @Cron('0 */44 * * * *')
   async getYandexItems() {
-    const businessId = await this.configService.get('yandexBusinessId');
-    const itemsUrl = `https://api.partner.market.yandex.ru/businesses/${businessId}/offer-mappings?limit=200`;
-    const { data }: { data: YandexItems } = await axios.post(
-      itemsUrl,
-      {},
-      {
-        headers: {
-          'Api-Key': 'ACMA:1pUUUtGUjFw0frKFuYg5ymG5nEs5RKNtz5NbW9OQ:226d6e1d'
-        }
+    const businessId: string = await this.configService.get('yandexBusinessId');
+    let pageToken;
+    let hasMoreData = true;
+
+    const items: YandexItemsResult[] = [];
+
+    while (hasMoreData) {
+      let urlItems = `https://api.partner.market.yandex.ru/businesses/${businessId}/offer-mappings?limit=200`;
+      if (pageToken) {
+        urlItems = `https://api.partner.market.yandex.ru/businesses/${businessId}/offer-mappings?limit=200&page_token=${pageToken}`;
       }
-    );
-    const yandexMarketplace = await this.infoService.findMarketplace({ title: 'Yandex' });
-    for (const item of data.result.offerMappings) {
-      const queryRunner = this.dataSource.createQueryRunner();
-      await queryRunner.connect();
-      try {
-        await queryRunner.startTransaction();
+
+      const { data }: { data: YandexItems } = await axios.post(
+        urlItems,
+        {},
+        {
+          headers: {
+            'Api-Key': 'ACMA:1pUUUtGUjFw0frKFuYg5ymG5nEs5RKNtz5NbW9OQ:226d6e1d'
+          }
+        }
+      );
+      for (const item of data.result.offerMappings) {
         if (!item.mapping.marketSku) {
           continue;
         }
-        const findItem = await queryRunner.manager.findOne(Items, {
-          where: {
-            marketplaceIdentifier: String(item.mapping.marketSku),
-            marketplaceId: yandexMarketplace.id
-          }
-        });
         const volumeYandex = (
           (item.offer.weightDimensions.length *
             item.offer.weightDimensions.width *
             item.offer.weightDimensions.height) /
           1000
         ).toFixed(2);
+        const dimensionsYandex = `${item.offer.weightDimensions.length}/${item.offer.weightDimensions.width}/${item.offer.weightDimensions.height}/${item.offer.weightDimensions.weight}`;
+        items.push({
+          marketplaceIdentifier: String(item.mapping.marketSku),
+          volumeYandex,
+          article: item.offer.offerId,
+          category: item.offer.category ?? item.mapping.marketCategoryName,
+          title: item.offer.name,
+          barcode: item.offer.barcodes[0],
+          sku: String(0),
+          imageUrl: item.offer.pictures[0],
+          //Размеры в см, вес в кг
+          dimensionsYandex
+        });
+      }
+      if (data.result.paging?.nextPageToken) {
+        pageToken = data.result.paging.nextPageToken;
+      } else {
+        hasMoreData = false;
+      }
+    }
+    const yandexMarketplace = await this.infoService.findMarketplace({ title: 'Yandex' });
+
+    for (const item of items) {
+      const queryRunner = this.dataSource.createQueryRunner();
+      await queryRunner.connect();
+      try {
+        await queryRunner.startTransaction();
+        const findItem = await queryRunner.manager.findOne(Items, {
+          where: {
+            marketplaceIdentifier: String(item.marketplaceIdentifier),
+            marketplaceId: yandexMarketplace.id
+          }
+        });
+
         if (!findItem) {
           const createItem = queryRunner.manager.create(Items, {
-            article: item.offer.offerId,
-            category: item.offer.category ?? item.mapping.marketCategoryName,
-            title: item.offer.name,
-            barcode: item.offer.barcodes[0],
+            article: item.article,
+            category: item.category,
+            title: item.title,
+            barcode: item.barcode,
             sku: String(0),
-            marketplaceIdentifier: String(item.mapping.marketSku),
-            imageUrl: item.offer.pictures[0],
+            marketplaceIdentifier: String(item.marketplaceIdentifier),
+            imageUrl: item.imageUrl,
             marketplaceId: yandexMarketplace.id,
             //Размеры в см, вес в кг
-            dimensionsYandex: `${item.offer.weightDimensions.length}/${item.offer.weightDimensions.width}/${item.offer.weightDimensions.height}/${item.offer.weightDimensions.weight}`,
-            volumeYandex
+            dimensionsYandex: item.dimensionsYandex,
+            volumeYandex: item.volumeYandex
           });
           await queryRunner.manager.save(Items, createItem);
         } else {
@@ -617,12 +651,12 @@ export class ItemsService {
             Items,
             { id: findItem.id },
             {
-              article: item.offer.offerId,
-              title: item.offer.name,
-              category: item.offer.category ?? item.mapping.marketCategoryName,
+              article: item.article,
+              title: item.title,
+              category: item.category,
               //Размеры в см, вес в кг
-              dimensionsYandex: `${item.offer.weightDimensions.length}/${item.offer.weightDimensions.width}/${item.offer.weightDimensions.height}/${item.offer.weightDimensions.weight}`,
-              volumeYandex
+              dimensionsYandex: item.dimensionsYandex,
+              volumeYandex: item.volumeYandex
             }
           );
         }

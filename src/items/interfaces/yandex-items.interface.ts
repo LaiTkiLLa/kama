@@ -1,7 +1,9 @@
 export interface YandexItems {
   status: string;
   result: {
-    paging: {};
+    paging: {
+      nextPageToken?: string;
+    };
     offerMappings: {
       offer: {
         offerId: string;
@@ -39,4 +41,16 @@ export interface YandexItems {
       };
     }[];
   };
+}
+
+export interface YandexItemsResult {
+  marketplaceIdentifier: string;
+  volumeYandex: string;
+  article: string;
+  category: string;
+  title: string;
+  barcode: string;
+  sku: string;
+  imageUrl: string;
+  dimensionsYandex: string;
 }
