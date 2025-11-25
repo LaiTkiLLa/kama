@@ -93,6 +93,26 @@ export class UpdateDirectoryItemInfoDto {
   @IsString()
   @IsOptional()
   ownImagesUrl: string;
+
+  @IsNumber()
+  @IsOptional()
+  volumePerUnit: number;
+
+  @IsNumber()
+  @IsOptional()
+  weightPerUnit: number;
+
+  @IsNumber()
+  @IsOptional()
+  transportRateUsd: number;
+
+  @IsNumber()
+  @IsOptional()
+  dutyPercentage: number;
+
+  @IsString()
+  @IsOptional()
+  volumePerContainer: string;
 }
 
 export class UpdateArrayDirectoryItemsInfoDto {

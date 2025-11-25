@@ -75,7 +75,7 @@ export class ItemsService {
           supplierTitle: getDirectoryListDto.supplierTitle
         });
       }
-      const findItems = await queryBuilder.getMany();
+      const findItems = await queryBuilder.orderBy('items.id', 'ASC').getMany();
       const filterWbItems = findItems
         .filter(item => item.marketplace.title === 'WB')
         .map(item => {
@@ -112,7 +112,12 @@ export class ItemsService {
             volumeWB: item.volumeWB,
             volumeOzon: '',
             volumeYandex: '',
-            ownImagesUrl: item.ownImagesUrl
+            ownImagesUrl: item.ownImagesUrl,
+            volumePerUnit: item.volumePerUnit,
+            weightPerUnit: item.weightPerUnit,
+            transportRateUsd: item.transportRateUsd,
+            dutyPercentage: item.dutyPercentage,
+            volumePerContainer: item.volumePerContainer
           };
         });
       const filterOzonItems = findItems.filter(item => item.marketplace.title === 'Озон');
@@ -189,7 +194,12 @@ export class ItemsService {
             remainingBalance: item.remainingBalance,
             frequencyOfSendingCars: item.frequencyOfSendingCars,
             dailyGrowthPercentage: item.dailyGrowthPercentage,
-            ownImagesUrl: item.ownImagesUrl
+            ownImagesUrl: item.ownImagesUrl,
+            volumePerUnit: item.volumePerUnit,
+            weightPerUnit: item.weightPerUnit,
+            transportRateUsd: item.transportRateUsd,
+            dutyPercentage: item.dutyPercentage,
+            volumePerContainer: item.volumePerContainer
           }
         );
       }

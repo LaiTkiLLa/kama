@@ -163,6 +163,26 @@ export class Items {
   @Column({ type: 'float', name: 'daily_growth_percentage', nullable: true })
   dailyGrowthPercentage: number;
 
+  //Объем на единицу
+  @Column({ type: 'float', name: 'volume_per_unit', nullable: true })
+  volumePerUnit: number;
+
+  //Вес на единицу
+  @Column({ type: 'float', name: 'weight_per_unit', nullable: true })
+  weightPerUnit: number;
+
+  //Транспортная ставка USD
+  @Column({ type: 'float', name: 'transport_rate_usd', nullable: true })
+  transportRateUsd: number;
+
+  //Пошлина %
+  @Column({ type: 'float', name: 'duty_percentage', nullable: true })
+  dutyPercentage: number;
+
+  //Объем в контейнере
+  @Column({ type: 'float', name: 'volume_per_container', nullable: true })
+  volumePerContainer: string;
+
   //Дата создания товара на WB
   @Column({
     type: 'timestamp',
