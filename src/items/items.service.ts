@@ -548,8 +548,8 @@ export class ItemsService {
 
   @Cron('0 */42 * * * *')
   async getOzonItemsFirst() {
-    const ozonToken: string = await this.configService.get('ozonToken');
-    const clientId: string = await this.configService.get('ozonClientId');
+    const ozonToken = await this.configService.get('ozonToken');
+    const clientId = await this.configService.get('ozonClientId');
     const ozonMarketplace = await this.infoService.findMarketplace({ title: 'Озон' });
     await this.getOzonItems(ozonToken, clientId, ozonMarketplace.id);
     return;
@@ -557,8 +557,8 @@ export class ItemsService {
 
   @Cron('0 */46 * * * *')
   async getOzonItemsSecond() {
-    const ozonToken: string = await this.configService.get('ozonSecondToken');
-    const clientId: string = await this.configService.get('ozonSecondClientId');
+    const ozonToken = await this.configService.get('ozonSecondToken');
+    const clientId = await this.configService.get('ozonSecondClientId');
     const ozonMarketplace = await this.infoService.findMarketplace({ title: 'Ozon Second' });
     await this.getOzonItems(ozonToken, clientId, ozonMarketplace.id);
     return;
@@ -566,7 +566,7 @@ export class ItemsService {
 
   @Cron('0 */44 * * * *')
   async getYandexItems() {
-    const businessId: string = await this.configService.get('yandexBusinessId');
+    const businessId = await this.configService.get('yandexBusinessId');
     let pageToken;
     let hasMoreData = true;
 
