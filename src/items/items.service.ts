@@ -117,7 +117,8 @@ export class ItemsService {
             weightPerUnit: item.weightPerUnit,
             transportRateUsd: item.transportRateUsd,
             dutyPercentage: item.dutyPercentage,
-            volumePerContainer: item.volumePerContainer
+            volumePerContainer: item.volumePerContainer,
+            tariffWeight: item.tariffWeight
           };
         });
       const filterOzonItems = findItems.filter(item => item.marketplace.title === 'Озон');
@@ -199,7 +200,8 @@ export class ItemsService {
             weightPerUnit: item.weightPerUnit,
             transportRateUsd: item.transportRateUsd,
             dutyPercentage: item.dutyPercentage,
-            volumePerContainer: item.volumePerContainer
+            volumePerContainer: item.volumePerContainer,
+            tariffWeight: item.tariffWeight
           }
         );
       }
