@@ -184,8 +184,8 @@ export class Items {
   volumePerContainer: string;
 
   //Тарифный вес
-  @Column({ type: 'float', name: 'tariff_weight', nullable: true })
-  tariffWeight: number;
+  @Column({ type: 'varchar', name: 'tariff_weight', nullable: true })
+  tariffWeight: string;
 
   //Дата создания товара на WB
   @Column({
