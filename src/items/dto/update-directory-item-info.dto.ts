@@ -114,9 +114,9 @@ export class UpdateDirectoryItemInfoDto {
   @IsOptional()
   volumePerContainer: string;
 
-  @IsNumber()
+  @IsString()
   @IsOptional()
-  tariffWeight: number;
+  tariffWeight: string;
 }
 
 export class UpdateArrayDirectoryItemsInfoDto {
