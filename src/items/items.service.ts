@@ -11,7 +11,7 @@ import { YandexItems, YandexItemsResult } from './interfaces/yandex-items.interf
 import { GetItemsListDto } from './dto/get-items-list.dto';
 import { Marketplaces } from '../info/entities/marketplaces.entity';
 import { UpdateItemInfoDto } from './dto/update-item-info.dto';
-import { StopListCronResult, StopListResponse } from './interfaces/stop-list.interface';
+import { GetStopListFromDb, StopListCronResult, StopListResponse } from './interfaces/stop-list.interface';
 import { GetItemsStopListDto } from './dto/get-items-stop-list.dto';
 import { UpdateStopListItems } from './dto/update-status-stop-list.dto';
 import { StatusesTypes } from '../info/enum/statuses.enum';
@@ -250,25 +250,57 @@ export class ItemsService {
       const monthAgo = new Date(new Date().setDate(new Date().getDate() - 30));
       const queryBuilder = queryRunner.manager
         .createQueryBuilder(Items, 'items')
-        .innerJoinAndSelect('items.marketplace', 'marketplace', 'marketplace.title != :title', {
-          title: 'Ozon Second'
-        })
-        .leftJoinAndSelect('items.direction', 'direction')
-        .leftJoinAndSelect('items.sendStatus', 'sendStatus')
-        .addSelect(subQuery => {
-          return subQuery
-            .select('COALESCE(SUM(stock.currentValue), 0)', 'stocksSum')
-            .from('stocks', 'stock')
-            .where('stock.item_id = items.id')
-            .andWhere('DATE(stock.createdAt) = CURRENT_DATE');
-        }, 'stocksSum')
-        .addSelect(subQuery => {
-          return subQuery
-            .select('COALESCE(SUM(ord.quantity), 0)', 'ordersSum')
-            .from('orders', 'ord')
-            .where('ord.item_id = items.id')
-            .andWhere('ord.created_at >= DATE(:monthAgo)', { monthAgo });
-        }, 'ordersSum');
+        .select([
+          'items.id AS "itemId"',
+          'items.article AS article',
+          'items.imageUrl AS "imageUrl"',
+          'items.title AS title',
+          'items.color AS color',
+          'items.barcode AS barcode',
+          'items.marketplaceIdentifier AS "marketplaceIdentifier"',
+          'items.sku AS sku',
+
+          'directions.id AS "directionId"',
+          'directions.title AS "directionTitle"',
+
+          'marketplace.id AS "marketplaceId"',
+          'marketplace.title AS "marketplaceTitle"',
+
+          'sendStatus.id AS "sendStatusId"',
+          'sendStatus.title AS "sendStatusTitle"'
+        ])
+        .innerJoin('items.marketplace', 'marketplace', `marketplace.title != 'Ozon Second'`)
+        .leftJoin('items.direction', 'directions')
+        .leftJoin('items.sendStatus', 'sendStatus')
+        .leftJoin(
+          qb => {
+            return qb
+              .select('stock.item_id', 'item_id')
+              .addSelect('SUM(stock.current_value)', 'stocks_sum')
+              .from('stocks', 'stock')
+              .where('DATE(stock.created_at) = CURRENT_DATE')
+              .groupBy('stock.item_id');
+          },
+          'stocks_summary',
+          'stocks_summary.item_id = items.id'
+        )
+        .leftJoin(
+          qb => {
+            return qb
+              .select('ord.item_id', 'item_id')
+              .addSelect('SUM(ord.quantity)', 'orders_sum')
+              .from('orders', 'ord')
+              .where(`ord.created_at >= :monthAgo`, { monthAgo })
+              .groupBy('ord.item_id');
+          },
+          'orders_summary',
+          'orders_summary.item_id = items.id'
+        )
+
+        .addSelect([
+          'COALESCE(stocks_summary.stocks_sum, 0) AS "stocksSum"',
+          'COALESCE(orders_summary.orders_sum, 0) AS "ordersSum"'
+        ]);
       if (getItemsStopListDto.searchString) {
         const search = `%${getItemsStopListDto.searchString}%`;
         queryBuilder.andWhere(
@@ -289,14 +321,17 @@ export class ItemsService {
           activeStatuses: ['Новинка', 'Top']
         });
       }
-      const result = await queryBuilder.getRawAndEntities();
+      const result: GetStopListFromDb[] = await queryBuilder.getRawMany();
+
+      console.log(result);
+
       const mappedItems: StopListResponse[] = [];
-      result.entities.forEach((item, index) => {
+      for (const item of result) {
         const findArticle = mappedItems.find(el => el.article === item.article);
-        const raw = result.raw[index];
-        const wbBarcode = item.marketplace.title === 'WB' ? item.barcode : undefined;
-        const wbIdentifier = item.marketplace.title === 'WB' ? item.marketplaceIdentifier : undefined;
-        const ozonIdentifier = item.marketplace.title === 'Озон' ? item.sku : undefined;
+        // const raw = result.raw[index];
+        const wbBarcode = item.marketplaceTitle === 'WB' ? item.barcode : undefined;
+        const wbIdentifier = item.marketplaceTitle === 'WB' ? item.marketplaceIdentifier : undefined;
+        const ozonIdentifier = item.marketplaceTitle === 'Озон' ? item.sku : undefined;
         if (findArticle) {
           if (wbBarcode) {
             findArticle.wbBarcode = wbBarcode;
@@ -309,13 +344,13 @@ export class ItemsService {
           }
           findArticle.marketplace.push({
             id: item.marketplaceId,
-            title: item.marketplace.title,
-            itemId: item.id,
-            orders: Number(raw.ordersSum),
-            stocks: Number(raw.stocksSum),
+            title: item.marketplaceTitle,
+            itemId: item.itemId,
+            orders: Number(item.ordersSum),
+            stocks: Number(item.stocksSum),
             sendStatus: {
               id: item.sendStatusId,
-              title: item.sendStatus.title
+              title: item.sendStatusTitle
             }
           });
         } else {
@@ -330,23 +365,23 @@ export class ItemsService {
             marketplace: [
               {
                 id: item.marketplaceId,
-                title: item.marketplace.title,
-                itemId: item.id,
-                orders: Number(raw.ordersSum),
-                stocks: Number(raw.stocksSum),
+                title: item.marketplaceTitle,
+                itemId: item.itemId,
+                orders: Number(item.ordersSum),
+                stocks: Number(item.stocksSum),
                 sendStatus: {
                   id: item.sendStatusId,
-                  title: item.sendStatus.title
+                  title: item.sendStatusTitle
                 }
               }
             ],
             direction: {
               id: item.directionId,
-              title: item.direction.title
+              title: item.directionTitle
             }
           });
         }
-      });
+      }
       return mappedItems;
     } catch (error) {
       this.logger.error(error);

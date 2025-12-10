@@ -1,3 +1,22 @@
+export interface GetStopListFromDb {
+  itemId: number;
+  article: string;
+  imageUrl: string;
+  title: string;
+  color: string;
+  barcode: string;
+  marketplaceIdentifier: string;
+  sku: string;
+  directionId: number;
+  directionTitle: string;
+  marketplaceId: number;
+  marketplaceTitle: string;
+  sendStatusId: number;
+  sendStatusTitle: string;
+  stocksSum: string;
+  ordersSum: string;
+}
+
 export interface StopListResponse {
   article: string;
   image: string | null;
@@ -27,5 +46,5 @@ export interface StopListCronResult {
   orders: number;
   stocks: number;
   itemId: number;
-  classification: string
+  classification: string;
 }
