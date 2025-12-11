@@ -318,12 +318,10 @@ export class ItemsService {
       }
       if (getItemsStopListDto.withActiveStatus) {
         queryBuilder.andWhere('sendStatus.title IN (:...activeStatuses)', {
-          activeStatuses: ['Новинка', 'Top']
+          activeStatuses: ['Новинка', 'Bestseller']
         });
       }
       const result: GetStopListFromDb[] = await queryBuilder.getRawMany();
-
-      console.log(result);
 
       const mappedItems: StopListResponse[] = [];
       for (const item of result) {
@@ -805,7 +803,7 @@ export class ItemsService {
       const findItems = await queryRunner.manager
         .createQueryBuilder(Items, 'items')
         .innerJoinAndSelect('items.sendStatus', 'sendStatus', 'sendStatus.title NOT IN (:...titles)', {
-          titles: ['Нельзя (ручная)', 'Можно (ручная)', 'Top', 'Новинка']
+          titles: ['Нельзя (ручная)', 'Можно (ручная)', 'Bestseller', 'Новинка']
         })
         .addSelect(subQuery => {
           return subQuery
