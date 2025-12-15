@@ -59,6 +59,7 @@ export class ItemsService {
         }
       );
       await queryRunner.commitTransaction();
+      return { id: createItem.id };
     } catch (error) {
       await queryRunner.rollbackTransaction();
       this.logger.error(error);
