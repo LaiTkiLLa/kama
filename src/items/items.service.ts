@@ -30,6 +30,34 @@ export class ItemsService {
 
   private logger: Logger = new Logger(ItemsService.name);
 
+  async createTestItem() {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+    try {
+      const findWbMp = await this.infoService.findMarketplace({ title: 'WB' });
+      const createItem = queryRunner.manager.create(Items, {
+        createdForCalculation: true,
+        marketplaceId: findWbMp.id,
+        article: 'тестовый артикул',
+        category: 'тестовая категория',
+        title: 'тестовое название',
+        barcode: 'тестовый баркод',
+        sku: 'тестовый ску',
+        marketplaceIdentifier: 'тестовый идентификатор'
+      });
+      await queryRunner.manager.save(Items, createItem);
+      await queryRunner.commitTransaction();
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      this.logger.error(error);
+      this.logger.error('Не добавить тестовый товар');
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
   async getItemsList(getItemsListDto: GetItemsListDto): Promise<{ id: number; identifier: string }[]> {
     let marketplace: Marketplaces;
     if (getItemsListDto.marketplaceTitle === 'Ozon') {

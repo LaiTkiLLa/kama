@@ -187,6 +187,14 @@ export class Items {
   @Column({ type: 'varchar', name: 'tariff_weight', nullable: true })
   tariffWeight: string;
 
+  @Column({
+    type: 'boolean',
+    nullable: false,
+    default: false,
+    name: 'created_for_calculation'
+  })
+  createdForCalculation: boolean;
+
   //Дата создания товара на WB
   @Column({
     type: 'timestamp',
