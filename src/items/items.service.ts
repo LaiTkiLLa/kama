@@ -47,6 +47,17 @@ export class ItemsService {
         marketplaceIdentifier: 'тестовый идентификатор'
       });
       await queryRunner.manager.save(Items, createItem);
+      await queryRunner.manager.update(
+        Items,
+        { id: createItem.id },
+        {
+          article: `тестовый артикул ${createItem.id}`,
+          title: `тестовое название ${createItem.id}`,
+          barcode: `тестовый баркод ${createItem.id}`,
+          sku: `тестовый ску ${createItem.id}`,
+          marketplaceIdentifier: `тестовый идентификатор ${createItem.id}`
+        }
+      );
       await queryRunner.commitTransaction();
     } catch (error) {
       await queryRunner.rollbackTransaction();
