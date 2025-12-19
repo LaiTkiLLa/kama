@@ -115,7 +115,6 @@ export class ItemsService {
           supplierTitle: getDirectoryListDto.supplierTitle
         });
       }
-      console.log(getDirectoryListDto.withTestArticles);
       if (getDirectoryListDto.withTestArticles === false) {
         queryBuilder.andWhere('items.createdForCalculation = :createdForCalculation', {
           createdForCalculation: false
