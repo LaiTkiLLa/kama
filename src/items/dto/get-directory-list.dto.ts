@@ -9,5 +9,5 @@ export class GetDirectoryListDto {
   @Transform(({ value }) => value === 'true' || value === true)
   @IsBoolean()
   @IsOptional()
-  withoutTestArticles: boolean;
+  withTestArticles: boolean;
 }

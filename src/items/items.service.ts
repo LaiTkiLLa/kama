@@ -115,10 +115,10 @@ export class ItemsService {
           supplierTitle: getDirectoryListDto.supplierTitle
         });
       }
-      console.log(getDirectoryListDto.withoutTestArticles);
-      if (getDirectoryListDto.withoutTestArticles) {
+      console.log(getDirectoryListDto.withTestArticles);
+      if (getDirectoryListDto.withTestArticles) {
         queryBuilder.andWhere('items.createdForCalculation = :createdForCalculation', {
-          createdForCalculation: getDirectoryListDto.withoutTestArticles
+          createdForCalculation: getDirectoryListDto.withTestArticles
         });
       }
       const findItems = await queryBuilder.orderBy('items.id', 'ASC').getMany();
