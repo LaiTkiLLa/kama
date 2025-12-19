@@ -202,7 +202,7 @@ export class ItemsService {
             article: item.article
           }
         });
-        if (!findItems) {
+        if (!findItems.length) {
           throw new NotFoundException('Артикул не найден');
         }
         let supplierId: number | null = null;
@@ -246,7 +246,10 @@ export class ItemsService {
             transportRateUsd: item.transportRateUsd,
             dutyPercentage: item.dutyPercentage,
             volumePerContainer: item.volumePerContainer,
-            tariffWeight: item.tariffWeight
+            tariffWeight: item.tariffWeight,
+            title: findItems[0].createdForCalculation ? item.title : undefined,
+            volumeWB: findItems[0].createdForCalculation ? item.volumeWB : undefined,
+            volumeOzon: findItems[0].createdForCalculation ? item.volumeOzon : undefined
           }
         );
       }

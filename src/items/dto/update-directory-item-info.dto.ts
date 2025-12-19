@@ -117,6 +117,18 @@ export class UpdateDirectoryItemInfoDto {
   @IsString()
   @IsOptional()
   tariffWeight: string;
+
+  @IsString()
+  @IsOptional()
+  title: string;
+
+  @IsString()
+  @IsOptional()
+  volumeWB: string;
+
+  @IsString()
+  @IsOptional()
+  volumeOzon: string;
 }
 
 export class UpdateArrayDirectoryItemsInfoDto {
