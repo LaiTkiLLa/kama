@@ -369,7 +369,9 @@ export class ItemsService {
           activeStatuses: ['Новинка', 'Bestseller']
         });
       }
-      const result: GetStopListFromDb[] = await queryBuilder.getRawMany();
+      const result: GetStopListFromDb[] = await queryBuilder
+        .andWhere('items.createdForCalculation = :createdForCalculation', { createdForCalculation: false })
+        .getRawMany();
 
       const mappedItems: StopListResponse[] = [];
       for (const item of result) {
