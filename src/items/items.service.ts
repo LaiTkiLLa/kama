@@ -155,7 +155,7 @@ export class ItemsService {
             frequencyOfSendingCars: item.frequencyOfSendingCars,
             dailyGrowthPercentage: item.dailyGrowthPercentage,
             volumeWB: item.volumeWB,
-            volumeOzon: '',
+            volumeOzon: item.createdForCalculation ? item.volumeOzon : '',
             volumeYandex: '',
             ownImagesUrl: item.ownImagesUrl,
             volumePerUnit: item.volumePerUnit,
@@ -216,10 +216,6 @@ export class ItemsService {
             throw new NotFoundException('Поставщик не найден');
           }
           supplierId = findSupplier.id;
-        }
-        if (findItems[0].createdForCalculation) {
-          console.log('1', findItems[0].createdForCalculation ? item.volumeOzon : undefined);
-          console.log('2', findItems[0].createdForCalculation === true ? item.volumeWB : undefined);
         }
         await queryRunner.manager.update(
           Items,
