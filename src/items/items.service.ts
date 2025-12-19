@@ -116,7 +116,7 @@ export class ItemsService {
         });
       }
       console.log(getDirectoryListDto.withTestArticles);
-      if (!getDirectoryListDto.withTestArticles) {
+      if (getDirectoryListDto.withTestArticles === false) {
         queryBuilder.andWhere('items.createdForCalculation = :createdForCalculation', {
           createdForCalculation: false
         });
