@@ -115,6 +115,12 @@ export class ItemsService {
           supplierTitle: getDirectoryListDto.supplierTitle
         });
       }
+      console.log(getDirectoryListDto.withoutTestArticles);
+      if (getDirectoryListDto.withoutTestArticles) {
+        queryBuilder.andWhere('items.createdForCalculation = :createdForCalculation', {
+          createdForCalculation: getDirectoryListDto.withoutTestArticles
+        });
+      }
       const findItems = await queryBuilder.orderBy('items.id', 'ASC').getMany();
       const filterWbItems = findItems
         .filter(item => item.marketplace.title === 'WB')
