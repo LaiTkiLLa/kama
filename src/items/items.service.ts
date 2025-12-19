@@ -218,8 +218,8 @@ export class ItemsService {
           supplierId = findSupplier.id;
         }
         if (findItems[0].createdForCalculation) {
-          console.log('1', findItems[0].createdForCalculation ? item.title : undefined);
-          console.log('2', findItems[0].createdForCalculation === true ? item.title : undefined);
+          console.log('1', findItems[0].createdForCalculation ? item.volumeOzon : undefined);
+          console.log('2', findItems[0].createdForCalculation === true ? item.volumeWB : undefined);
         }
         await queryRunner.manager.update(
           Items,
