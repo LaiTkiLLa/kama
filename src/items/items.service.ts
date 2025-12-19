@@ -116,9 +116,9 @@ export class ItemsService {
         });
       }
       console.log(getDirectoryListDto.withTestArticles);
-      if (getDirectoryListDto.withTestArticles) {
+      if (!getDirectoryListDto.withTestArticles) {
         queryBuilder.andWhere('items.createdForCalculation = :createdForCalculation', {
-          createdForCalculation: getDirectoryListDto.withTestArticles
+          createdForCalculation: false
         });
       }
       const findItems = await queryBuilder.orderBy('items.id', 'ASC').getMany();
