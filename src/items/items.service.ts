@@ -125,6 +125,7 @@ export class ItemsService {
         .filter(item => item.marketplace.title === 'WB')
         .map(item => {
           return {
+            id: item.id,
             article: item.article,
             ownCategory: item.ownCategory,
             image: item.imageUrl,
@@ -163,7 +164,8 @@ export class ItemsService {
             transportRateUsd: item.transportRateUsd,
             dutyPercentage: item.dutyPercentage,
             volumePerContainer: item.volumePerContainer,
-            tariffWeight: item.tariffWeight
+            tariffWeight: item.tariffWeight,
+            createdForCalculation: item.createdForCalculation
           };
         });
       const filterOzonItems = findItems.filter(item => item.marketplace.title === 'Озон');
@@ -181,6 +183,32 @@ export class ItemsService {
           findItem.dimensionsYandex = yandexItem.dimensionsYandex;
           findItem.volumeYandex = yandexItem.volumeYandex;
         }
+      }
+      if (getDirectoryListDto.sortBySupplier) {
+        const suppliersRank = {
+          Paidu: 1,
+          'Miska Sports': 2,
+          'Tianlong reap': 3,
+          Yiwulifeng: 4,
+          'Huayi sports': 5,
+          Amyups: 6,
+          DeepFit: 7,
+          'Avec Sports': 8,
+          Gymbo: 9
+        };
+        filterWbItems.sort((a, b) => {
+          const supplierA = a.supplierTitle || '';
+          const supplierB = b.supplierTitle || '';
+          const rankA = suppliersRank[supplierA] ?? 999; // если поставщик не в списке, ставим в конец
+          const rankB = suppliersRank[supplierB] ?? 999;
+
+          if (rankA !== rankB) {
+            return rankA - rankB;
+          }
+
+          // если поставщики одинаковые, сортируем по id товара
+          return a.id - b.id;
+        });
       }
       return filterWbItems;
     } catch (error) {
