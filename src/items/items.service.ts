@@ -165,7 +165,9 @@ export class ItemsService {
             dutyPercentage: item.dutyPercentage,
             volumePerContainer: item.volumePerContainer,
             tariffWeight: item.tariffWeight,
-            createdForCalculation: item.createdForCalculation
+            createdForCalculation: item.createdForCalculation,
+            costInYuanWhite: item.costInYuanWhite,
+            codeTNVED: item.codeTNVED
           };
         });
       const filterOzonItems = findItems.filter(item => item.marketplace.title === 'Озон');
@@ -183,79 +185,6 @@ export class ItemsService {
           findItem.dimensionsYandex = yandexItem.dimensionsYandex;
           findItem.volumeYandex = yandexItem.volumeYandex;
         }
-      }
-      if (getDirectoryListDto.specialSort) {
-        const suppliersRank = {
-          Paidu: 1,
-          'Miska Sports': 2,
-          'Tianlong reap': 3,
-          Yiwulifeng: 4,
-          'Huayi sports': 5,
-          Amyups: 6,
-          DeepFit: 7,
-          'Avec Sports': 8,
-          Gymbo: 9
-        };
-
-        const ownCategorySort = {
-          'Коврики ТПЕ': 1,
-          'Коврики ТПЕ Фибра': 2,
-          'Коврики Каучук': 3,
-          'Коврики ТПЕ широкий': 4,
-          'Коврики Полиуретан': 5,
-          'Коврики НБР': 6,
-          'Коврики ТПЕ складные': 7,
-          'Валики спортивные 30х10': 8,
-          'Валики спортивные 45х12': 9,
-          'Валики спортивные 45х15': 10,
-          'Валики спортивные 60х15': 11,
-          'Валики спортивные 90х15': 12,
-          'Валики спортивные 45х14': 13,
-          'Валики спортивные с вибрацией': 14,
-          'Фитнес резинки тканевые': 15,
-          'Фитнес резинки латексные': 16,
-          'Эспандеры ленточные': 17,
-          'Блоки для йоги': 18,
-          'Блоки для йоги полукруглые': 19,
-          'Ролики для пресса': 20,
-          'Массажеры механические, мячи МФР': 21,
-          'Валики спортивные, ролл арахис': 22,
-          'Мячи для пилатеса 25см': 23,
-          Фитболы: 24,
-          Утяжелители: 25,
-          Гири: 26,
-          Гантели: 27,
-          'Тренажеры, степперы': 28,
-          'Тренажеры, доски для пилатеса': 29,
-          'Тренажеры, беговые дорожки': 30,
-          'Бутылки для воды': 31,
-          'Коврики массажные': 32,
-          'Диски балансировочные': 33,
-          'Кольца для пилатеса': 34,
-          Медицинболы: 35
-        };
-
-        filterWbItems.sort((a, b) => {
-          const supplierA = a.supplierTitle || '';
-          const supplierB = b.supplierTitle || '';
-          const rankA = suppliersRank[supplierA] ?? 999;
-          const rankB = suppliersRank[supplierB] ?? 999;
-
-          // Сначала сортировка по поставщику
-          if (rankA !== rankB) {
-            return rankA - rankB;
-          }
-
-          // Потом сортировка по категории
-          const categoryRankA = ownCategorySort[a.ownCategory] ?? 999;
-          const categoryRankB = ownCategorySort[b.ownCategory] ?? 999;
-          if (categoryRankA !== categoryRankB) {
-            return categoryRankA - categoryRankB;
-          }
-
-          // Внутри категории сортировка по id товара
-          return a.id - b.id;
-        });
       }
       return filterWbItems;
     } catch (error) {
@@ -324,7 +253,9 @@ export class ItemsService {
             tariffWeight: item.tariffWeight,
             title: findItems[0].createdForCalculation ? item.title : undefined,
             volumeWB: findItems[0].createdForCalculation ? item.volumeWB : undefined,
-            volumeOzon: findItems[0].createdForCalculation ? item.volumeOzon : undefined
+            volumeOzon: findItems[0].createdForCalculation ? item.volumeOzon : undefined,
+            costInYuanWhite: item.costInYuanWhite,
+            codeTNVED: item.codeTNVED
           }
         );
       }

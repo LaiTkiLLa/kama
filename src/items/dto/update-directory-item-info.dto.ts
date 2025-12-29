@@ -129,6 +129,14 @@ export class UpdateDirectoryItemInfoDto {
   @IsString()
   @IsOptional()
   volumeOzon: string;
+
+  @IsNumber()
+  @IsOptional()
+  costInYuanWhite: number;
+
+  @IsString()
+  @IsOptional()
+  codeTNVED: string;
 }
 
 export class UpdateArrayDirectoryItemsInfoDto {

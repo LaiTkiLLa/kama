@@ -139,13 +139,21 @@ export class Items {
   @Column({ type: 'int', name: 'stocks_in_days', nullable: false, default: 30 })
   stocksInDays: number;
 
-  //Себестоимость в рублях
+  //Себестоимость в юанях
   @Column({ type: 'float', name: 'cost_in_yuan', nullable: true })
   costInYuan: number;
 
-  //Себестоимость в юанях
+  //Себестоимость в юанях белая
+  @Column({ type: 'float', name: 'cost_in_yuan_white', nullable: true })
+  costInYuanWhite: number;
+
+  //Себестоимость в рублях
   @Column({ type: 'float', name: 'cost_in_rub', nullable: true })
   costInRub: number;
+
+  //КОД ТНВЭД
+  @Column({ type: 'varchar', name: 'cost_tnved', nullable: true })
+  codeTNVED: string;
 
   //Срок пополнения в днях
   @Column({ type: 'int', name: 'replenishment_period', nullable: false, default: 60 })

@@ -10,9 +10,4 @@ export class GetDirectoryListDto {
   @IsBoolean()
   @IsOptional()
   withTestArticles: boolean;
-
-  @Transform(({ value }) => value === 'true' || value === true)
-  @IsBoolean()
-  @IsOptional()
-  specialSort: boolean
 }
