@@ -189,7 +189,7 @@ export class Items {
 
   //Объем в контейнере
   @Column({ type: 'float', name: 'volume_per_container', nullable: true })
-  volumePerContainer: string;
+  volumePerContainer: number;
 
   //Тарифный вес
   @Column({ type: 'varchar', name: 'tariff_weight', nullable: true })

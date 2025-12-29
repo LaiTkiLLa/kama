@@ -110,9 +110,9 @@ export class UpdateDirectoryItemInfoDto {
   @IsOptional()
   dutyPercentage: number;
 
-  @IsString()
+  @IsNumber()
   @IsOptional()
-  volumePerContainer: string;
+  volumePerContainer: number;
 
   @IsString()
   @IsOptional()
