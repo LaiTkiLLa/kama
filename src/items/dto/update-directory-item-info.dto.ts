@@ -112,7 +112,7 @@ export class UpdateDirectoryItemInfoDto {
 
   @IsNumber()
   @IsOptional()
-  volumePerContainer: number;
+  density: number;
 
   @IsString()
   @IsOptional()
@@ -137,6 +137,14 @@ export class UpdateDirectoryItemInfoDto {
   @IsString()
   @IsOptional()
   codeTNVED: string;
+
+  @IsString()
+  @IsOptional()
+  dimensionsMasterBox: string;
+
+  @IsString()
+  @IsOptional()
+  volumeMasterBox: string;
 }
 
 export class UpdateArrayDirectoryItemsInfoDto {
