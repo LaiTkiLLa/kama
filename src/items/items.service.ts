@@ -613,7 +613,8 @@ export class ItemsService {
             //Размеры в см, вес в кг
             dimensionsWB: `${item.dimensions.length}/${item.dimensions.width}/${item.dimensions.height}/${item.dimensions.weightBrutto}`,
             volumeWB,
-            wbCreatedAt: item.createdAt
+            wbCreatedAt: item.createdAt,
+            classification: 'Новинка / A'
           });
           await queryRunner.manager.save(Items, createItem);
         } else {
@@ -744,7 +745,8 @@ export class ItemsService {
             marketplaceId: yandexMarketplace.id,
             //Размеры в см, вес в кг
             dimensionsYandex: item.dimensionsYandex,
-            volumeYandex: item.volumeYandex
+            volumeYandex: item.volumeYandex,
+            classification: 'Новинка / A'
           });
           await queryRunner.manager.save(Items, createItem);
         } else {
@@ -820,7 +822,8 @@ export class ItemsService {
             marketplaceId,
             //Переводим размеры в см, вес в кг
             dimensionsOzon: `${Number((item.depth / 10).toFixed(2))}/${Number((item.width / 10).toFixed(2))}/${Number((item.height / 10).toFixed(2))}/${Number((item.weight / 1000).toFixed(3))}`,
-            volumeOzon
+            volumeOzon,
+            classification: 'Новинка / A'
           });
           await queryRunner.manager.save(Items, createItem);
         } else {
@@ -910,6 +913,34 @@ export class ItemsService {
       await queryRunner.rollbackTransaction();
       this.logger.error(error);
       this.logger.error('Не смог изменить статусы отправки');
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  @Cron(CronExpression.EVERY_DAY_AT_1AM)
+  async updateItemsClassification() {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+    try {
+      const findItems = await queryRunner.manager
+        .createQueryBuilder(Items, 'items')
+        .where('items.classification = :classification', { classification: 'Новинка / A' })
+        .andWhere("items.createdAt <= NOW() - INTERVAL '3 months'")
+        .getMany();
+      console.log(findItems)
+      for (const item of findItems) {
+        await queryRunner.manager.update(Items, item.id, {
+          classification: 'Промежуточный статус'
+        });
+      }
+      await queryRunner.commitTransaction();
+      return;
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      this.logger.error(error);
+      this.logger.error('Не смог обновить классификацию');
     } finally {
       await queryRunner.release();
     }
