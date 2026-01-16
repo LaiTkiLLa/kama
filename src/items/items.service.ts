@@ -163,11 +163,13 @@ export class ItemsService {
             weightPerUnit: item.weightPerUnit,
             transportRateUsd: item.transportRateUsd,
             dutyPercentage: item.dutyPercentage,
-            volumePerContainer: item.volumePerContainer,
+            density: item.density,
             tariffWeight: item.tariffWeight,
             createdForCalculation: item.createdForCalculation,
             costInYuanWhite: item.costInYuanWhite,
-            codeTNVED: item.codeTNVED
+            codeTNVED: item.codeTNVED,
+            dimensionsMasterBox: item.dimensionsMasterBox,
+            volumeMasterBox: item.volumeMasterBox
           };
         });
       const filterOzonItems = findItems.filter(item => item.marketplace.title === 'Озон');
@@ -249,13 +251,15 @@ export class ItemsService {
             weightPerUnit: item.weightPerUnit,
             transportRateUsd: item.transportRateUsd,
             dutyPercentage: item.dutyPercentage,
-            volumePerContainer: item.volumePerContainer,
+            density: item.density,
             tariffWeight: item.tariffWeight,
             title: findItems[0].createdForCalculation ? item.title : undefined,
             volumeWB: findItems[0].createdForCalculation ? item.volumeWB : undefined,
             volumeOzon: findItems[0].createdForCalculation ? item.volumeOzon : undefined,
             costInYuanWhite: item.costInYuanWhite,
-            codeTNVED: item.codeTNVED
+            codeTNVED: item.codeTNVED,
+            dimensionsMasterBox: item.dimensionsMasterBox,
+            volumeMasterBox: item.volumeMasterBox
           }
         );
       }

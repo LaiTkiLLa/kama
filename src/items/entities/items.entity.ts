@@ -111,6 +111,10 @@ export class Items {
   @Column({ type: 'varchar', nullable: true, name: 'dimensions_yandex' })
   dimensionsYandex: string;
 
+  //Размеры Мастер короба д/ш/в/вес
+  @Column({ type: 'varchar', nullable: true, name: 'dimensions_master_box' })
+  dimensionsMasterBox: string;
+
   //Объем WB
   @Column({ type: 'varchar', nullable: true, name: 'volume_wb' })
   volumeWB: string;
@@ -122,6 +126,10 @@ export class Items {
   //Объем Yandex
   @Column({ type: 'varchar', nullable: true, name: 'volume_yandex' })
   volumeYandex: string;
+
+  //Объем Мастер короба
+  @Column({ type: 'varchar', nullable: true, name: 'volume_master_box' })
+  volumeMasterBox: string;
 
   //Объем товара
   @Column({ type: 'varchar', nullable: true })
@@ -187,9 +195,9 @@ export class Items {
   @Column({ type: 'float', name: 'duty_percentage', nullable: true })
   dutyPercentage: number;
 
-  //Объем в контейнере
-  @Column({ type: 'float', name: 'volume_per_container', nullable: true })
-  volumePerContainer: number;
+  //Плотность
+  @Column({ type: 'float', nullable: true })
+  density: number;
 
   //Тарифный вес
   @Column({ type: 'varchar', name: 'tariff_weight', nullable: true })
