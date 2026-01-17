@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
-import { Cron, CronExpression } from '@nestjs/schedule';
+import { Cron } from '@nestjs/schedule';
 import axios from 'axios';
 import { GetOrdersOzon, GetOrdersResult } from './interfaces/get-orders-ozon.interface';
 import { ItemsService } from '../items/items.service';
@@ -63,13 +63,23 @@ export class OrdersService {
           }
         });
         if (!findOrder) {
-          // await queryRunner.manager.update(
-          //   Items,
-          //   { id: findItem.id },
-          //   {
-          //     wbCreatedAt: new Date()
-          //   }
-          // );
+          const countItemOrder = await queryRunner.manager.count(Orders, {
+            where: {
+              itemId: findItem.id
+            }
+          });
+          if (!countItemOrder) {
+            await queryRunner.manager.update(
+              Items,
+              {
+                id: findItem.id
+              },
+              {
+                wbCreatedAt: orderDate,
+                classification: 'Новинка / A'
+              }
+            );
+          }
           const createOrder = queryRunner.manager.create(Orders, {
             quantity: 1,
             sum: order.finishedPrice,
@@ -197,13 +207,23 @@ export class OrdersService {
           }
         });
         if (!findOrder) {
-          // await queryRunner.manager.update(
-          //   Items,
-          //   { id: findItem.id },
-          //   {
-          //     wbCreatedAt: new Date()
-          //   }
-          // );
+          const countItemOrder = await queryRunner.manager.count(Orders, {
+            where: {
+              itemId: findItem.id
+            }
+          });
+          if (!countItemOrder) {
+            await queryRunner.manager.update(
+              Items,
+              {
+                id: findItem.id
+              },
+              {
+                wbCreatedAt: orderDate,
+                classification: 'Новинка / A'
+              }
+            );
+          }
           const createOrder = queryRunner.manager.create(Orders, {
             quantity: order.count,
             sum: order.orderSum,
@@ -340,13 +360,23 @@ export class OrdersService {
         });
         const isCanceled = order.cancelReasonId ? true : false;
         if (!findOrder) {
-          // await queryRunner.manager.update(
-          //   Items,
-          //   { id: findItem.id },
-          //   {
-          //     wbCreatedAt: new Date()
-          //   }
-          // );
+          const countItemOrder = await queryRunner.manager.count(Orders, {
+            where: {
+              itemId: findItem.id
+            }
+          });
+          if (!countItemOrder) {
+            await queryRunner.manager.update(
+              Items,
+              {
+                id: findItem.id
+              },
+              {
+                wbCreatedAt: new Date(order.createdAt),
+                classification: 'Новинка / A'
+              }
+            );
+          }
           const createOrder = queryRunner.manager.create(Orders, {
             quantity: order.quantity,
             sum: Number(order.sum),
