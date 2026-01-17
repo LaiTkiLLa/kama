@@ -616,9 +616,7 @@ export class ItemsService {
             color: findColor ? findColor.value[0] : '',
             //Размеры в см, вес в кг
             dimensionsWB: `${item.dimensions.length}/${item.dimensions.width}/${item.dimensions.height}/${item.dimensions.weightBrutto}`,
-            volumeWB,
-            wbCreatedAt: item.createdAt,
-            classification: 'Новинка / A'
+            volumeWB
           });
           await queryRunner.manager.save(Items, createItem);
         } else {
@@ -749,8 +747,7 @@ export class ItemsService {
             marketplaceId: yandexMarketplace.id,
             //Размеры в см, вес в кг
             dimensionsYandex: item.dimensionsYandex,
-            volumeYandex: item.volumeYandex,
-            classification: 'Новинка / A'
+            volumeYandex: item.volumeYandex
           });
           await queryRunner.manager.save(Items, createItem);
         } else {
@@ -826,8 +823,7 @@ export class ItemsService {
             marketplaceId,
             //Переводим размеры в см, вес в кг
             dimensionsOzon: `${Number((item.depth / 10).toFixed(2))}/${Number((item.width / 10).toFixed(2))}/${Number((item.height / 10).toFixed(2))}/${Number((item.weight / 1000).toFixed(3))}`,
-            volumeOzon,
-            classification: 'Новинка / A'
+            volumeOzon
           });
           await queryRunner.manager.save(Items, createItem);
         } else {
@@ -931,7 +927,7 @@ export class ItemsService {
       const findItems = await queryRunner.manager
         .createQueryBuilder(Items, 'items')
         .where('items.classification = :classification', { classification: 'Новинка / A' })
-        .andWhere("items.createdAt <= NOW() - INTERVAL '3 months'")
+        .andWhere("items.wbCreatedAt <= NOW() - INTERVAL '3 months'")
         .getMany();
       console.log(findItems)
       for (const item of findItems) {
