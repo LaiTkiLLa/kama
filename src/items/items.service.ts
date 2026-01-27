@@ -251,15 +251,15 @@ export class ItemsService {
             weightPerUnit: item.weightPerUnit,
             transportRateUsd: item.transportRateUsd,
             dutyPercentage: item.dutyPercentage,
-            density: item.density,
+            // density: item.density,
             tariffWeight: item.tariffWeight,
             title: findItems[0].createdForCalculation ? item.title : undefined,
             volumeWB: findItems[0].createdForCalculation ? item.volumeWB : undefined,
             volumeOzon: findItems[0].createdForCalculation ? item.volumeOzon : undefined,
             costInYuanWhite: item.costInYuanWhite,
             codeTNVED: item.codeTNVED,
-            dimensionsMasterBox: item.dimensionsMasterBox,
-            volumeMasterBox: item.volumeMasterBox
+            dimensionsMasterBox: item.dimensionsMasterBox
+            // volumeMasterBox: item.volumeMasterBox
           }
         );
       }
@@ -723,7 +723,7 @@ export class ItemsService {
       'Api-Key': ozonToken
     };
     const ozonUrlItemsInfo = 'https://api-seller.ozon.ru/v4/product/info/attributes';
-    const ozonMarketplace = await this.infoService.findMarketplace({ title: 'Ozon Second' });
+    const ozonMarketplace = await this.infoService.findMarketplace({ title: 'Озон' });
     await this.getOzonItems(ozonToken, clientId, ozonMarketplace.id);
     const { data }: { data: { result: OzonItemsInfo[] } } = await axios.post(
       ozonUrlItemsInfo,
