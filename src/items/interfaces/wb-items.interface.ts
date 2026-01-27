@@ -7,6 +7,15 @@ export interface WbItems {
   };
 }
 
+export interface WbTrashedItems {
+  cards: WbItem[];
+  cursor: {
+    trashedAt: string;
+    nmID: number;
+    total: number;
+  };
+}
+
 export interface WbItem {
   nmID: number;
   imtID: number;

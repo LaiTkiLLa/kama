@@ -5,7 +5,7 @@ import axios from 'axios';
 import { InfoService } from '../info/info.service';
 import { ConfigService } from '@nestjs/config';
 import { Items } from './entities/items.entity';
-import { WbItem, WbItems } from './interfaces/wb-items.interface';
+import { WbItem, WbItems, WbTrashedItems } from './interfaces/wb-items.interface';
 import { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
 import { YandexItems, YandexItemsResult } from './interfaces/yandex-items.interface';
 import { GetItemsListDto } from './dto/get-items-list.dto';
@@ -650,6 +650,115 @@ export class ItemsService {
     return;
   }
 
+  @Cron('0 */49 * * * *')
+  async getWbTrashItems() {
+    const itemsUrl = 'https://content-api.wildberries.ru/content/v2/get/cards/trash';
+    const apiToken = await this.configService.get('wbToken');
+    let hasMoreData = true;
+    let cursor: { limit: number } | { limit: number; nmID: number; trashedAt: string } = {
+      limit: 100
+    };
+    const items: WbItem[] = [];
+    while (hasMoreData) {
+      const { data }: { data: WbTrashedItems } = await axios.post(
+        itemsUrl,
+        {
+          settings: {
+            cursor,
+            filter: {
+              withPhoto: -1
+            }
+          }
+        },
+        {
+          headers: {
+            Authorization: apiToken
+          }
+        }
+      );
+      if (!data.cards.length) {
+        hasMoreData = false;
+      } else {
+        items.push(...data.cards);
+      }
+      cursor = {
+        limit: 100,
+        trashedAt: data.cursor.trashedAt,
+        nmID: data.cursor.nmID
+      };
+    }
+    const wbMarketplace = await this.infoService.findMarketplace({ title: 'WB' });
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    try {
+      for (const item of items) {
+        const findItem = await queryRunner.manager.findOne(Items, {
+          where: { marketplaceIdentifier: String(item.nmID), marketplaceId: wbMarketplace.id }
+        });
+        if (findItem) {
+          await queryRunner.manager.update(
+            Items,
+            { id: findItem.id },
+            {
+              isArchive: true
+            }
+          );
+        }
+      }
+      return;
+    } catch (error) {
+      this.logger.error(error);
+      this.logger.error('Не удалось получить архивные товары WB');
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  @Cron('0 */50 * * * *')
+  async getOzonTrashItems() {
+    const ozonToken = await this.configService.get('ozonSecondToken');
+    const clientId = await this.configService.get('ozonSecondClientId');
+    const headers = {
+      'Client-Id': clientId,
+      'Api-Key': ozonToken
+    };
+    const ozonUrlItemsInfo = 'https://api-seller.ozon.ru/v4/product/info/attributes';
+    const ozonMarketplace = await this.infoService.findMarketplace({ title: 'Ozon Second' });
+    await this.getOzonItems(ozonToken, clientId, ozonMarketplace.id);
+    const { data }: { data: { result: OzonItemsInfo[] } } = await axios.post(
+      ozonUrlItemsInfo,
+      {
+        limit: 1000,
+        last_id: '',
+        filter: {
+          visibility: 'ARCHIVED'
+        }
+      },
+      { headers }
+    );
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    try {
+      for (const item of data.result) {
+        if (!item.sku) {
+          continue;
+        }
+        const findItem = await queryRunner.manager.findOne(Items, {
+          where: { marketplaceIdentifier: String(item.id), marketplaceId: ozonMarketplace.id }
+        });
+        if (findItem) {
+          await queryRunner.manager.update(Items, { id: findItem.id }, { isArchive: true });
+        }
+      }
+      return;
+    } catch (error) {
+      this.logger.error(error);
+      this.logger.error('Не смог получить архивные товары Ozon');
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
   @Cron('0 */42 * * * *')
   async getOzonItemsFirst() {
     const ozonToken = await this.configService.get('ozonToken');
@@ -929,7 +1038,7 @@ export class ItemsService {
         .where('items.classification = :classification', { classification: 'Новинка / A' })
         .andWhere("items.wbCreatedAt <= NOW() - INTERVAL '3 months'")
         .getMany();
-      console.log(findItems)
+      console.log(findItems);
       for (const item of findItems) {
         await queryRunner.manager.update(Items, item.id, {
           classification: 'Промежуточный статус'
