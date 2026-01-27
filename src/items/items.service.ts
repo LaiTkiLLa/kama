@@ -734,7 +734,6 @@ export class ItemsService {
     };
     const ozonUrlItemsInfo = 'https://api-seller.ozon.ru/v4/product/info/attributes';
     const ozonMarketplace = await this.infoService.findMarketplace({ title: 'Озон' });
-    await this.getOzonItems(ozonToken, clientId, ozonMarketplace.id);
     const { data }: { data: { result: OzonItemsInfo[] } } = await axios.post(
       ozonUrlItemsInfo,
       {
@@ -754,6 +753,7 @@ export class ItemsService {
         if (!item.sku) {
           continue;
         }
+        console.log('item.id', item.id);
         const findItem = await queryRunner.manager.findOne(Items, {
           where: { marketplaceIdentifier: String(item.id), marketplaceId: ozonMarketplace.id }
         });
