@@ -52,21 +52,45 @@ export class Items {
   @Column({ type: 'varchar', nullable: false, name: 'marketplace_identifier' })
   marketplaceIdentifier: string;
 
-  //Срок планирования
+  //Срок планирования устаревшее удалить потом
   @Column({ type: 'int', nullable: false, default: 120, name: 'plan_time' })
   planTime: number;
 
-  //Срок производства и сборки заказа
+  //Срок производства и сборки заказа устаревшее удалить потом
   @Column({ type: 'int', nullable: false, default: 35, name: 'production_and_assembly_time' })
   productionAndAssemblyTime: number;
 
-  //Срок доставки
+  //Срок доставки устаревшее удалить потом
   @Column({ type: 'int', nullable: false, default: 35, name: 'delivery_time' })
   deliveryTime: number;
 
-  //Срок отгрузки на МП
+  //Срок отгрузки на МП устаревшее удалить потом
   @Column({ type: 'int', nullable: false, default: 10, name: 'shipping_period' })
   shippingPeriod: number;
+
+  //Консолидация груза
+  @Column({ type: 'int', nullable: false, default: 14 })
+  consolidation: number;
+
+  //Оплата груза
+  @Column({ type: 'int', nullable: false, default: 10 })
+  payment: number;
+
+  //Сборка груза
+  @Column({ type: 'int', nullable: false, default: 5 })
+  assembling: number;
+
+  //Приемка груза фулфилмент
+  @Column({ type: 'int', nullable: false, default: 5, name: 'fullfillment_acceptance' })
+  fullfillmentAcceptance: number;
+
+  //Приемка груза маркетплейс
+  @Column({ type: 'int', nullable: false, default: 10, name: 'marketplace_acceptance' })
+  marketplaceAcceptance: number;
+
+  //Коэф сезонности
+  @Column({ type: 'float', nullable: true })
+  seasonality: number;
 
   @Column({ type: 'varchar', nullable: true, name: 'image_url' })
   imageUrl: string | null;

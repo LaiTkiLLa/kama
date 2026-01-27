@@ -145,6 +145,26 @@ export class UpdateDirectoryItemInfoDto {
   @IsString()
   @IsOptional()
   volumeMasterBox: string;
+
+  @IsNumber()
+  @IsOptional()
+  consolidation: number;
+
+  @IsNumber()
+  @IsOptional()
+  payment: number;
+
+  @IsNumber()
+  @IsOptional()
+  assembling: number;
+
+  @IsNumber()
+  @IsOptional()
+  fullfillmentAcceptance: number;
+
+  @IsNumber()
+  @IsOptional()
+  marketplaceAcceptance: number;
 }
 
 export class UpdateArrayDirectoryItemsInfoDto {
