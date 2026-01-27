@@ -169,7 +169,12 @@ export class ItemsService {
             costInYuanWhite: item.costInYuanWhite,
             codeTNVED: item.codeTNVED,
             dimensionsMasterBox: item.dimensionsMasterBox,
-            volumeMasterBox: item.volumeMasterBox
+            volumeMasterBox: item.volumeMasterBox,
+            consolidation: item.consolidation,
+            payment: item.payment,
+            assembling: item.assembling,
+            fullfillmentAcceptance: item.fullfillmentAcceptance,
+            marketplaceAcceptance: item.marketplaceAcceptance
           };
         });
       const filterOzonItems = findItems.filter(item => item.marketplace.title === 'Озон');
@@ -258,8 +263,13 @@ export class ItemsService {
             volumeOzon: findItems[0].createdForCalculation ? item.volumeOzon : undefined,
             costInYuanWhite: item.costInYuanWhite,
             codeTNVED: item.codeTNVED,
-            dimensionsMasterBox: item.dimensionsMasterBox
-            // volumeMasterBox: item.volumeMasterBox
+            dimensionsMasterBox: item.dimensionsMasterBox,
+            // volumeMasterBox: item.volumeMasterBox,
+            consolidation: item.consolidation,
+            payment: item.payment,
+            assembling: item.assembling,
+            fullfillmentAcceptance: item.fullfillmentAcceptance,
+            marketplaceAcceptance: item.marketplaceAcceptance
           }
         );
       }
@@ -739,6 +749,7 @@ export class ItemsService {
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     try {
+      console.log('-----------------');
       for (const item of data.result) {
         if (!item.sku) {
           continue;
@@ -746,6 +757,7 @@ export class ItemsService {
         const findItem = await queryRunner.manager.findOne(Items, {
           where: { marketplaceIdentifier: String(item.id), marketplaceId: ozonMarketplace.id }
         });
+        console.log('findItem', findItem?.article);
         if (findItem) {
           await queryRunner.manager.update(Items, { id: findItem.id }, { isArchive: true });
         }
