@@ -758,6 +758,9 @@ export class ItemsService {
           continue;
         }
         console.log('item.id', item.id);
+        console.log('item.sku', item.sku);
+        console.log('item.name', item.name);
+        console.log('item.offer_id', item.offer_id);
         const findItem = await queryRunner.manager.findOne(Items, {
           where: { marketplaceIdentifier: String(item.id), marketplaceId: ozonMarketplace.id }
         });
