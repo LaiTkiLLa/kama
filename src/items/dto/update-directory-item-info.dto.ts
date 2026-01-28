@@ -165,6 +165,14 @@ export class UpdateDirectoryItemInfoDto {
   @IsNumber()
   @IsOptional()
   marketplaceAcceptance: number;
+
+  @IsNumber()
+  @IsOptional()
+  production: number;
+
+  @IsNumber()
+  @IsOptional()
+  buffer: number;
 }
 
 export class UpdateArrayDirectoryItemsInfoDto {

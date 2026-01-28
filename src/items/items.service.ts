@@ -174,7 +174,9 @@ export class ItemsService {
             payment: item.payment,
             assembling: item.assembling,
             fullfillmentAcceptance: item.fullfillmentAcceptance,
-            marketplaceAcceptance: item.marketplaceAcceptance
+            marketplaceAcceptance: item.marketplaceAcceptance,
+            production: item.production,
+            buffer: item.buffer
           };
         });
       const filterOzonItems = findItems.filter(item => item.marketplace.title === 'Озон');
@@ -269,7 +271,9 @@ export class ItemsService {
             payment: item.payment,
             assembling: item.assembling,
             fullfillmentAcceptance: item.fullfillmentAcceptance,
-            marketplaceAcceptance: item.marketplaceAcceptance
+            marketplaceAcceptance: item.marketplaceAcceptance,
+            production: item.production,
+            buffer: item.buffer
           }
         );
       }

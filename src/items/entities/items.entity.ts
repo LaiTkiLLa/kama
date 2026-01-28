@@ -88,9 +88,13 @@ export class Items {
   @Column({ type: 'int', nullable: false, default: 10, name: 'marketplace_acceptance' })
   marketplaceAcceptance: number;
 
-  //Коэф сезонности
-  @Column({ type: 'float', nullable: true })
-  seasonality: number;
+  //Производство товара
+  @Column({ type: 'int', nullable: false, default: 10 })
+  production: number;
+
+  //Буфер
+  @Column({ type: 'int', nullable: false, default: 10 })
+  buffer: number;
 
   @Column({ type: 'varchar', nullable: true, name: 'image_url' })
   imageUrl: string | null;
