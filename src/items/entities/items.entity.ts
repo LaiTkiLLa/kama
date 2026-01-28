@@ -171,7 +171,7 @@ export class Items {
   })
   isArchive: boolean;
 
-  //Запас в днях
+  //Запас в днях Возможно надо будет удалить
   @Column({ type: 'int', name: 'stocks_in_days', nullable: false, default: 30 })
   stocksInDays: number;
 

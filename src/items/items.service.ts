@@ -730,8 +730,8 @@ export class ItemsService {
 
   @Cron('0 */50 * * * *')
   async getOzonTrashItems() {
-    const ozonToken = await this.configService.get('ozonSecondToken');
-    const clientId = await this.configService.get('ozonSecondClientId');
+    const ozonToken = await this.configService.get('ozonToken');
+    const clientId = await this.configService.get('ozonClientId');
     const headers = {
       'Client-Id': clientId,
       'Api-Key': ozonToken
@@ -752,19 +752,13 @@ export class ItemsService {
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     try {
-      console.log('-----------------');
       for (const item of data.result) {
         if (!item.sku) {
           continue;
         }
-        console.log('item.id', item.id);
-        console.log('item.sku', item.sku);
-        console.log('item.name', item.name);
-        console.log('item.offer_id', item.offer_id);
         const findItem = await queryRunner.manager.findOne(Items, {
           where: { marketplaceIdentifier: String(item.id), marketplaceId: ozonMarketplace.id }
         });
-        console.log('findItem', findItem?.article);
         if (findItem) {
           await queryRunner.manager.update(Items, { id: findItem.id }, { isArchive: true });
         }
