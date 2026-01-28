@@ -779,7 +779,7 @@ export class ItemsService {
   }
 
   @Cron('0 */51 * * * *')
-  async getYandexITrashtems() {
+  async getYandexTrashItems() {
     const businessId = await this.configService.get('yandexBusinessId');
     let pageToken;
     let hasMoreData = true;
