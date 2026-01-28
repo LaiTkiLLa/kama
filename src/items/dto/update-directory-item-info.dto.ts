@@ -173,6 +173,10 @@ export class UpdateDirectoryItemInfoDto {
   @IsNumber()
   @IsOptional()
   buffer: number;
+
+  @IsNumber()
+  @IsOptional()
+  daysDeliveryToRussia: number;
 }
 
 export class UpdateArrayDirectoryItemsInfoDto {

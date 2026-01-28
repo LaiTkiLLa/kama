@@ -96,6 +96,10 @@ export class Items {
   @Column({ type: 'int', nullable: false, default: 10 })
   buffer: number;
 
+  //Дней доставки до РФ
+  @Column({ type: 'int', nullable: false, default: 10, name: 'days_delivery_to_Russia' })
+  daysDeliveryToRussia: number;
+
   @Column({ type: 'varchar', nullable: true, name: 'image_url' })
   imageUrl: string | null;
 
