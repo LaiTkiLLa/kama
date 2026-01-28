@@ -605,11 +605,10 @@ export class ItemsService {
       };
     }
     const wbMarketplace = await this.infoService.findMarketplace({ title: 'WB' });
-    for (const item of items) {
-      const queryRunner = this.dataSource.createQueryRunner();
-      await queryRunner.connect();
-      await queryRunner.startTransaction();
-      try {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    try {
+      for (const item of items) {
         const findColor = item?.characteristics?.find(el => el.name === 'Цвет');
         const findItem = await queryRunner.manager.findOne(Items, {
           where: { marketplaceIdentifier: String(item.nmID), marketplaceId: wbMarketplace.id }
@@ -654,16 +653,13 @@ export class ItemsService {
             }
           );
         }
-        await queryRunner.commitTransaction();
-      } catch (error) {
-        await queryRunner.rollbackTransaction();
-        this.logger.error(error);
-        this.logger.error('Не удалось скачать товар WB');
-      } finally {
-        await queryRunner.release();
       }
+    } catch (error) {
+      this.logger.error(error);
+      this.logger.error('Не удалось скачать товар WB');
+    } finally {
+      await queryRunner.release();
     }
-    return;
   }
 
   @Cron('0 */49 * * * *')
@@ -709,7 +705,11 @@ export class ItemsService {
     try {
       for (const item of items) {
         const findItem = await queryRunner.manager.findOne(Items, {
-          where: { marketplaceIdentifier: String(item.nmID), marketplaceId: wbMarketplace.id }
+          where: {
+            marketplaceIdentifier: String(item.nmID),
+            marketplaceId: wbMarketplace.id,
+            isArchive: false
+          }
         });
         if (findItem) {
           await queryRunner.manager.update(
@@ -759,7 +759,11 @@ export class ItemsService {
           continue;
         }
         const findItem = await queryRunner.manager.findOne(Items, {
-          where: { marketplaceIdentifier: String(item.id), marketplaceId: ozonMarketplace.id }
+          where: {
+            marketplaceIdentifier: String(item.id),
+            marketplaceId: ozonMarketplace.id,
+            isArchive: false
+          }
         });
         if (findItem) {
           await queryRunner.manager.update(Items, { id: findItem.id }, { isArchive: true });
@@ -769,6 +773,82 @@ export class ItemsService {
     } catch (error) {
       this.logger.error(error);
       this.logger.error('Не смог получить архивные товары Ozon');
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  @Cron('0 */51 * * * *')
+  async getYandexITrashtems() {
+    const businessId = await this.configService.get('yandexBusinessId');
+    let pageToken;
+    let hasMoreData = true;
+
+    const items: { marketplaceIdentifier: string; article: string; sku: string }[] = [];
+
+    while (hasMoreData) {
+      let urlItems = `https://api.partner.market.yandex.ru/businesses/${businessId}/offer-mappings?limit=200`;
+      if (pageToken) {
+        urlItems = `https://api.partner.market.yandex.ru/businesses/${businessId}/offer-mappings?limit=200&page_token=${pageToken}`;
+      }
+
+      const { data }: { data: YandexItems } = await axios.post(
+        urlItems,
+        {
+          data: {
+            archived: true
+          }
+        },
+        {
+          headers: {
+            'Api-Key': 'ACMA:1pUUUtGUjFw0frKFuYg5ymG5nEs5RKNtz5NbW9OQ:226d6e1d'
+          }
+        }
+      );
+      for (const item of data.result.offerMappings) {
+        if (!item.mapping.marketSku) {
+          continue;
+        }
+        items.push({
+          marketplaceIdentifier: String(item.mapping.marketSku),
+          article: item.offer.offerId,
+          sku: String(0)
+        });
+      }
+      if (data.result.paging?.nextPageToken) {
+        pageToken = data.result.paging.nextPageToken;
+      } else {
+        hasMoreData = false;
+      }
+    }
+    const yandexMarketplace = await this.infoService.findMarketplace({ title: 'Yandex' });
+
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    try {
+      for (const item of items) {
+        const findItem = await queryRunner.manager.findOne(Items, {
+          where: {
+            marketplaceIdentifier: String(item.marketplaceIdentifier),
+            marketplaceId: yandexMarketplace.id,
+            isArchive: false
+          }
+        });
+
+        if (findItem) {
+          await queryRunner.manager.update(
+            Items,
+            { id: findItem.id },
+            {
+              isArchive: true
+            }
+          );
+        }
+      }
+      return;
+    } catch (error) {
+      this.logger.error(error);
+      this.logger.error('Не смог получить архивные товары Яндекс');
     } finally {
       await queryRunner.release();
     }
