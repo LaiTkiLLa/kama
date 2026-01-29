@@ -32,4 +32,12 @@ export interface GetCurrentStocks {
   category: string;
   wbCreatedAt: string | Date;
   title: string;
+  consolidation: number;
+  payment: number;
+  assembling: number;
+  fullfillmentAcceptance: number;
+  marketplaceAcceptance: number;
+  production: number;
+  buffer: number;
+  daysDeliveryToRussia: number;
 }

@@ -76,7 +76,15 @@ export class StocksService {
           middlePrice: 0,
           itemId: stock.itemId,
           wbCreatedAt: stock.item.wbCreatedAt,
-          title: stock.item.title
+          title: stock.item.title,
+          consolidation: stock.item.consolidation,
+          payment: stock.item.payment,
+          assembling: stock.item.assembling,
+          fullfillmentAcceptance: stock.item.fullfillmentAcceptance,
+          marketplaceAcceptance: stock.item.marketplaceAcceptance,
+          production: stock.item.production,
+          buffer: stock.item.buffer,
+          daysDeliveryToRussia: stock.item.daysDeliveryToRussia
         });
       }
       return acc;
