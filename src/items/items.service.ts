@@ -1130,14 +1130,22 @@ export class ItemsService {
     try {
       const findItems = await queryRunner.manager
         .createQueryBuilder(Items, 'items')
+        .leftJoinAndSelect('items.marketplace', 'marketplace')
         .where('items.classification = :classification', { classification: 'Новинка / A' })
         .andWhere("items.wbCreatedAt <= NOW() - INTERVAL '3 months'")
+        .andWhere('marketplace.title =: mpTitle', { mpTitle: 'WB' })
         .getMany();
-      console.log(findItems);
-      for (const item of findItems) {
-        await queryRunner.manager.update(Items, item.id, {
-          classification: 'Промежуточный статус'
-        });
+      const uniqueArticles = [...new Set(findItems.map(item => item.article))];
+      for (const article of uniqueArticles) {
+        await queryRunner.manager.update(
+          Items,
+          {
+            article
+          },
+          {
+            classification: 'Промежуточный статус'
+          }
+        );
       }
       await queryRunner.commitTransaction();
       return;
