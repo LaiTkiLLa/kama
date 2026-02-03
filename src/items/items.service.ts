@@ -644,7 +644,6 @@ export class ItemsService {
               barcode: item?.sizes[0]?.skus[0] ?? '0',
               category: item.subjectName,
               title: item.title,
-              wbCreatedAt: item.createdAt,
               color: findColor ? findColor.value[0] : '',
               imageUrl: item.photos ? item.photos[0].big : null,
               //Размеры в см, вес в кг
