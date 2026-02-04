@@ -177,7 +177,8 @@ export class ItemsService {
             marketplaceAcceptance: item.marketplaceAcceptance,
             production: item.production,
             buffer: item.buffer,
-            daysDeliveryToRussia: item.daysDeliveryToRussia
+            daysDeliveryToRussia: item.daysDeliveryToRussia,
+            plannedTurnover: item.plannedTurnover
           };
         });
       const filterOzonItems = findItems.filter(item => item.marketplace.title === 'Озон');
@@ -275,7 +276,8 @@ export class ItemsService {
             marketplaceAcceptance: item.marketplaceAcceptance,
             production: item.production,
             buffer: item.buffer,
-            daysDeliveryToRussia: item.daysDeliveryToRussia
+            daysDeliveryToRussia: item.daysDeliveryToRussia,
+            plannedTurnover: item.plannedTurnover
           }
         );
       }

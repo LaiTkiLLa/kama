@@ -177,6 +177,10 @@ export class UpdateDirectoryItemInfoDto {
   @IsNumber()
   @IsOptional()
   daysDeliveryToRussia: number;
+
+  @IsNumber()
+  @IsOptional()
+  plannedTurnover: number;
 }
 
 export class UpdateArrayDirectoryItemsInfoDto {
