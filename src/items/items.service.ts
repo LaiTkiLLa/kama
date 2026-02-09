@@ -1102,8 +1102,9 @@ export class ItemsService {
         title: 'Нельзя',
         type: StatusesTypes.Отправка
       });
+      const successClassifications = ['Бестселлер / А', 'Хит продаж / А', 'Новинка / A'];
       for (const item of mappedItems) {
-        if (item.classification === 'Хит продаж / А' && item.stocks - item.orders > 0) {
+        if (successClassifications.includes(item.classification) && item.stocks - item.orders > 0) {
           await queryRunner.manager.update(
             Items,
             { id: item.itemId },
