@@ -1121,15 +1121,18 @@ export class ItemsService {
             { id: item.itemId },
             { sendStatusId: findBestSellerStatus.id }
           );
-        } else if (item.classification === 'Новинка / A' && item.stocks - item.orders > 0) {
+        }
+        if (item.classification === 'Новинка / A' && item.stocks - item.orders > 0) {
           await queryRunner.manager.update(Items, { id: item.itemId }, { sendStatusId: findNewStatus.id });
-        } else if (item.classification === 'Хит продаж / А' && item.stocks - item.orders > 0) {
+        }
+        if (item.classification === 'Хит продаж / А' && item.stocks - item.orders > 0) {
           await queryRunner.manager.update(
             Items,
             { id: item.itemId },
             { sendStatusId: findSuccessStatus.id }
           );
-        } else {
+        }
+        if (item.stocks - item.orders <= 0) {
           await queryRunner.manager.update(Items, { id: item.itemId }, { sendStatusId: findRejectStatus.id });
         }
       }
