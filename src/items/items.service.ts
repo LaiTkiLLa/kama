@@ -1121,7 +1121,7 @@ export class ItemsService {
         if (item.classification === 'Бестселлер / А' && item.stocks - item.orders > 0) {
           await queryRunner.manager.update(
             Items,
-            { id: item.itemId },
+            { article: item.itemArticle },
             { sendStatusId: findBestSellerStatus.id }
           );
         }
@@ -1131,12 +1131,12 @@ export class ItemsService {
         if (item.classification === 'Хит продаж / А' && item.stocks - item.orders > 0) {
           await queryRunner.manager.update(
             Items,
-            { id: item.itemId },
+            { article: item.itemArticle },
             { sendStatusId: findSuccessStatus.id }
           );
         }
         if (item.stocks - item.orders <= 0) {
-          await queryRunner.manager.update(Items, { id: item.itemId }, { sendStatusId: findRejectStatus.id });
+          await queryRunner.manager.update(Items, { article: item.itemArticle }, { sendStatusId: findRejectStatus.id });
         }
       }
       await queryRunner.commitTransaction();
