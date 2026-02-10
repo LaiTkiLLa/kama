@@ -1102,9 +1102,24 @@ export class ItemsService {
         title: 'Нельзя',
         type: StatusesTypes.Отправка
       });
-      const successClassifications = ['Бестселлер / А', 'Хит продаж / А', 'Новинка / A'];
+      const findBestSellerStatus = await this.infoService.findStatus(queryRunner, {
+        title: 'Bestseller',
+        type: StatusesTypes.Отправка
+      });
+      const findNewStatus = await this.infoService.findStatus(queryRunner, {
+        title: 'Новинка',
+        type: StatusesTypes.Отправка
+      });
       for (const item of mappedItems) {
-        if (successClassifications.includes(item.classification) && item.stocks - item.orders > 0) {
+        if (item.classification === 'Бестселлер / А' && item.stocks - item.orders > 0) {
+          await queryRunner.manager.update(
+            Items,
+            { id: item.itemId },
+            { sendStatusId: findBestSellerStatus.id }
+          );
+        } else if (item.classification === 'Новинка / A' && item.stocks - item.orders > 0) {
+          await queryRunner.manager.update(Items, { id: item.itemId }, { sendStatusId: findNewStatus.id });
+        } else if (item.classification === 'Хит продаж / А' && item.stocks - item.orders > 0) {
           await queryRunner.manager.update(
             Items,
             { id: item.itemId },
