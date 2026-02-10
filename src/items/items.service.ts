@@ -1121,22 +1121,30 @@ export class ItemsService {
         if (item.classification === 'Бестселлер / А' && item.stocks - item.orders > 0) {
           await queryRunner.manager.update(
             Items,
-            { article: item.itemArticle },
+            { article: item.itemId },
             { sendStatusId: findBestSellerStatus.id }
           );
         }
         if (item.classification === 'Новинка / A' && item.stocks - item.orders > 0) {
-          await queryRunner.manager.update(Items, { id: item.itemId }, { sendStatusId: findNewStatus.id });
+          await queryRunner.manager.update(
+            Items,
+            { id: item.itemId },
+            { sendStatusId: findNewStatus.id }
+          );
         }
         if (item.classification === 'Хит продаж / А' && item.stocks - item.orders > 0) {
           await queryRunner.manager.update(
             Items,
-            { article: item.itemArticle },
+            { article: item.itemId },
             { sendStatusId: findSuccessStatus.id }
           );
         }
         if (item.stocks - item.orders <= 0) {
-          await queryRunner.manager.update(Items, { article: item.itemArticle }, { sendStatusId: findRejectStatus.id });
+          await queryRunner.manager.update(
+            Items,
+            { article: item.itemId },
+            { sendStatusId: findRejectStatus.id }
+          );
         }
       }
       await queryRunner.commitTransaction();
