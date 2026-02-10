@@ -1118,32 +1118,26 @@ export class ItemsService {
         if (item.itemArticle === '0825IV-EXD-LTX-S22-PBR') {
           console.log(item);
         }
+        if (item.itemArticle === '0IV-MAT-KFB-N29OS') {
+          console.log(item);
+        }
+        if (item.stocks - item.orders <= 0) {
+          await queryRunner.manager.update(Items, { id: item.itemId }, { sendStatusId: findRejectStatus.id });
+          continue;
+        }
         if (item.classification === 'Бестселлер / А' && item.stocks - item.orders > 0) {
           await queryRunner.manager.update(
             Items,
-            { article: item.itemId },
+            { id: item.itemId },
             { sendStatusId: findBestSellerStatus.id }
           );
-        }
-        if (item.classification === 'Новинка / A' && item.stocks - item.orders > 0) {
+        } else if (item.classification === 'Новинка / A' && item.stocks - item.orders > 0) {
+          await queryRunner.manager.update(Items, { id: item.itemId }, { sendStatusId: findNewStatus.id });
+        } else if (item.classification === 'Хит продаж / А' && item.stocks - item.orders > 0) {
           await queryRunner.manager.update(
             Items,
             { id: item.itemId },
-            { sendStatusId: findNewStatus.id }
-          );
-        }
-        if (item.classification === 'Хит продаж / А' && item.stocks - item.orders > 0) {
-          await queryRunner.manager.update(
-            Items,
-            { article: item.itemId },
             { sendStatusId: findSuccessStatus.id }
-          );
-        }
-        if (item.stocks - item.orders <= 0) {
-          await queryRunner.manager.update(
-            Items,
-            { article: item.itemId },
-            { sendStatusId: findRejectStatus.id }
           );
         }
       }
