@@ -1112,7 +1112,10 @@ export class ItemsService {
         type: StatusesTypes.Отправка
       });
       for (const item of mappedItems) {
-        if (item.itemArticle === '0725IV-PPL-PP-GRY') {
+        if (item.itemArticle === '1225IV-MAT-TPF-ANI-GRY') {
+          console.log(item);
+        }
+        if (item.itemArticle === '0825IV-EXD-LTX-S22-PBR') {
           console.log(item);
         }
         if (item.classification === 'Бестселлер / А' && item.stocks - item.orders > 0) {
