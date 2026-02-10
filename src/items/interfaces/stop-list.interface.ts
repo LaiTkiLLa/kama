@@ -47,4 +47,5 @@ export interface StopListCronResult {
   stocks: number;
   itemId: number;
   classification: string;
+  itemArticle: string;
 }

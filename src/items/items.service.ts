@@ -1091,6 +1091,7 @@ export class ItemsService {
           orders: Number(raw.ordersSum),
           stocks: Number(raw.stocksSum),
           itemId: item.id,
+          itemArticle: item.article,
           classification: item.classification
         });
       });
@@ -1111,6 +1112,9 @@ export class ItemsService {
         type: StatusesTypes.Отправка
       });
       for (const item of mappedItems) {
+        if (item.itemArticle === '0725IV-PPL-PP-GRY') {
+          console.log(item);
+        }
         if (item.classification === 'Бестселлер / А' && item.stocks - item.orders > 0) {
           await queryRunner.manager.update(
             Items,
