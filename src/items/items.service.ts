@@ -5,7 +5,7 @@ import axios from 'axios';
 import { InfoService } from '../info/info.service';
 import { ConfigService } from '@nestjs/config';
 import { Items } from './entities/items.entity';
-import { WbItem, WbItems, WbTrashedItems } from './interfaces/wb-items.interface';
+import { WbItem, WbItems, WbItemsPrices, WbTrashedItems } from './interfaces/wb-items.interface';
 import { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
 import { YandexItems, YandexItemsResult } from './interfaces/yandex-items.interface';
 import { GetItemsListDto } from './dto/get-items-list.dto';
@@ -572,7 +572,7 @@ export class ItemsService {
   @Cron('0 */40 * * * *')
   async getWbItems() {
     const itemsUrl = 'https://content-api.wildberries.ru/content/v2/get/cards/list';
-    const apiToken = await this.configService.get('wbToken');
+    const apiToken = this.configService.get<string>('wbToken');
     let hasMoreData = true;
     let cursor: { limit: number } | { limit: number; nmID: number; updatedAt: string } = {
       limit: 100
@@ -666,7 +666,7 @@ export class ItemsService {
   @Cron('0 */49 * * * *')
   async getWbTrashItems() {
     const itemsUrl = 'https://content-api.wildberries.ru/content/v2/get/cards/trash';
-    const apiToken = await this.configService.get('wbToken');
+    const apiToken = this.configService.get<string>('wbToken');
     let hasMoreData = true;
     let cursor: { limit: number } | { limit: number; nmID: number; trashedAt: string } = {
       limit: 100
@@ -733,8 +733,8 @@ export class ItemsService {
 
   @Cron('0 */50 * * * *')
   async getOzonTrashItems() {
-    const ozonToken = await this.configService.get('ozonToken');
-    const clientId = await this.configService.get('ozonClientId');
+    const ozonToken = this.configService.get<string>('ozonToken');
+    const clientId = this.configService.get<string>('ozonClientId');
     const headers = {
       'Client-Id': clientId,
       'Api-Key': ozonToken
@@ -781,7 +781,7 @@ export class ItemsService {
 
   // @Cron('0 */51 * * * *')
   async getYandexTrashItems() {
-    const businessId = await this.configService.get('yandexBusinessId');
+    const businessId = this.configService.get<string>('yandexBusinessId');
     let pageToken;
     let hasMoreData = true;
 
@@ -857,8 +857,9 @@ export class ItemsService {
 
   @Cron('0 */42 * * * *')
   async getOzonItemsFirst() {
-    const ozonToken = await this.configService.get('ozonToken');
-    const clientId = await this.configService.get('ozonClientId');
+    const ozonToken = this.configService.get<string>('ozonToken');
+    const clientId = this.configService.get<string>('ozonClientId');
+    if (!ozonToken || !clientId) return;
     const ozonMarketplace = await this.infoService.findMarketplace({ title: 'Озон' });
     await this.getOzonItems(ozonToken, clientId, ozonMarketplace.id);
     return;
@@ -866,8 +867,9 @@ export class ItemsService {
 
   @Cron('0 */46 * * * *')
   async getOzonItemsSecond() {
-    const ozonToken = await this.configService.get('ozonSecondToken');
-    const clientId = await this.configService.get('ozonSecondClientId');
+    const ozonToken = this.configService.get<string>('ozonSecondToken');
+    const clientId = this.configService.get<string>('ozonSecondClientId');
+    if (!ozonToken || !clientId) return;
     const ozonMarketplace = await this.infoService.findMarketplace({ title: 'Ozon Second' });
     await this.getOzonItems(ozonToken, clientId, ozonMarketplace.id);
     return;
@@ -875,7 +877,7 @@ export class ItemsService {
 
   @Cron('0 */44 * * * *')
   async getYandexItems() {
-    const businessId = await this.configService.get('yandexBusinessId');
+    const businessId = this.configService.get<string>('yandexBusinessId');
     let pageToken;
     let hasMoreData = true;
 
@@ -1112,15 +1114,6 @@ export class ItemsService {
         type: StatusesTypes.Отправка
       });
       for (const item of mappedItems) {
-        if (item.itemArticle === '1225IV-MAT-TPF-ANI-GRY') {
-          console.log(item);
-        }
-        if (item.itemArticle === '0825IV-EXD-LTX-S22-PBR') {
-          console.log(item);
-        }
-        if (item.itemArticle === '0IV-MAT-KFB-N29OS') {
-          console.log(item);
-        }
         if (item.stocks - item.orders <= 0) {
           await queryRunner.manager.update(Items, { id: item.itemId }, { sendStatusId: findRejectStatus.id });
           continue;
@@ -1162,7 +1155,6 @@ export class ItemsService {
         .where('items.classification = :classification', { classification: 'Новинка / A' })
         .andWhere("items.wbCreatedAt <= NOW() - INTERVAL '3 months'")
         .getMany();
-      console.log(findItems);
       for (const item of findItems) {
         await queryRunner.manager.update(Items, item.id, {
           classification: 'Промежуточный статус'
@@ -1176,6 +1168,54 @@ export class ItemsService {
       this.logger.error('Не смог обновить классификацию');
     } finally {
       await queryRunner.release();
+    }
+  }
+
+  @Cron(CronExpression.EVERY_4_HOURS)
+  async updateWbItemsPrices() {
+    let getItems: WbItemsPrices = {
+      data: {
+        listGoods: []
+      }
+    };
+    try {
+      const apiToken = this.configService.get<string>('wbToken');
+      const wbUrl =
+        'https://discounts-prices-api.wildberries.ru/api/v2/list/goods/filter?limit=1000&offset=0';
+      const getItemsFromWb = await axios.get<WbItemsPrices>(wbUrl, {
+        headers: {
+          Authorization: apiToken
+        }
+      });
+      getItems = getItemsFromWb.data;
+    } catch (error) {
+      this.logger.error(error);
+      this.logger.error('Не смог получить цены товаров WB');
+    }
+    if (!getItems.data.listGoods.length) {
+      return;
+    }
+    const manager = this.dataSource.manager;
+    try {
+      const itemsId = getItems.data.listGoods.map(el => String(el.nmID));
+      const findItems = await manager.find(Items, {
+        where: {
+          marketplaceIdentifier: In(itemsId)
+        }
+      });
+      for (const item of getItems.data.listGoods) {
+        const findItem = findItems.find(el => el.marketplaceIdentifier === String(item.nmID));
+        if (findItem) {
+          await manager.update(
+            Items,
+            { id: findItem.id },
+            { discountWb: item.discount, priceWb: item?.sizes?.[0]?.price ?? null }
+          );
+        }
+      }
+    } catch (error) {
+      this.logger.error(error);
+      this.logger.error('Не смог проставить цену товарам WB');
     }
   }
 }
