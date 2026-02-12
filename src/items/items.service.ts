@@ -913,7 +913,7 @@ export class ItemsService {
           marketplaceIdentifier: String(item.mapping.marketSku),
           volumeYandex,
           article: item.offer.offerId,
-          category: item.offer.category ?? item.mapping.marketCategoryName,
+          category: item.mapping.marketCategoryName,
           title: item.offer.name,
           barcode: item.offer.barcodes[0],
           sku: String(0),
