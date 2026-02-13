@@ -96,6 +96,7 @@ export class Items {
   @Column({ type: 'int', nullable: false, default: 10 })
   buffer: number;
 
+  //@TODO УДАЛИТЬ
   //Плановая оборачиваемость
   @Column({ type: 'int', nullable: false, default: 90, name: 'planned_turnover' })
   plannedTurnover: number;

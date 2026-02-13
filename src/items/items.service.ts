@@ -180,7 +180,8 @@ export class ItemsService {
             daysDeliveryToRussia: item.daysDeliveryToRussia,
             plannedTurnover: item.plannedTurnover,
             yandexCategory: '',
-            wbPrice: item.priceWb * (1 - item.discountWb / 100)
+            wbPrice: item.priceWb,
+            discountWb: item.discountWb
           };
         });
       const filterOzonItems = findItems.filter(item => item.marketplace.title === 'Озон');
