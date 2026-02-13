@@ -178,7 +178,9 @@ export class ItemsService {
             production: item.production,
             buffer: item.buffer,
             daysDeliveryToRussia: item.daysDeliveryToRussia,
-            plannedTurnover: item.plannedTurnover
+            plannedTurnover: item.plannedTurnover,
+            yandexCategory: '',
+            wbPrice: item.priceWb * (1 - item.discountWb / 100)
           };
         });
       const filterOzonItems = findItems.filter(item => item.marketplace.title === 'Озон');
@@ -195,6 +197,7 @@ export class ItemsService {
         if (findItem) {
           findItem.dimensionsYandex = yandexItem.dimensionsYandex;
           findItem.volumeYandex = yandexItem.volumeYandex;
+          findItem.yandexCategory = yandexItem.category;
         }
       }
       return filterWbItems;
