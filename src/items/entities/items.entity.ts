@@ -96,6 +96,7 @@ export class Items {
   @Column({ type: 'int', nullable: false, default: 10 })
   buffer: number;
 
+  //@TODO УДАЛИТЬ
   //Плановая оборачиваемость
   @Column({ type: 'int', nullable: false, default: 90, name: 'planned_turnover' })
   plannedTurnover: number;
@@ -154,6 +155,14 @@ export class Items {
   //Объем WB
   @Column({ type: 'varchar', nullable: true, name: 'volume_wb' })
   volumeWB: string;
+
+  //Цена товара на WB
+  @Column({ type: 'float', nullable: true, name: 'price_wb' })
+  priceWb: number;
+
+  //% скидки товара на WB
+  @Column({ type: 'float', nullable: true, name: 'discount_wb' })
+  discountWb: number;
 
   //Объем Ozon
   @Column({ type: 'varchar', nullable: true, name: 'volume_ozon' })

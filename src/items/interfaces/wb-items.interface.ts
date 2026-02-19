@@ -43,3 +43,23 @@ export interface WbItem {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface WbItemsPrices {
+  data: {
+    listGoods: {
+      nmID: number;
+      vendorCode: string;
+      sizes: {
+        sizeID: number;
+        price: number;
+        discountedPrice: number;
+        clubDiscountedPrice: number;
+        techSizeName: string;
+      }[];
+      currencyIsoCode4217: string;
+      discount: number;
+      clubDiscount: number;
+      editableSizePrice: boolean;
+    }[];
+  };
+}
