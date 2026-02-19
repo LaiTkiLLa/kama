@@ -327,7 +327,7 @@ export class ItemsService {
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     try {
-      const monthAgo = new Date(new Date().setDate(new Date().getDate() - 30));
+      const weekAgo = new Date(new Date().setDate(new Date().getDate() - 7));
       const queryBuilder = queryRunner.manager
         .createQueryBuilder(Items, 'items')
         .select([
@@ -370,7 +370,7 @@ export class ItemsService {
               .select('ord.item_id', 'item_id')
               .addSelect('SUM(ord.quantity)', 'orders_sum')
               .from('orders', 'ord')
-              .where(`ord.created_at >= :monthAgo`, { monthAgo })
+              .where(`ord.created_at >= :monthAgo`, { weekAgo })
               .groupBy('ord.item_id');
           },
           'orders_summary',
