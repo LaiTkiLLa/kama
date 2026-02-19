@@ -1063,7 +1063,7 @@ export class ItemsService {
     await queryRunner.connect();
     await queryRunner.startTransaction();
     try {
-      const monthAgo = new Date(new Date().setDate(new Date().getDate() - 30));
+      const weekAgo = new Date(new Date().setDate(new Date().getDate() - 7));
       const findItems = await queryRunner.manager
         .createQueryBuilder(Items, 'items')
         .innerJoinAndSelect('items.sendStatus', 'sendStatus', 'sendStatus.title NOT IN (:...titles)', {
@@ -1081,7 +1081,7 @@ export class ItemsService {
             .select('COALESCE(SUM(ord.quantity), 0)', 'ordersSum')
             .from('orders', 'ord')
             .where('ord.item_id = items.id')
-            .andWhere('ord.created_at >= DATE(:monthAgo)', { monthAgo });
+            .andWhere('ord.created_at >= DATE(:weekAgo)', { weekAgo });
         }, 'ordersSum')
         .getRawAndEntities();
       const mappedItems: StopListCronResult[] = [];
