@@ -1119,19 +1119,21 @@ export class ItemsService {
         type: StatusesTypes.Отправка
       });
       for (const item of mappedItems) {
-        if (item.stocks - item.orders <= 0) {
+        //Считаем скорость продаж на 1 день и умножаем на 30 дней
+        const salesSpeed = Number((item.orders / 7).toFixed(2)) * 30;
+        if (item.stocks - salesSpeed <= 0) {
           await queryRunner.manager.update(Items, { id: item.itemId }, { sendStatusId: findRejectStatus.id });
           continue;
         }
-        if (item.classification === 'Бестселлер / А' && item.stocks - item.orders > 0) {
+        if (item.classification === 'Бестселлер / А' && item.stocks - salesSpeed > 0) {
           await queryRunner.manager.update(
             Items,
             { id: item.itemId },
             { sendStatusId: findBestSellerStatus.id }
           );
-        } else if (item.classification === 'Новинка / A' && item.stocks - item.orders > 0) {
+        } else if (item.classification === 'Новинка / A' && item.stocks - salesSpeed > 0) {
           await queryRunner.manager.update(Items, { id: item.itemId }, { sendStatusId: findNewStatus.id });
-        } else if (item.classification === 'Хит продаж / А' && item.stocks - item.orders > 0) {
+        } else if (item.classification === 'Хит продаж / А' && item.stocks - salesSpeed > 0) {
           await queryRunner.manager.update(
             Items,
             { id: item.itemId },
