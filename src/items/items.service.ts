@@ -370,7 +370,7 @@ export class ItemsService {
               .select('ord.item_id', 'item_id')
               .addSelect('SUM(ord.quantity)', 'orders_sum')
               .from('orders', 'ord')
-              .where(`ord.created_at >= :monthAgo`, { weekAgo })
+              .where(`ord.created_at >= :weekAgo`, { weekAgo })
               .groupBy('ord.item_id');
           },
           'orders_summary',
