@@ -403,6 +403,7 @@ export class ItemsService {
       }
       const result: GetStopListFromDb[] = await queryBuilder
         .andWhere('items.createdForCalculation = :createdForCalculation', { createdForCalculation: false })
+        .andWhere('items.isArchive = :isArchive', { isArchive: false })
         .getRawMany();
 
       const mappedItems: StopListResponse[] = [];
