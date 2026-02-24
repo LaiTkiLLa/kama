@@ -248,6 +248,14 @@ export class Items {
   @Column({ type: 'varchar', name: 'tariff_weight', nullable: true })
   tariffWeight: string;
 
+  //Минимальный заказ у поставщика
+  @Column({
+    type: 'int',
+    name: 'supplier_minimum_order',
+    nullable: true
+  })
+  supplierMinimumOrder: number;
+
   @Column({
     type: 'boolean',
     nullable: false,

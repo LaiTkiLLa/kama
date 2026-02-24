@@ -168,6 +168,10 @@ export class UpdateDirectoryItemInfoDto {
 
   @IsNumber()
   @IsOptional()
+  supplierMinimumOrder: number;
+
+  @IsNumber()
+  @IsOptional()
   production: number;
 
   @IsNumber()
