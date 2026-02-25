@@ -51,7 +51,8 @@ export class StocksService {
           barcode: Number(stock.item.barcode),
           inWayToClient: stock.reserved,
           inWayFromClient: stock.promised,
-          quantityFull: stock.currentValue
+          quantityFull: stock.currentValue,
+          sku: stock.item.sku
         });
       }
       return acc;
@@ -92,7 +93,8 @@ export class StocksService {
         barcode: Number(item.barcode),
         inWayToClient: stocksResult.inWayToClient,
         inWayFromClient: stocksResult.inWayFromClient,
-        quantityFull: stocksResult.quantityFull
+        quantityFull: stocksResult.quantityFull,
+        sku: item.sku
       };
     });
   }

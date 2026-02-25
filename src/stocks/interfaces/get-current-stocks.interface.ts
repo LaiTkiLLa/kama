@@ -5,5 +5,6 @@ export interface GetCurrentStocks {
   inWayToClient: number;
   inWayFromClient: number;
   quantityFull: number;
-  id: number
+  id: number;
+  sku: string;
 }
