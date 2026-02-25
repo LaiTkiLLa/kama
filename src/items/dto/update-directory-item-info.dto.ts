@@ -185,6 +185,14 @@ export class UpdateDirectoryItemInfoDto {
   @IsNumber()
   @IsOptional()
   plannedTurnover: number;
+
+  @IsNumber()
+  @IsOptional()
+  seasonalityForOrder: number;
+
+  @IsNumber()
+  @IsOptional()
+  seasonalityForExport: number;
 }
 
 export class UpdateArrayDirectoryItemsInfoDto {

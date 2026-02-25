@@ -20,6 +20,17 @@ export class StocksController {
     return this.stocksService.getCurrentStocks(getCurrentStocksDto);
   }
 
+  @Get('/v2/current')
+  async getCurrentStocksV2(
+    @Headers('api-key') apiKey: string,
+    @Query() getCurrentStocksDto: GetCurrentStocksDto
+  ): Promise<GetCurrentStocks[]> {
+    if (!apiKey || apiKey !== process.env.apiKey) {
+      throw new ForbiddenException('Отсутствует токен');
+    }
+    return this.stocksService.getCurrentStocksV2(getCurrentStocksDto);
+  }
+
   @Get('by-date')
   async getStocksByDate(
     @Headers('api-key') apiKey: string,

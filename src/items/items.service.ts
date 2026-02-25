@@ -182,7 +182,9 @@ export class ItemsService {
             yandexCategory: '',
             wbPrice: item.priceWb,
             discountWb: item.discountWb,
-            supplierMinimumOrder: item.supplierMinimumOrder
+            supplierMinimumOrder: item.supplierMinimumOrder,
+            seasonalityForExport: item.seasonalityForExport,
+            seasonalityForOrder: item.seasonalityForOrder
           };
         });
       const filterOzonItems = findItems.filter(item => item.marketplace.title === 'Озон');
@@ -283,7 +285,9 @@ export class ItemsService {
             buffer: item.buffer,
             daysDeliveryToRussia: item.daysDeliveryToRussia,
             plannedTurnover: item.plannedTurnover,
-            supplierMinimumOrder: item.supplierMinimumOrder
+            supplierMinimumOrder: item.supplierMinimumOrder,
+            seasonalityForExport: item.seasonalityForExport,
+            seasonalityForOrder: item.seasonalityForOrder
           }
         );
       }

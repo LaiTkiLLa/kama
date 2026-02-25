@@ -13,6 +13,7 @@ import { GetCurrentStocks } from './interfaces/get-current-stocks.interface';
 import { GetYandexStocks, ItemTypes } from './interfaces/yandex-stocks.interface';
 import { GetStocksByDateDto } from './dto/get-stocks-by-date.dto';
 import { GetStocksByDate } from './interfaces/get-stocks-by-date.interface';
+import { Items } from '../items/entities/items.entity';
 
 @Injectable()
 export class StocksService {
@@ -37,56 +38,62 @@ export class StocksService {
       .andWhere('Date(stocks.createdAt) = Date(:today)', { today })
       .getMany();
     return findStocks.reduce((acc: GetCurrentStocks[], stock) => {
-      const findItem = acc.find(item => stock.itemId === item.itemId);
+      const findItem = acc.find(item => stock.itemId === item.id);
       if (findItem) {
         findItem.quantityFull += stock.currentValue;
         findItem.inWayToClient += stock.reserved;
         findItem.inWayFromClient += stock.promised;
       } else {
         acc.push({
+          id: stock.item.id,
           nmId: Number(stock.item.marketplaceIdentifier),
           supplierArticle: stock.item.article,
           barcode: Number(stock.item.barcode),
-          orders: 0,
-          orderLastMonth: 0,
-          imageUrl: stock.item.imageUrl,
           inWayToClient: stock.reserved,
           inWayFromClient: stock.promised,
-          quantityFull: stock.currentValue,
-          sku: stock.item.sku,
-          ordersSum: 0,
-          inAcceptance: 0,
-          salesSpeed: 0,
-          planTime: stock.item.planTime,
-          assemblyPeriod: stock.item.productionAndAssemblyTime,
-          deliveryTime: stock.item.deliveryTime,
-          shipmentTime: stock.item.shippingPeriod,
-          reserve: stock.item.stocksInDays,
-          reserveInPercent: 0,
-          cost: stock.item.costInYuan,
-          growthPercent: stock.item.dailyGrowthPercentage,
-          salePrice: 0,
-          color: stock.item.color,
-          classification: stock.item.classification,
-          multiplicity: stock.item.multiplicity,
-          category: stock.item.category,
-          boxNumber: stock.item.boxNumber,
-          supplier: stock.item.supplier ? stock.item.supplier.title : null,
-          supplierOldArticle: stock.item.articleOld,
-          middlePrice: 0,
-          itemId: stock.itemId,
-          wbCreatedAt: stock.item.wbCreatedAt,
-          title: stock.item.title,
-          consolidation: stock.item.consolidation,
-          payment: stock.item.payment,
-          assembling: stock.item.assembling,
-          fullfillmentAcceptance: stock.item.fullfillmentAcceptance,
-          marketplaceAcceptance: stock.item.marketplaceAcceptance,
-          production: stock.item.production,
-          buffer: stock.item.buffer,
-          daysDeliveryToRussia: stock.item.daysDeliveryToRussia
+          quantityFull: stock.currentValue
         });
       }
+      return acc;
+    }, []);
+  }
+
+  async getCurrentStocksV2(getCurrentStocksDto: GetCurrentStocksDto): Promise<GetCurrentStocks[]> {
+    const today = new Date();
+    const findItemsWithStocks = await this.dataSource.manager
+      .createQueryBuilder(Items, 'items')
+      .leftJoinAndSelect('items.marketplace', 'marketplace')
+      .leftJoinAndSelect('items.stocks', 'stocks', 'Date(stocks.createdAt) = Date(:today)', { today })
+      .leftJoinAndSelect('item.supplier', 'supplier')
+      .where('marketplace.title = :marketplace', { marketplace: getCurrentStocksDto.marketplace })
+      .andWhere('item.isArchive = :isArchive', { isArchive: false })
+      .andWhere('items.createdForCalculation = :createdForCalculation', {
+        createdForCalculation: false
+      })
+      .getMany();
+    return findItemsWithStocks.reduce((acc: GetCurrentStocks[], item) => {
+      const stocksResult = item.stocks.reduce(
+        (stAcc, stock) => {
+          stAcc.quantityFull += stock.currentValue;
+          stAcc.inWayToClient += stock.reserved;
+          stAcc.inWayFromClient += stock.promised;
+          return stAcc;
+        },
+        {
+          quantityFull: 0,
+          inWayToClient: 0,
+          inWayFromClient: 0
+        }
+      );
+      acc.push({
+        id: item.id,
+        nmId: Number(item.marketplaceIdentifier),
+        supplierArticle: item.article,
+        barcode: Number(item.barcode),
+        inWayToClient: stocksResult.inWayToClient,
+        inWayFromClient: stocksResult.inWayFromClient,
+        quantityFull: stocksResult.quantityFull
+      });
       return acc;
     }, []);
   }

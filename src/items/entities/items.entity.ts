@@ -248,6 +248,14 @@ export class Items {
   @Column({ type: 'varchar', name: 'tariff_weight', nullable: true })
   tariffWeight: string;
 
+  //Сезонность для вывоза
+  @Column({ type: 'float', name: 'seasonality_for_export', nullable: true })
+  seasonalityForExport: number;
+
+  //Сезонность для заказа
+  @Column({ type: 'float', name: 'seasonality_for_order', nullable: true })
+  seasonalityForOrder: number;
+
   //Минимальный заказ у поставщика
   @Column({
     type: 'int',
