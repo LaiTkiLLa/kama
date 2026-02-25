@@ -64,19 +64,19 @@ export class StocksService {
       .createQueryBuilder(Items, 'items')
       .leftJoinAndSelect('items.marketplace', 'marketplace')
       .leftJoinAndSelect('items.stocks', 'stocks', 'Date(stocks.createdAt) = Date(:today)', { today })
-      .leftJoinAndSelect('item.supplier', 'supplier')
+      .leftJoinAndSelect('items.supplier', 'supplier')
       .where('marketplace.title = :marketplace', { marketplace: getCurrentStocksDto.marketplace })
-      .andWhere('item.isArchive = :isArchive', { isArchive: false })
+      .andWhere('items.isArchive = :isArchive', { isArchive: false })
       .andWhere('items.createdForCalculation = :createdForCalculation', {
         createdForCalculation: false
       })
       .getMany();
-    return findItemsWithStocks.reduce((acc: GetCurrentStocks[], item) => {
+    return findItemsWithStocks.map(item => {
       const stocksResult = item.stocks.reduce(
         (stAcc, stock) => {
-          stAcc.quantityFull += stock.currentValue;
-          stAcc.inWayToClient += stock.reserved;
-          stAcc.inWayFromClient += stock.promised;
+          stAcc.quantityFull += stock.currentValue ?? 0;
+          stAcc.inWayToClient += stock.reserved ?? 0;
+          stAcc.inWayFromClient += stock.promised ?? 0;
           return stAcc;
         },
         {
@@ -85,7 +85,7 @@ export class StocksService {
           inWayFromClient: 0
         }
       );
-      acc.push({
+      return {
         id: item.id,
         nmId: Number(item.marketplaceIdentifier),
         supplierArticle: item.article,
@@ -93,9 +93,8 @@ export class StocksService {
         inWayToClient: stocksResult.inWayToClient,
         inWayFromClient: stocksResult.inWayFromClient,
         quantityFull: stocksResult.quantityFull
-      });
-      return acc;
-    }, []);
+      };
+    });
   }
 
   async getStocksByDate(getStocksByDateDto: GetStocksByDateDto): Promise<GetStocksByDate[]> {
