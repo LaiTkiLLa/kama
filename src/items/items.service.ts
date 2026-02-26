@@ -866,8 +866,7 @@ export class ItemsService {
     }
   }
 
-  // @Cron('0 */42 * * * *')
-  @Cron(CronExpression.EVERY_5_MINUTES)
+  @Cron('0 */42 * * * *')
   async getOzonItemsFirst() {
     const ozonToken = this.configService.get<string>('ozonToken');
     const clientId = this.configService.get<string>('ozonClientId');
