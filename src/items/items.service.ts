@@ -1011,8 +1011,8 @@ export class ItemsService {
         title: el.category_name,
         types: el.children.map(i => {
           return {
-            title: i.category_name,
-            id: i.description_category_id
+            title: i.type_name,
+            id: i.type_id
           };
         })
       };
@@ -1049,6 +1049,7 @@ export class ItemsService {
         );
         console.log('1', item.description_category_id, item.type_id);
         if (findCategory && item.type_id) {
+          console.log('2')
           const findSubCategory = findCategory.types.find(el => el.id === item.type_id);
           console.log('findSubCategory', findSubCategory?.title);
           category === findSubCategory?.title;
