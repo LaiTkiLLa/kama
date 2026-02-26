@@ -1044,12 +1044,14 @@ export class ItemsService {
           Math.ceil(((item.depth / 10) * (item.width / 10) * (item.height / 10)) / 1000)
         );
         let category = 'Другое';
-        const findCategory = mappedCategory.find(
-          el => el.descriptionCategoryId === item.description_category_id
-        );
+        const findCategory = mappedCategory.find(el => {
+          return el.descriptionCategoryId === item.description_category_id;
+        });
         console.log('1', item.description_category_id, item.type_id);
+        console.log('typeof description_category_id', typeof item.description_category_id);
+        console.log('findCategory', findCategory);
         if (findCategory && item.type_id) {
-          console.log('2')
+          console.log('2');
           const findSubCategory = findCategory.types.find(el => el.id === item.type_id);
           console.log('findSubCategory', findSubCategory?.title);
           category === findSubCategory?.title;
