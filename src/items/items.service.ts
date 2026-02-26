@@ -866,7 +866,8 @@ export class ItemsService {
     }
   }
 
-  @Cron('0 */42 * * * *')
+  // @Cron('0 */42 * * * *')
+  @Cron(CronExpression.EVERY_30_SECONDS)
   async getOzonItemsFirst() {
     const ozonToken = this.configService.get<string>('ozonToken');
     const clientId = this.configService.get<string>('ozonClientId');
@@ -1050,7 +1051,9 @@ export class ItemsService {
         });
         if (findCategory && item.type_id) {
           const findSubCategory = findCategory.subTypes.find(el => el.id === item.type_id);
-          category === findSubCategory?.title;
+          if (findSubCategory){
+            category = findSubCategory.title
+          }
         }
         if (!findItem) {
           const createItem = queryRunner.manager.create(Items, {
