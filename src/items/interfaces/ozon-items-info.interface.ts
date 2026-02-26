@@ -20,3 +20,20 @@ export interface OzonItemsInfo {
   sku: number;
   barcodes: string[];
 }
+
+export interface OzonCategoryData {
+  description_category_id: number;
+  category_name: string;
+  disabled: boolean;
+  children: {
+    description_category_id: number
+    category_name: string
+    children: {
+      type_id: number;
+      type_name: string;
+      disabled: boolean;
+      children: [];
+    }[];
+  }[]
+
+}
