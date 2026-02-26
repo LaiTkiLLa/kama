@@ -17,7 +17,7 @@ import { UpdateStopListItems } from './dto/update-status-stop-list.dto';
 import { StatusesTypes } from '../info/enum/statuses.enum';
 import { UpdateArrayDirectoryItemsInfoDto } from './dto/update-directory-item-info.dto';
 import { Suppliers } from '../info/entities/suppliers.entity';
-import { OzonItemsInfo } from './interfaces/ozon-items-info.interface';
+import { OzonCategoryData, OzonItemsInfo } from './interfaces/ozon-items-info.interface';
 import { GetDirectoryListDto } from './dto/get-directory-list.dto';
 
 @Injectable()
@@ -866,7 +866,8 @@ export class ItemsService {
     }
   }
 
-  @Cron('0 */42 * * * *')
+  // @Cron('0 */42 * * * *')
+  @Cron(CronExpression.EVERY_5_MINUTES)
   async getOzonItemsFirst() {
     const ozonToken = this.configService.get<string>('ozonToken');
     const clientId = this.configService.get<string>('ozonClientId');
@@ -998,11 +999,24 @@ export class ItemsService {
       'Client-Id': clientId,
       'Api-Key': ozonToken
     };
-    const categoryList = {
-      17028709: 'Фитнес и йога',
-      17028698: 'Туристическая посуда',
-      17028707: 'Гантели'
-    };
+    const ozonCategoryUrl = 'https://api-seller.ozon.ru/v1/description-category/tree';
+    const { data: categoryData }: { data: { result: OzonCategoryData[] } } = await axios.post(
+      ozonCategoryUrl,
+      {},
+      { headers }
+    );
+    const mappedCategory = categoryData.result.map(el => {
+      return {
+        descriptionCategoryId: el.description_category_id,
+        title: el.category_name,
+        types: el.children.map(i => {
+          return {
+            title: i.category_name,
+            id: i.description_category_id
+          };
+        })
+      };
+    });
     const ozonUrlItemsInfo = 'https://api-seller.ozon.ru/v4/product/info/attributes';
     const { data }: { data: { result: OzonItemsInfo[] } } = await axios.post(
       ozonUrlItemsInfo,
@@ -1029,10 +1043,18 @@ export class ItemsService {
         const volumeOzon = String(
           Math.ceil(((item.depth / 10) * (item.width / 10) * (item.height / 10)) / 1000)
         );
+        let category = 'Другое';
+        const findCategory = mappedCategory.find(
+          el => el.descriptionCategoryId === item.description_category_id
+        );
+        if (findCategory && item.type_id) {
+          const findSubCategory = findCategory.types.find(el => el.id === item.type_id);
+          category === findSubCategory?.title;
+        }
         if (!findItem) {
           const createItem = queryRunner.manager.create(Items, {
             article: item.offer_id,
-            category: categoryList[item.description_category_id] ?? 'Другое',
+            category,
             title: item.name,
             barcode: item.barcode,
             sku: String(item.sku),
@@ -1054,7 +1076,8 @@ export class ItemsService {
               imageUrl: item.primary_image,
               //Переводим размеры в см, вес в кг
               dimensionsOzon: `${Number((item.depth / 10).toFixed(2))}/${Number((item.width / 10).toFixed(2))}/${Number((item.height / 10).toFixed(2))}/${Number((item.weight / 1000).toFixed(3))}`,
-              volumeOzon
+              volumeOzon,
+              category
             }
           );
         }
