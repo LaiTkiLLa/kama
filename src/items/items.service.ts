@@ -867,7 +867,7 @@ export class ItemsService {
   }
 
   // @Cron('0 */42 * * * *')
-  @Cron(CronExpression.EVERY_5_MINUTES)
+  @Cron(CronExpression.EVERY_30_SECONDS)
   async getOzonItemsFirst() {
     const ozonToken = this.configService.get<string>('ozonToken');
     const clientId = this.configService.get<string>('ozonClientId');
@@ -1005,17 +1005,19 @@ export class ItemsService {
       {},
       { headers }
     );
-    const mappedCategory = categoryData.result.map(el => {
-      return {
-        descriptionCategoryId: el.description_category_id,
-        title: el.category_name,
-        types: el.children.map(i => {
-          return {
-            title: i.type_name,
-            id: i.type_id
-          };
-        })
-      };
+    const mappedCategory = categoryData.result.flatMap(el => {
+      return el.children.map(i => {
+        return {
+          title: i.category_name,
+          id: i.description_category_id,
+          subTypes: i.children.map(q => {
+            return {
+              title: q.type_name,
+              id: q.type_id
+            };
+          })
+        };
+      });
     });
     const ozonUrlItemsInfo = 'https://api-seller.ozon.ru/v4/product/info/attributes';
     const { data }: { data: { result: OzonItemsInfo[] } } = await axios.post(
@@ -1045,15 +1047,10 @@ export class ItemsService {
         );
         let category = 'Другое';
         const findCategory = mappedCategory.find(el => {
-          return el.descriptionCategoryId === item.description_category_id;
+          return el.id === item.description_category_id;
         });
-        console.log('1', item.description_category_id, item.type_id);
-        console.log('typeof description_category_id', typeof item.description_category_id);
-        console.log('findCategory', findCategory);
         if (findCategory && item.type_id) {
-          console.log('2');
-          const findSubCategory = findCategory.types.find(el => el.id === item.type_id);
-          console.log('findSubCategory', findSubCategory?.title);
+          const findSubCategory = findCategory.subTypes.find(el => el.id === item.type_id);
           category === findSubCategory?.title;
         }
         if (!findItem) {
