@@ -1047,8 +1047,10 @@ export class ItemsService {
         const findCategory = mappedCategory.find(
           el => el.descriptionCategoryId === item.description_category_id
         );
+        console.log('1', item.description_category_id, item.type_id);
         if (findCategory && item.type_id) {
           const findSubCategory = findCategory.types.find(el => el.id === item.type_id);
+          console.log('findSubCategory', findSubCategory?.title);
           category === findSubCategory?.title;
         }
         if (!findItem) {
