@@ -180,6 +180,7 @@ export class ItemsService {
             daysDeliveryToRussia: item.daysDeliveryToRussia,
             plannedTurnover: item.plannedTurnover,
             yandexCategory: '',
+            ozonCategory: '',
             wbPrice: item.priceWb,
             discountWb: item.discountWb,
             supplierMinimumOrder: item.supplierMinimumOrder,
@@ -194,6 +195,7 @@ export class ItemsService {
         if (findItem) {
           findItem.dimensionsOzon = ozonItem.dimensionsOzon;
           findItem.volumeOzon = ozonItem.volumeOzon;
+          findItem.ozonCategory = ozonItem.category;
         }
       }
       for (const yandexItem of filterYandexItems) {
