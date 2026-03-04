@@ -1212,7 +1212,7 @@ export class ItemsService {
     }
   }
 
-  @Cron(CronExpression.EVERY_4_HOURS)
+  @Cron(CronExpression.EVERY_HOUR)
   async updateWbItemsPrices() {
     let getItems: WbItemsPrices = {
       data: {
