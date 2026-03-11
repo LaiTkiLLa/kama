@@ -76,7 +76,8 @@ export class OrdersService {
               },
               {
                 wbCreatedAt: orderDate,
-                classification: 'Новинка / A'
+                classification: 'Новинка / A',
+                virality: 'виральный предположительно'
               }
             );
           }
@@ -220,7 +221,8 @@ export class OrdersService {
               },
               {
                 wbCreatedAt: orderDate,
-                classification: 'Новинка / A'
+                classification: 'Новинка / A',
+                virality: 'виральный предположительно'
               }
             );
           }
@@ -373,7 +375,8 @@ export class OrdersService {
               },
               {
                 wbCreatedAt: new Date(order.createdAt),
-                classification: 'Новинка / A'
+                classification: 'Новинка / A',
+                virality: 'виральный предположительно'
               }
             );
           }

@@ -185,7 +185,8 @@ export class ItemsService {
             discountWb: item.discountWb,
             supplierMinimumOrder: item.supplierMinimumOrder,
             seasonalityForExport: item.seasonalityForExport,
-            seasonalityForOrder: item.seasonalityForOrder
+            seasonalityForOrder: item.seasonalityForOrder,
+            virality: item.virality
           };
         });
       const filterOzonItems = findItems.filter(item => item.marketplace.title === 'Озон');
@@ -289,7 +290,8 @@ export class ItemsService {
             plannedTurnover: item.plannedTurnover,
             supplierMinimumOrder: item.supplierMinimumOrder,
             seasonalityForExport: item.seasonalityForExport,
-            seasonalityForOrder: item.seasonalityForOrder
+            seasonalityForOrder: item.seasonalityForOrder,
+            virality: item.virality
           }
         );
       }
@@ -1052,8 +1054,8 @@ export class ItemsService {
         });
         if (findCategory && item.type_id) {
           const findSubCategory = findCategory.subTypes.find(el => el.id === item.type_id);
-          if (findSubCategory){
-            category = findSubCategory.title
+          if (findSubCategory) {
+            category = findSubCategory.title;
           }
         }
         if (!findItem) {
@@ -1180,6 +1182,29 @@ export class ItemsService {
       await queryRunner.rollbackTransaction();
       this.logger.error(error);
       this.logger.error('Не смог изменить статусы отправки');
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  @Cron(CronExpression.EVERY_30_MINUTES)
+  async updateItems() {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    try {
+      const findItems = await queryRunner.manager
+        .createQueryBuilder(Items, 'items')
+        .where('items.classification = :classification', { classification: 'Новинка / A' })
+        .getMany();
+      for (const item of findItems) {
+        await queryRunner.manager.update(Items, item.id, {
+          virality: 'виральный предположительно'
+        });
+      }
+      return;
+    } catch (error) {
+      this.logger.error(error);
+      this.logger.error('Не смог обновить товар');
     } finally {
       await queryRunner.release();
     }

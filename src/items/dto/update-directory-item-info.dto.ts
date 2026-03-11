@@ -193,6 +193,10 @@ export class UpdateDirectoryItemInfoDto {
   @IsNumber()
   @IsOptional()
   seasonalityForExport: number;
+
+  @IsString()
+  @IsOptional()
+  virality: string;
 }
 
 export class UpdateArrayDirectoryItemsInfoDto {

@@ -256,6 +256,10 @@ export class Items {
   @Column({ type: 'float', name: 'seasonality_for_order', nullable: true })
   seasonalityForOrder: number;
 
+  //Виральность товара
+  @Column({ type: 'varchar', nullable: true })
+  virality: string;
+
   //Минимальный заказ у поставщика
   @Column({
     type: 'int',
