@@ -26,14 +26,23 @@ export interface OzonCategoryData {
   category_name: string;
   disabled: boolean;
   children: {
-    description_category_id: number
-    category_name: string
+    description_category_id: number;
+    category_name: string;
     children: {
       type_id: number;
       type_name: string;
       disabled: boolean;
       children: [];
     }[];
-  }[]
+  }[];
+}
 
+export interface OzonItemsPrices {
+  items: {
+    offer_id: string;
+    product_id: number;
+    price: {
+      price: number;
+    };
+  }[];
 }

@@ -17,7 +17,7 @@ import { UpdateStopListItems } from './dto/update-status-stop-list.dto';
 import { StatusesTypes } from '../info/enum/statuses.enum';
 import { UpdateArrayDirectoryItemsInfoDto } from './dto/update-directory-item-info.dto';
 import { Suppliers } from '../info/entities/suppliers.entity';
-import { OzonCategoryData, OzonItemsInfo } from './interfaces/ozon-items-info.interface';
+import { OzonCategoryData, OzonItemsInfo, OzonItemsPrices } from './interfaces/ozon-items-info.interface';
 import { GetDirectoryListDto } from './dto/get-directory-list.dto';
 
 @Injectable()
@@ -1282,6 +1282,55 @@ export class ItemsService {
     } catch (error) {
       this.logger.error(error);
       this.logger.error('Не смог проставить цену товарам WB');
+    }
+  }
+
+  @Cron(CronExpression.EVERY_HOUR)
+  async updateOzonItemsPrices() {
+    let getItems: OzonItemsPrices = {
+      items: []
+    };
+    const ozonToken = this.configService.get<string>('ozonToken');
+    const clientId = this.configService.get<string>('ozonClientId');
+    const headers = {
+      'Client-Id': clientId,
+      'Api-Key': ozonToken
+    };
+    const ozonPricesUrl = 'https://api-seller.ozon.ru/v5/product/info/prices';
+    try {
+      const { data: ozonPrices }: { data: OzonItemsPrices } = await axios.post(
+        ozonPricesUrl,
+        {
+          limit: 1000,
+          filter: {
+            visibility: 'ALL'
+          }
+        },
+        { headers }
+      );
+      getItems = ozonPrices;
+    } catch (error) {
+      this.logger.error(error);
+      this.logger.error('Не смог получить цены товаров Ozon');
+    }
+
+    const manager = this.dataSource.manager;
+    try {
+      const itemsId = getItems.items.map(el => String(el.product_id));
+      const findItems = await manager.find(Items, {
+        where: {
+          marketplaceIdentifier: In(itemsId)
+        }
+      });
+      for (const item of getItems.items) {
+        const findItem = findItems.find(el => el.marketplaceIdentifier === String(item.product_id));
+        if (findItem) {
+          await manager.update(Items, { id: findItem.id }, { priceOzon: item.price.price });
+        }
+      }
+    } catch (error) {
+      this.logger.error(error);
+      this.logger.error('Не смог проставить цену товарам Ozon');
     }
   }
 }
