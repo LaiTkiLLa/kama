@@ -182,6 +182,7 @@ export class ItemsService {
             yandexCategory: '',
             ozonCategory: '',
             wbPrice: item.priceWb,
+            ozonPrice: 0,
             discountWb: item.discountWb,
             supplierMinimumOrder: item.supplierMinimumOrder,
             seasonalityForExport: item.seasonalityForExport,
@@ -197,6 +198,7 @@ export class ItemsService {
           findItem.dimensionsOzon = ozonItem.dimensionsOzon;
           findItem.volumeOzon = ozonItem.volumeOzon;
           findItem.ozonCategory = ozonItem.category;
+          findItem.ozonPrice = ozonItem.priceOzon;
         }
       }
       for (const yandexItem of filterYandexItems) {
