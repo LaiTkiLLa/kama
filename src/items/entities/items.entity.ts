@@ -164,9 +164,13 @@ export class Items {
   @Column({ type: 'float', nullable: true, name: 'discount_wb' })
   discountWb: number;
 
-  //Цена товара на WB
+  //Цена товара на Ozon
   @Column({ type: 'float', nullable: true, name: 'price_ozon' })
   priceOzon: number;
+
+  //Цена товара по акции на Ozon
+  @Column({ type: 'float', nullable: true, name: 'price_with_discount_ozon' })
+  priceWithDiscountOzon: number;
 
   //Объем Ozon
   @Column({ type: 'varchar', nullable: true, name: 'volume_ozon' })

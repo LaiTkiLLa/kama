@@ -43,6 +43,7 @@ export interface OzonItemsPrices {
     product_id: number;
     price: {
       price: number;
+      marketing_seller_price: number;
     };
   }[];
 }

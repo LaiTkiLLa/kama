@@ -1327,7 +1327,11 @@ export class ItemsService {
       for (const item of getItems.items) {
         const findItem = findItems.find(el => el.marketplaceIdentifier === String(item.product_id));
         if (findItem) {
-          await manager.update(Items, { id: findItem.id }, { priceOzon: item.price.price });
+          await manager.update(
+            Items,
+            { id: findItem.id },
+            { priceOzon: item.price.price, priceWithDiscountOzon: item.price.marketing_seller_price }
+          );
         }
       }
     } catch (error) {
