@@ -14,6 +14,7 @@ import { Orders } from '../../orders/entities/orders.entity';
 import { Directions } from '../../info/entities/directions.entity';
 import { Statuses } from '../../info/entities/statuses.entity';
 import { Suppliers } from '../../info/entities/suppliers.entity';
+import { ChangePricesHistories } from './change-prices-histories.entity';
 
 @Entity({
   name: 'items'
@@ -340,4 +341,7 @@ export class Items {
     name: 'send_status_id'
   })
   sendStatus: Statuses;
+
+  @OneToMany(() => ChangePricesHistories, priceHistories => priceHistories.item)
+  priceHistories: ChangePricesHistories[];
 }
