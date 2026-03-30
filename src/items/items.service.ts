@@ -19,6 +19,7 @@ import { UpdateArrayDirectoryItemsInfoDto } from './dto/update-directory-item-in
 import { Suppliers } from '../info/entities/suppliers.entity';
 import { OzonCategoryData, OzonItemsInfo, OzonItemsPrices } from './interfaces/ozon-items-info.interface';
 import { GetDirectoryListDto } from './dto/get-directory-list.dto';
+import { ChangePricesHistories } from './entities/change-prices-histories.entity';
 
 @Injectable()
 export class ItemsService {
@@ -1281,6 +1282,36 @@ export class ItemsService {
             { id: findItem.id },
             { discountWb: item.discount, priceWb: item?.sizes?.[0]?.price ?? null }
           );
+          if (item.discount !== findItem.discountWb && item.discount < 64) {
+            const findHistory = await manager
+              .createQueryBuilder(ChangePricesHistories, 'cph')
+              .where('cph.itemId = :itemId', { itemId: findItem.id })
+              .andWhere('DATE(cph.createdAt) = DATE(now())')
+              .getOne();
+            if (findHistory) {
+              await manager.update(
+                ChangePricesHistories,
+                {
+                  id: findHistory.id
+                },
+                {
+                  oldDiscount: findItem.discountWb,
+                  oldPrice: findItem.priceWb,
+                  newDiscount: item.discount,
+                  newPrice: item?.sizes?.[0]?.price ?? null
+                }
+              );
+            } else {
+              const createHistory = manager.create(ChangePricesHistories, {
+                oldDiscount: findItem.discountWb,
+                oldPrice: findItem.priceWb,
+                newDiscount: item.discount,
+                newPrice: item?.sizes?.[0]?.price ?? null,
+                itemId: findItem.id
+              });
+              await manager.save(ChangePricesHistories, createHistory);
+            }
+          }
         }
       }
     } catch (error) {
@@ -1289,7 +1320,8 @@ export class ItemsService {
     }
   }
 
-  @Cron(CronExpression.EVERY_HOUR)
+  // @Cron(CronExpression.EVERY_HOUR)
+  @Cron(CronExpression.EVERY_MINUTE)
   async updateOzonItemsPrices() {
     let getItems: OzonItemsPrices = {
       items: []
@@ -1334,6 +1366,32 @@ export class ItemsService {
             { id: findItem.id },
             { priceOzon: item.price.price, priceWithDiscountOzon: item.price.marketing_seller_price }
           );
+          if (item.price.price > findItem.priceOzon) {
+            const findHistory = await manager
+              .createQueryBuilder(ChangePricesHistories, 'cph')
+              .where('cph.itemId = :itemId', { itemId: findItem.id })
+              .andWhere('DATE(cph.createdAt) = DATE(now())')
+              .getOne();
+            if (findHistory) {
+              await manager.update(
+                ChangePricesHistories,
+                {
+                  id: findHistory.id
+                },
+                {
+                  oldPrice: findItem.priceOzon,
+                  newPrice: item.price.price
+                }
+              );
+            } else {
+              const createHistory = manager.create(ChangePricesHistories, {
+                oldPrice: findItem.priceOzon,
+                newPrice: item.price.price,
+                itemId: findItem.id
+              });
+              await manager.save(ChangePricesHistories, createHistory);
+            }
+          }
         }
       }
     } catch (error) {
