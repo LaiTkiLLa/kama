@@ -1320,8 +1320,7 @@ export class ItemsService {
     }
   }
 
-  // @Cron(CronExpression.EVERY_HOUR)
-  @Cron(CronExpression.EVERY_MINUTE)
+  @Cron(CronExpression.EVERY_HOUR)
   async updateOzonItemsPrices() {
     let getItems: OzonItemsPrices = {
       items: []
