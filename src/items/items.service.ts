@@ -22,6 +22,7 @@ import { GetDirectoryListDto } from './dto/get-directory-list.dto';
 import { ChangePricesHistories } from './entities/change-prices-histories.entity';
 import { CreateLowDaysStocksDto } from './dto/create-low-days-stocks.dto';
 import { LowDaysStocks } from './entities/low-days-stocks.entity';
+import { GetChangePriceHistoryDto } from './dto/get-change-price-history.dto';
 
 @Injectable()
 export class ItemsService {
@@ -92,6 +93,35 @@ export class ItemsService {
       await queryRunner.rollbackTransaction();
       this.logger.error(error);
       this.logger.error('Не смог добавить низкое кол-во дней запасов');
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  async getLowDaysStocks(getChangePriceHistoryDto: GetChangePriceHistoryDto) {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    try {
+      const queryBuilder = queryRunner.manager.createQueryBuilder(LowDaysStocks, 'lds');
+      if (getChangePriceHistoryDto.date) {
+        queryBuilder.andWhere('DATE(lds.createdAt) = DATE(:date)', { date: getChangePriceHistoryDto.date });
+      } else {
+        queryBuilder.andWhere('DATE(lds.createdAt) = DATE(now())');
+      }
+
+      const findLowDaysStocks = await queryBuilder.getMany();
+      return findLowDaysStocks.map(el => {
+        return {
+          id: el.id,
+          article: el.article,
+          daysStockFullfillment: el.daysStockFullfillment,
+          daysStockCountry: el.daysStockCountry
+        };
+      });
+    } catch (error) {
+      this.logger.error(error);
+      this.logger.error('Не смог получить низкое кол-во дней запасов');
       throw error;
     } finally {
       await queryRunner.release();
@@ -604,17 +634,21 @@ export class ItemsService {
     }
   }
 
-  async changePriceHistory() {
+  async getChangePriceHistory(getChangePriceHistoryDto: GetChangePriceHistoryDto) {
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     try {
-      const finHistory = await queryRunner.manager.find(ChangePricesHistories, {
-        where: {},
-        relations: {
-          item: true
-        }
-      });
-      return finHistory.map(el => {
+      const queryBuilder = queryRunner.manager
+        .createQueryBuilder(ChangePricesHistories, 'cph')
+        .leftJoinAndSelect('cph.item', 'item');
+      if (getChangePriceHistoryDto.date) {
+        queryBuilder.andWhere('DATE(cph.createdAt) = DATE(:date)', { date: getChangePriceHistoryDto.date });
+      } else {
+        queryBuilder.andWhere('DATE(cph.createdAt) = DATE(now())');
+      }
+
+      const findHistory = await queryBuilder.getMany();
+      return findHistory.map(el => {
         return {
           id: el.id,
           itemId: el.itemId,

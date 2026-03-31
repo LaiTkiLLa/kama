@@ -7,6 +7,7 @@ import { UpdateStopListItems } from './dto/update-status-stop-list.dto';
 import { UpdateArrayDirectoryItemsInfoDto } from './dto/update-directory-item-info.dto';
 import { GetDirectoryListDto } from './dto/get-directory-list.dto';
 import { CreateLowDaysStocksDto } from './dto/create-low-days-stocks.dto';
+import { GetChangePriceHistoryDto } from './dto/get-change-price-history.dto';
 
 @Controller('items')
 export class ItemsController {
@@ -27,6 +28,14 @@ export class ItemsController {
     return this.itemsService.lowDaysStocks(lowDaysStocksDto);
   }
 
+  @Get('low-days-stocks')
+  async getLowDaysStocks(
+    @Headers('api-key') apiKey: string,
+    @Query() getChangePriceHistoryDto: GetChangePriceHistoryDto
+  ) {
+    return this.itemsService.getLowDaysStocks(getChangePriceHistoryDto);
+  }
+
   @Get('directory/list')
   async getItemsDirectoryList(
     @Headers('api-key') apiKey: string,
@@ -36,8 +45,11 @@ export class ItemsController {
   }
 
   @Get('change-price-history')
-  async changePriceHistory(@Headers('api-key') apiKey: string) {
-    return this.itemsService.changePriceHistory();
+  async getChangePriceHistory(
+    @Headers('api-key') apiKey: string,
+    @Query() getChangePriceHistoryDto: GetChangePriceHistoryDto
+  ) {
+    return this.itemsService.getChangePriceHistory(getChangePriceHistoryDto);
   }
 
   @Patch('directory/info')
