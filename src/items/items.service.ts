@@ -20,6 +20,8 @@ import { Suppliers } from '../info/entities/suppliers.entity';
 import { OzonCategoryData, OzonItemsInfo, OzonItemsPrices } from './interfaces/ozon-items-info.interface';
 import { GetDirectoryListDto } from './dto/get-directory-list.dto';
 import { ChangePricesHistories } from './entities/change-prices-histories.entity';
+import { CreateLowDaysStocksDto } from './dto/create-low-days-stocks.dto';
+import { LowDaysStocks } from './entities/low-days-stocks.entity';
 
 @Injectable()
 export class ItemsService {
@@ -65,6 +67,31 @@ export class ItemsService {
       await queryRunner.rollbackTransaction();
       this.logger.error(error);
       this.logger.error('Не добавить тестовый товар');
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  async lowDaysStocks(lowDaysStocksDto: CreateLowDaysStocksDto) {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+    try {
+      for (const item of lowDaysStocksDto.items) {
+        const createLowDayStock = queryRunner.manager.create(LowDaysStocks, {
+          article: item.article,
+          daysStockFullfillment: item.daysStockFullfillment,
+          daysStockCountry: item.daysStockCountry
+        });
+        await queryRunner.manager.save(LowDaysStocks, createLowDayStock);
+      }
+      await queryRunner.commitTransaction();
+      return { status: 'success' };
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      this.logger.error(error);
+      this.logger.error('Не смог добавить низкое кол-во дней запасов');
       throw error;
     } finally {
       await queryRunner.release();

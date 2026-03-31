@@ -6,6 +6,7 @@ import { GetItemsStopListDto } from './dto/get-items-stop-list.dto';
 import { UpdateStopListItems } from './dto/update-status-stop-list.dto';
 import { UpdateArrayDirectoryItemsInfoDto } from './dto/update-directory-item-info.dto';
 import { GetDirectoryListDto } from './dto/get-directory-list.dto';
+import { CreateLowDaysStocksDto } from './dto/create-low-days-stocks.dto';
 
 @Controller('items')
 export class ItemsController {
@@ -19,6 +20,11 @@ export class ItemsController {
   @Post()
   async createTestItem(@Headers('api-key') apiKey: string) {
     return this.itemsService.createTestItem();
+  }
+
+  @Post('low-days-stocks')
+  async lowDaysStocks(@Headers('api-key') apiKey: string, @Body() lowDaysStocksDto: CreateLowDaysStocksDto) {
+    return this.itemsService.lowDaysStocks(lowDaysStocksDto);
   }
 
   @Get('directory/list')
