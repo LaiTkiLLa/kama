@@ -577,6 +577,35 @@ export class ItemsService {
     }
   }
 
+  async changePriceHistory() {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    try {
+      const finHistory = await queryRunner.manager.find(ChangePricesHistories, {
+        where: {},
+        relations: {
+          item: true
+        }
+      });
+      return finHistory.map(el => {
+        return {
+          id: el.id,
+          itemId: el.itemId,
+          article: el.item.article,
+          oldPrice: el.oldPrice,
+          newPrice: el.newPrice,
+          oldDiscount: el.oldDiscount,
+          newDiscount: el.newDiscount
+        };
+      });
+    } catch (error) {
+      this.logger.error(error);
+      this.logger.error('Не смог получить историю изменения цены');
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
   async findItem(where: FindOptionsWhere<Items>, queryRunner: QueryRunner) {
     return queryRunner.manager.findOne(Items, { where });
   }

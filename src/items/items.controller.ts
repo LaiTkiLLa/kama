@@ -29,6 +29,11 @@ export class ItemsController {
     return this.itemsService.getItemsDirectoryList(getDirectoryListDto);
   }
 
+  @Get('change-price-history')
+  async changePriceHistory(@Headers('api-key') apiKey: string) {
+    return this.itemsService.changePriceHistory();
+  }
+
   @Patch('directory/info')
   async updateArrayDirectoryItemsInfo(
     @Headers('api-key') apiKey: string,
