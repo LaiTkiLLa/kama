@@ -1140,9 +1140,7 @@ export class ItemsService {
         const findItem = await queryRunner.manager.findOne(Items, {
           where: { marketplaceIdentifier: String(item.id), marketplaceId }
         });
-        const volumeOzon = String(
-          Math.ceil(((item.depth / 10) * (item.width / 10) * (item.height / 10)) / 1000)
-        );
+        const volumeOzon = String(((item.depth / 10) * (item.width / 10) * (item.height / 10)) / 1000);
         let category = 'Другое';
         const findCategory = mappedCategory.find(el => {
           return el.id === item.description_category_id;
