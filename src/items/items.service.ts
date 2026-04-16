@@ -246,7 +246,8 @@ export class ItemsService {
             supplierMinimumOrder: item.supplierMinimumOrder,
             seasonalityForExport: item.seasonalityForExport,
             seasonalityForOrder: item.seasonalityForOrder,
-            virality: item.virality
+            virality: item.virality,
+            costCalculationType: item.costCalculationType
           };
         });
       const filterOzonItems = findItems.filter(item => item.marketplace.title === 'Озон');
@@ -353,7 +354,8 @@ export class ItemsService {
             supplierMinimumOrder: item.supplierMinimumOrder,
             seasonalityForExport: item.seasonalityForExport,
             seasonalityForOrder: item.seasonalityForOrder,
-            virality: item.virality
+            virality: item.virality,
+            costCalculationType: item.costCalculationType
           }
         );
       }

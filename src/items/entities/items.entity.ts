@@ -257,6 +257,10 @@ export class Items {
   @Column({ type: 'varchar', name: 'tariff_weight', nullable: true })
   tariffWeight: string;
 
+  //Тип расчета стоимости
+  @Column({ type: 'varchar', name: 'cost_calculation_type', nullable: true })
+  costCalculationType: string;
+
   //Сезонность для вывоза
   @Column({ type: 'float', name: 'seasonality_for_export', nullable: true })
   seasonalityForExport: number;
