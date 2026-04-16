@@ -213,7 +213,7 @@ export class ItemsService {
             remainingBalance: item.remainingBalance,
             frequencyOfSendingCars: item.frequencyOfSendingCars,
             dailyGrowthPercentage: item.dailyGrowthPercentage,
-            volumeWB: item.volumeWB,
+            volumeWB: Number(item.volumeWB).toFixed(2),
             volumeOzon: item.createdForCalculation ? item.volumeOzon : '',
             volumeYandex: '',
             ownImagesUrl: item.ownImagesUrl,
@@ -255,7 +255,7 @@ export class ItemsService {
         const findItem = filterWbItems.find(wbItem => wbItem.article === ozonItem.article);
         if (findItem) {
           findItem.dimensionsOzon = ozonItem.dimensionsOzon;
-          findItem.volumeOzon = ozonItem.volumeOzon;
+          findItem.volumeOzon = Number(ozonItem.volumeOzon).toFixed(2);
           findItem.ozonCategory = ozonItem.category;
           findItem.ozonPrice = ozonItem.priceOzon;
           findItem.priceWithDiscountOzon = ozonItem.priceWithDiscountOzon;
