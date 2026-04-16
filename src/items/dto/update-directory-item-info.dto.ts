@@ -198,7 +198,7 @@ export class UpdateDirectoryItemInfoDto {
   @IsOptional()
   virality: string;
 
-  @IsNumber()
+  @IsString()
   @IsOptional()
   costCalculationType: string;
 }
