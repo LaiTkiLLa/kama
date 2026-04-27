@@ -44,7 +44,8 @@ export class OrdersService {
         quantityFull: item.quantityFull,
         ordersSum: 0,
         ordersLastNinetyDays: 0,
-        ordersLastThirtyDays: 0
+        ordersLastThirtyDays: 0,
+        ordersLastWeek: 0
       });
     }
 
@@ -67,6 +68,7 @@ export class OrdersService {
     const prevThirtyDays = new Date(
       new Date(new Date().setDate(new Date().getDate() - 30 + 1)).setHours(0, 0, 0)
     );
+    const lastWeek = new Date(new Date(new Date().setDate(new Date().getDate() - 7)).setHours(0, 0, 0));
     const today = new Date();
     today.setHours(0, 0, 0);
     const ozonToken = this.configService.get('ozonToken');
@@ -119,6 +121,9 @@ export class OrdersService {
               if (orderDate >= prevThirtyDays) {
                 findItem.ordersLastThirtyDays += o.quantity;
               }
+              if (orderDate >= lastWeek) {
+                findItem.ordersLastWeek += o.quantity;
+              }
               if (orderDate >= prevDate) {
                 findItem.orders += o.quantity;
                 findItem.ordersSum += Number(o.price);
@@ -144,6 +149,7 @@ export class OrdersService {
     const prevThirtyDays = new Date(
       new Date(new Date().setDate(new Date().getDate() - 30 + 1)).setHours(0, 0, 0)
     );
+    const lastWeek = new Date(new Date(new Date().setDate(new Date().getDate() - 7 + 1)).setHours(0, 0, 0));
 
     const urlOrders = 'https://statistics-api.wildberries.ru/api/v1/supplier/orders';
     const formattedDateFrom = new Intl.DateTimeFormat('sv-SE', {
@@ -180,6 +186,9 @@ export class OrdersService {
       if (orderDate >= prevThirtyDays) {
         findItem.ordersLastThirtyDays += 1;
       }
+      if (orderDate >= lastWeek) {
+        findItem.ordersLastWeek += 1;
+      }
     }
 
     return result;
@@ -205,6 +214,10 @@ export class OrdersService {
     const prev90Days = new Date(now);
     prev90Days.setDate(prev90Days.getDate() - 60);
     const prevNinetyDays = prev90Days.toISOString().split('T')[0];
+
+    const prev7Days = new Date(now);
+    prev7Days.setDate(prev7Days.getDate() - 7);
+    const lastWeek = prev7Days.toISOString().split('T')[0];
     let hasMoreData = true;
     let pageToken;
 
@@ -233,6 +246,9 @@ export class OrdersService {
           const orderDate = order.creationDate;
           if (orderDate >= prevThirtyDays && orderDate <= today) {
             findItem.ordersLastThirtyDays += item.count;
+          }
+          if (orderDate >= lastWeek && orderDate <= today) {
+            findItem.ordersLastWeek += item.count;
           }
           if (orderDate >= prevDate && orderDate <= today) {
             findItem.orders += count;
