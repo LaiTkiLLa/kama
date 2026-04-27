@@ -1,7 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
-import { Cron } from '@nestjs/schedule';
 import axios from 'axios';
 import { GetOrdersOzon, GetOrdersResult } from './interfaces/get-orders-ozon.interface';
 import { ItemsService } from '../items/items.service';
@@ -22,7 +21,7 @@ export class OrdersService {
 
   private logger: Logger = new Logger(OrdersService.name);
 
-  @Cron('0 */23 * * * *')
+  // @Cron('0 */23 * * * *')
   async getOrdersWb() {
     const tenDaysAgo = new Date(new Date().setDate(new Date().getDate() - 10));
     const apiToken = await this.configService.get('wbToken');
@@ -119,7 +118,7 @@ export class OrdersService {
     return;
   }
 
-  @Cron('0 */21 * * * *')
+  // @Cron('0 */21 * * * *')
   async getOrdersYandex() {
     const monthAgo = new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split('T')[0];
     const finalEndDate = new Date().toISOString().split('T')[0];
@@ -261,7 +260,7 @@ export class OrdersService {
     return;
   }
 
-  @Cron('0 */22 * * * *')
+  // @Cron('0 */22 * * * *')
   async getOrdersOzonFirst() {
     const ozonToken = await this.configService.get('ozonToken');
     const clientId = await this.configService.get('ozonClientId');
@@ -270,7 +269,7 @@ export class OrdersService {
     return;
   }
 
-  @Cron('0 */24 * * * *')
+  // @Cron('0 */24 * * * *')
   async getOrdersOzonSecond() {
     const ozonToken = await this.configService.get('ozonSecondToken');
     const clientId = await this.configService.get('ozonSecondClientId');
