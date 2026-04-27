@@ -45,7 +45,9 @@ export class OrdersService {
         ordersSum: 0,
         ordersLastNinetyDays: 0,
         ordersLastThirtyDays: 0,
-        ordersLastWeek: 0
+        ordersLastWeek: 0,
+        reserve: 0,
+        speedSales: 0
       });
     }
 
