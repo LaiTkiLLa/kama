@@ -49,7 +49,7 @@ export class OrdersService {
     );
     console.log('prevDays', prevDate);
     const prevNinetyDays = new Date(
-      new Date(new Date().setDate(new Date().getDate() - 60 + 1)).setHours(0, 0, 0)
+      new Date(new Date().setDate(new Date().getDate() - 30 + 1)).setHours(0, 0, 0)
     );
     console.log('prevNinetyDays', prevNinetyDays);
     const prevThirtyDays = new Date(
