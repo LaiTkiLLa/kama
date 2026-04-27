@@ -9,6 +9,8 @@ import { Orders } from './entities/orders.entity';
 import { GetOrdersWb } from './interfaces/get-orders-wb.interface';
 import { GetOrdersYandex, YandexOrderInfo } from './interfaces/get-orders-yandex.interface';
 import { Items } from '../items/entities/items.entity';
+import { GetDynamicOrdersDto } from './dto/get-dynamic-orders.dto';
+import { StocksService } from '../stocks/stocks.service';
 
 @Injectable()
 export class OrdersService {
@@ -16,10 +18,181 @@ export class OrdersService {
     private dataSource: DataSource,
     private configService: ConfigService,
     private itemsService: ItemsService,
-    private infoService: InfoService
+    private infoService: InfoService,
+    private stocksService: StocksService
   ) {}
 
   private logger: Logger = new Logger(OrdersService.name);
+
+  async getDynamicOzonOrders(getDynamicOrdersDto: GetDynamicOrdersDto) {
+    const result: {
+      supplierArticle: string;
+      sku: number;
+      orders: number;
+      reserved: number;
+      promiseAmount: number;
+      quantityFull: number;
+      ordersSum: number;
+      ordersLastNinetyDays: number;
+      ordersLastThirtyDays: number;
+    }[] = [];
+    const ozonToken = await this.configService.get('ozonToken');
+    const clientId = await this.configService.get('ozonClientId');
+    const ozonUrlListPosts = 'https://api-seller.ozon.ru/v2/posting/fbo/list';
+
+    const prevDate = new Date(
+      new Date(new Date().setDate(new Date().getDate() - Number(getDynamicOrdersDto.days) + 1)).setHours(
+        0,
+        0,
+        0
+      )
+    );
+    console.log('prevDays', prevDate);
+    const prevNinetyDays = new Date(
+      new Date(new Date().setDate(new Date().getDate() - 60 + 1)).setHours(0, 0, 0)
+    );
+    console.log('prevNinetyDays', prevNinetyDays);
+    const prevThirtyDays = new Date(
+      new Date(new Date().setDate(new Date().getDate() - 30 + 1)).setHours(0, 0, 0)
+    );
+    console.log('prevThirtyDays', prevThirtyDays);
+
+    const today = new Date();
+    today.setHours(0, 0, 0);
+
+    const datesInterval = this.getMonthlyIntervals(prevNinetyDays, today);
+
+    const headers = {
+      'Client-Id': clientId,
+      'Api-Key': ozonToken
+    };
+
+    const responseStocks = await this.stocksService.getCurrentStocksV2({ marketplace: 'Озон' });
+    //Получаем значения со склада
+
+    for (const item of responseStocks) {
+      result.push({
+        supplierArticle: item.supplierArticle,
+        sku: Number(item.sku),
+        orders: 0,
+        reserved: item.inWayToClient,
+        promiseAmount: item.inWayFromClient,
+        quantityFull: item.quantityFull,
+        ordersSum: 0,
+        ordersLastNinetyDays: 0,
+        ordersLastThirtyDays: 0
+      });
+    }
+
+    for (const interval of datesInterval) {
+      let hasMoreData = true;
+      let offset = 0;
+      while (hasMoreData) {
+        //Запрос на получение заказов
+        const { data }: { data: GetOrdersOzon } = await axios.post(
+          ozonUrlListPosts,
+          {
+            dir: 'ASC',
+            filter: {
+              since: interval.startDate,
+              status: '',
+              to: interval.finishDate
+            },
+            limit: 1000,
+            offset,
+            with: {
+              financial_data: true
+            }
+          },
+          {
+            headers
+          }
+        );
+        if (data.result.length === 0) {
+          hasMoreData = false;
+        } else {
+          offset += 1000;
+          for (const order of data.result) {
+            order.products.map(o => {
+              const findItem = result.find(item => Number(item.sku) === o.sku);
+              if (!findItem) {
+                return;
+              }
+              const orderDate = new Date(order.created_at);
+              findItem.ordersLastNinetyDays += o.quantity;
+              if (orderDate >= prevThirtyDays) {
+                findItem.ordersLastThirtyDays += o.quantity;
+              }
+              if (orderDate >= prevDate) {
+                findItem.orders += o.quantity;
+                findItem.ordersSum += Number(o.price);
+              }
+            });
+          }
+        }
+      }
+    }
+    return result;
+  }
+
+  getMonthlyIntervals(startDate: Date, endDate: Date): { startDate: Date; finishDate: Date }[] {
+    const intervals: {
+      startDate: Date;
+      finishDate: Date;
+    }[] = [];
+
+    let cursor = new Date(startDate);
+
+    while (cursor <= endDate) {
+      const year = cursor.getFullYear();
+      const month = cursor.getMonth();
+
+      const monthStart = new Date(year, month, 1);
+      const monthEnd = new Date(year, month + 1, 0);
+
+      // Ограничиваем месяца входным диапазоном
+      const rangeStart = cursor > monthStart ? cursor : monthStart;
+      const rangeEnd = monthEnd < endDate ? monthEnd : endDate;
+
+      // Дней в месяце
+      const daysInMonth = monthEnd.getDate();
+
+      // Размер равных интервалов
+      const base = Math.floor(daysInMonth / 3);
+      let remainder = daysInMonth % 3; // распределяем остаток
+
+      let dayPointer = 1;
+
+      for (let i = 0; i < 3; i++) {
+        const size = base + (remainder > 0 ? 1 : 0);
+        remainder--;
+
+        const startDay = dayPointer;
+        const endDay = dayPointer + size - 1;
+
+        dayPointer = endDay + 1;
+
+        const intervalStart = new Date(year, month, startDay);
+        const intervalEnd = new Date(year, month, endDay);
+
+        // Пересечение с входным диапазоном
+        if (intervalEnd >= rangeStart && intervalStart <= rangeEnd) {
+          intervals.push({
+            startDate: intervalStart < rangeStart ? new Date(rangeStart) : intervalStart,
+            finishDate:
+              intervalEnd > rangeEnd
+                ? new Date(rangeEnd.setHours(23, 59, 59, 999))
+                : new Date(intervalEnd.setHours(23, 59, 59, 999))
+          });
+        }
+      }
+
+      // Переходим к следующему месяцу
+      cursor = new Date(year, month + 1, 1);
+    }
+
+    return intervals;
+  }
 
   // @Cron('0 */23 * * * *')
   async getOrdersWb() {
