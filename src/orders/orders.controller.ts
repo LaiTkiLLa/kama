@@ -2,7 +2,7 @@ import { Controller, ForbiddenException, Get, Headers, Query } from '@nestjs/com
 import { OrdersService } from './orders.service';
 import { GetDynamicOrdersDto } from './dto/get-dynamic-orders.dto';
 
-@Controller()
+@Controller('orders')
 export class OrdersController {
   constructor(private ordersService: OrdersService) {}
 
