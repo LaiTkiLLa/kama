@@ -6,7 +6,7 @@ import { GetDynamicOrdersDto } from './dto/get-dynamic-orders.dto';
 export class OrdersController {
   constructor(private ordersService: OrdersService) {}
 
-  @Get('/dynamic/ozon')
+  @Get('dynamic')
   async getDynamicOrders(
     @Headers('api-key') apiKey: string,
     @Query() getDynamicOrdersDto: GetDynamicOrdersDto
@@ -14,6 +14,6 @@ export class OrdersController {
     if (!apiKey || apiKey !== process.env.apiKey) {
       throw new ForbiddenException('Отсутствует токен');
     }
-    return this.ordersService.getDynamicOzonOrders(getDynamicOrdersDto);
+    return this.ordersService.getDynamicOrders(getDynamicOrdersDto);
   }
 }
