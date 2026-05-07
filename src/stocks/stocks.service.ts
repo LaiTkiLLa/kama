@@ -61,7 +61,7 @@ export class StocksService {
 
   async getCurrentStocksV2(getCurrentStocksDto: GetCurrentStocksDto): Promise<GetCurrentStocks[]> {
     const today = new Date();
-    const findItemsWithStocks = await this.dataSource.manager
+    const queryBuilder = this.dataSource.manager
       .createQueryBuilder(Items, 'items')
       .leftJoinAndSelect('items.marketplace', 'marketplace')
       .leftJoinAndSelect('items.stocks', 'stocks', 'Date(stocks.createdAt) = Date(:today)', { today })
@@ -70,8 +70,13 @@ export class StocksService {
       .andWhere('items.isArchive = :isArchive', { isArchive: false })
       .andWhere('items.createdForCalculation = :createdForCalculation', {
         createdForCalculation: false
-      })
-      .getMany();
+      });
+    if (getCurrentStocksDto?.suppliers?.length) {
+      queryBuilder.andWhere('supplier.title IN (:...suppliers)', {
+        suppliers: getCurrentStocksDto.suppliers
+      });
+    }
+    const findItemsWithStocks = await queryBuilder.getMany();
     return findItemsWithStocks.map(item => {
       const stocksResult = item.stocks.reduce(
         (stAcc, stock) => {
