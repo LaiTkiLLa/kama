@@ -1,4 +1,4 @@
-import { IsIn, IsNumberString, IsString } from 'class-validator';
+import { ArrayMinSize, IsArray, IsIn, IsNumberString, IsOptional, IsString } from 'class-validator';
 
 export class GetDynamicOrdersDto {
   @IsNumberString()
@@ -7,4 +7,10 @@ export class GetDynamicOrdersDto {
   @IsString({ message: 'marketplace тип данных должен быть string' })
   @IsIn(['Озон', 'WB', 'Yandex', 'Ozon Second'], { message: 'Недопустимое значение marketplace' })
   marketplace: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  @ArrayMinSize(1)
+  suppliers?: string[];
 }

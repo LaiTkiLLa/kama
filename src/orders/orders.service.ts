@@ -30,7 +30,8 @@ export class OrdersService {
     const result: GetDynamicOrders[] = [];
 
     const responseStocks = await this.stocksService.getCurrentStocksV2({
-      marketplace: getDynamicOrdersDto.marketplace
+      marketplace: getDynamicOrdersDto.marketplace,
+      suppliers: getDynamicOrdersDto?.suppliers?.length ? getDynamicOrdersDto.suppliers : undefined
     });
     //Получаем значения со склада
 
