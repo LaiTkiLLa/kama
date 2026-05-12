@@ -1314,7 +1314,7 @@ export class ItemsService {
       const findItems = await queryRunner.manager
         .createQueryBuilder(Items, 'items')
         .where('items.classification = :classification', { classification: 'Новинка / A' })
-        .andWhere("items.wbCreatedAt <= NOW() - INTERVAL '3 months'")
+        .andWhere("items.wbCreatedAt <= NOW() - INTERVAL '6 months'")
         .getMany();
       for (const item of findItems) {
         await queryRunner.manager.update(Items, item.id, {
