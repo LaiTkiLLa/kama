@@ -199,6 +199,7 @@ export class ItemsService {
             dimensionsWB: item.dimensionsWB,
             dimensionsYandex: '',
             dimensionsOzon: '',
+            skuOzon: '',
             volume: item.volume,
             wbCreatedAt: item.wbCreatedAt,
             category: item.category,
@@ -256,6 +257,7 @@ export class ItemsService {
         const findItem = filterWbItems.find(wbItem => wbItem.article === ozonItem.article);
         if (findItem) {
           findItem.dimensionsOzon = ozonItem.dimensionsOzon;
+          findItem.skuOzon = ozonItem.sku;
           findItem.volumeOzon = Number(ozonItem.volumeOzon).toFixed(2);
           findItem.ozonCategory = ozonItem.category;
           findItem.ozonPrice = ozonItem.priceOzon;
