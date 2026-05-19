@@ -248,7 +248,8 @@ export class ItemsService {
             seasonalityForExport: item.seasonalityForExport,
             seasonalityForOrder: item.seasonalityForOrder,
             virality: item.virality,
-            costCalculationType: item.costCalculationType
+            costCalculationType: item.costCalculationType,
+            calculationType: item.calculationType
           };
         });
       const filterOzonItems = findItems.filter(item => item.marketplace.title === 'Озон');
@@ -357,7 +358,8 @@ export class ItemsService {
             seasonalityForExport: item.seasonalityForExport,
             seasonalityForOrder: item.seasonalityForOrder,
             virality: item.virality,
-            costCalculationType: item.costCalculationType
+            costCalculationType: item.costCalculationType,
+            calculationType: item.calculationType
           }
         );
       }
@@ -1307,7 +1309,7 @@ export class ItemsService {
     }
   }
 
-  @Cron(CronExpression.EVERY_DAY_AT_1AM)
+  @Cron('0 1 * * 1')
   async updateItemsClassification() {
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();

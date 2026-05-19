@@ -261,6 +261,10 @@ export class Items {
   @Column({ type: 'varchar', name: 'cost_calculation_type', nullable: true })
   costCalculationType: string;
 
+  //Тип расчета
+  @Column({ type: 'varchar', name: 'calculation_type', nullable: true })
+  calculationType: string;
+
   //Сезонность для вывоза
   @Column({ type: 'float', name: 'seasonality_for_export', nullable: true })
   seasonalityForExport: number;
