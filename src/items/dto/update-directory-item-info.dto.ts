@@ -205,6 +205,10 @@ export class UpdateDirectoryItemInfoDto {
   @IsString()
   @IsOptional()
   calculationType: string;
+
+  @IsString()
+  @IsOptional()
+  category: string;
 }
 
 export class UpdateArrayDirectoryItemsInfoDto {

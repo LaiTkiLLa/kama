@@ -341,6 +341,7 @@ export class ItemsService {
             title: findItems[0].createdForCalculation ? item.title : undefined,
             volumeWB: findItems[0].createdForCalculation ? item.volumeWB : undefined,
             volumeOzon: findItems[0].createdForCalculation ? item.volumeOzon : undefined,
+            category: findItems[0].createdForCalculation ? item.category : undefined,
             costInYuanWhite: item.costInYuanWhite,
             codeTNVED: item.codeTNVED,
             dimensionsMasterBox: item.dimensionsMasterBox,
