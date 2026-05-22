@@ -40,35 +40,30 @@ export class ItemsService {
     await queryRunner.startTransaction();
     try {
       const findWbMp = await this.infoService.findMarketplace({ title: 'WB' });
-      const findOzonMp = await this.infoService.findMarketplace({ title: 'Озон' });
-      const findYaMp = await this.infoService.findMarketplace({ title: 'Yandex' });
-      const marketplacesId = [findWbMp.id, findOzonMp.id, findYaMp.id];
-      for (const marketplace of marketplacesId) {
-        const createItem = queryRunner.manager.create(Items, {
-          createdForCalculation: true,
-          marketplaceId: marketplace,
-          article: 'тестовый артикул',
-          category: 'тестовая категория',
-          title: 'тестовое название',
-          barcode: 'тестовый баркод',
-          sku: 'тестовый ску',
-          marketplaceIdentifier: 'тестовый идентификатор'
-        });
-        await queryRunner.manager.save(Items, createItem);
-        await queryRunner.manager.update(
-          Items,
-          { id: createItem.id },
-          {
-            article: `тестовый артикул ${createItem.id}`,
-            title: `тестовое название ${createItem.id}`,
-            barcode: `тестовый баркод ${createItem.id}`,
-            sku: `тестовый ску ${createItem.id}`,
-            marketplaceIdentifier: `тестовый идентификатор ${createItem.id}`
-          }
-        );
-      }
+      const createItem = queryRunner.manager.create(Items, {
+        createdForCalculation: true,
+        marketplaceId: findWbMp.id,
+        article: 'тестовый артикул',
+        category: 'тестовая категория',
+        title: 'тестовое название',
+        barcode: 'тестовый баркод',
+        sku: 'тестовый ску',
+        marketplaceIdentifier: 'тестовый идентификатор'
+      });
+      await queryRunner.manager.save(Items, createItem);
+      await queryRunner.manager.update(
+        Items,
+        { id: createItem.id },
+        {
+          article: `тестовый артикул ${createItem.id}`,
+          title: `тестовое название ${createItem.id}`,
+          barcode: `тестовый баркод ${createItem.id}`,
+          sku: `тестовый ску ${createItem.id}`,
+          marketplaceIdentifier: `тестовый идентификатор ${createItem.id}`
+        }
+      );
       await queryRunner.commitTransaction();
-      return { id: 1 };
+      return { id: createItem.id };
     } catch (error) {
       await queryRunner.rollbackTransaction();
       this.logger.error(error);
