@@ -750,7 +750,8 @@ export class ItemsService {
             color: findColor ? findColor.value[0] : '',
             //Размеры в см, вес в кг
             dimensionsWB: `${item.dimensions.length}/${item.dimensions.width}/${item.dimensions.height}/${item.dimensions.weightBrutto}`,
-            volumeWB
+            volumeWB,
+            chrtId: String(item?.sizes[0]?.chrtID)
           });
           await queryRunner.manager.save(Items, createItem);
         } else {
@@ -767,7 +768,8 @@ export class ItemsService {
               imageUrl: item.photos ? item.photos[0].big : null,
               //Размеры в см, вес в кг
               dimensionsWB: `${item.dimensions.length}/${item.dimensions.width}/${item.dimensions.height}/${item.dimensions.weightBrutto}`,
-              volumeWB
+              volumeWB,
+              chrtId: String(item?.sizes[0]?.chrtID)
             }
           );
         }

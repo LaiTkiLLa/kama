@@ -189,6 +189,10 @@ export class Items {
   @Column({ type: 'varchar', nullable: true })
   volume: string;
 
+  //Что то вроде id размера, нужен для получения остатков по FBS
+  @Column({ type: 'varchar', nullable: true, name: 'chrt_id' })
+  chrtId: string;
+
   @Column({
     type: 'boolean',
     nullable: false,
