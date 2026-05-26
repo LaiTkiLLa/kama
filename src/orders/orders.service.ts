@@ -360,6 +360,7 @@ export class OrdersService {
         }
         await queryRunner.commitTransaction();
       } catch (error) {
+        await queryRunner.rollbackTransaction();
         this.logger.error(error);
         this.logger.error('Не смог сказать заказы WB');
       } finally {
@@ -413,10 +414,7 @@ export class OrdersService {
             shopSku: item.shopSku,
             count: !item?.details?.length ? item.count : 0,
             orderDate: order.creationDate,
-            warehouse: {
-              id: item.warehouse.id,
-              name: item.warehouse.name
-            },
+            warehouseId: item.partnerWarehouseId,
             orderSum: price ? price.total : 0,
             isCancel: findRejectedStatus ? true : false
           });
@@ -445,9 +443,13 @@ export class OrdersService {
           continue;
         }
         const findWarehouse = await this.infoService.findOrCreateWarehouses(
-          { title: order.warehouse.name, id: order.warehouse.id },
+          { marketplaceInternalNumber: order.warehouseId },
           queryRunner
         );
+        if (!findWarehouse) {
+          await queryRunner.commitTransaction();
+          continue;
+        }
 
         const orderDate = new Date(`${order.orderDate}Z`);
         const findOrder = await queryRunner.manager.findOne(Orders, {
@@ -502,6 +504,7 @@ export class OrdersService {
         }
         await queryRunner.commitTransaction();
       } catch (error) {
+        await queryRunner.rollbackTransaction();
         this.logger.error(error);
         this.logger.error('Не смог добавить заказы Yandex');
       } finally {
