@@ -18,3 +18,11 @@ export interface GetWbStocks {
   isRealization: boolean;
   SCCode: string;
 }
+
+export interface GetWbOwnWarehousesStocks {
+  stocks: {
+    sku: string;
+    chrtId: number;
+    amount: number;
+  }[];
+}

@@ -9,6 +9,7 @@ import {
 import { Items } from '../../items/entities/items.entity';
 import { Stocks } from '../../stocks/entities/stocks.entity';
 import { Orders } from '../../orders/entities/orders.entity';
+import { Warehouses } from './warehouses.entity';
 
 @Entity({
   name: 'marketplaces'
@@ -49,4 +50,7 @@ export class Marketplaces {
 
   @OneToMany(() => Orders, orders => orders.marketplace)
   orders: Orders[];
+
+  @OneToMany(() => Warehouses, warehouses => warehouses.marketplace)
+  warehouses: Warehouses[];
 }

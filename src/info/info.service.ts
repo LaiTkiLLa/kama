@@ -10,6 +10,7 @@ import { GetYandexWarehouses } from './interfaces/yandex-warehouses.interface';
 import { Directions } from './entities/directions.entity';
 import { Statuses } from './entities/statuses.entity';
 import { GetStatusesListDto } from './dto/get-statuses-list.dto';
+import { GetWbWarehouses } from './interfaces/wb-warehouses.interface';
 
 @Injectable()
 export class InfoService {
@@ -106,26 +107,79 @@ export class InfoService {
         'Api-Key': yandexToken
       }
     });
-    for (const warehouse of data.result.warehouses) {
-      const queryRunner = this.dataSource.createQueryRunner();
-      await queryRunner.connect();
-      try {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    try {
+      const findMarketplace = await queryRunner.manager.findOne(Marketplaces, {
+        where: {
+          title: 'Yandex'
+        }
+      });
+      if (!findMarketplace) {
+        this.logger.error('Не нашел Yandex в маркетплейсах');
+        return;
+      }
+      for (const warehouse of data.result.warehouses) {
         const findWarehouse = await queryRunner.manager.findOne(Warehouses, {
-          where: { marketplaceId: String(warehouse.id) }
+          where: { marketplaceInternalNumber: String(warehouse.id) }
         });
         if (!findWarehouse) {
           const createWarehouse = queryRunner.manager.create(Warehouses, {
             title: warehouse.name,
-            marketplaceId: String(warehouse.id)
+            marketplaceInternalNumber: String(warehouse.id),
+            marketplaceId: findMarketplace.id
           });
           await queryRunner.manager.save(Warehouses, createWarehouse);
         }
-      } catch (error) {
-        this.logger.error(error);
-        this.logger.error('Не смог получить склады яндекса');
-      } finally {
-        await queryRunner.release();
       }
+    } catch (error) {
+      this.logger.error(error);
+      this.logger.error('Не смог получить склады яндекса');
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  @Cron(CronExpression.EVERY_30_MINUTES)
+  async getWbOwnWarehouses() {
+    const apiToken = await this.configService.get('wbToken');
+    const warehousesUrl = 'https://marketplace-api.wildberries.ru/api/v3/warehouses';
+    const { data }: { data: GetWbWarehouses[] } = await axios.get(warehousesUrl, {
+      headers: {
+        Authorization: apiToken
+      }
+    });
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    try {
+      const findMarketplace = await queryRunner.manager.findOne(Marketplaces, {
+        where: {
+          title: 'WB'
+        }
+      });
+      if (!findMarketplace) {
+        this.logger.error('Не нашел ВБ в маркетплейсах');
+        return;
+      }
+      for (const warehouse of data) {
+        const findWarehouse = await queryRunner.manager.findOne(Warehouses, {
+          where: { marketplaceInternalNumber: String(warehouse.id) }
+        });
+        if (!findWarehouse) {
+          const createWarehouse = queryRunner.manager.create(Warehouses, {
+            title: warehouse.name,
+            marketplaceInternalNumber: String(warehouse.id),
+            type: 'FBS',
+            marketplaceId: findMarketplace.id
+          });
+          await queryRunner.manager.save(Warehouses, createWarehouse);
+        }
+      }
+    } catch (error) {
+      this.logger.error(error);
+      this.logger.error('Не смог получить склады WB');
+    } finally {
+      await queryRunner.release();
     }
   }
 }

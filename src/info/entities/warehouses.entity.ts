@@ -8,6 +8,7 @@ import {
 } from 'typeorm';
 import { Stocks } from '../../stocks/entities/stocks.entity';
 import { Orders } from '../../orders/entities/orders.entity';
+import { Marketplaces } from './marketplaces.entity';
 
 @Entity({
   name: 'warehouses'
@@ -21,8 +22,11 @@ export class Warehouses {
   @Column({ type: 'varchar', nullable: false })
   title: string;
 
-  @Column({ type: 'varchar', nullable: true, name: 'marketplace_id' })
-  marketplaceId: string;
+  @Column({ type: 'varchar', nullable: true, name: 'marketplace_internal_number' })
+  marketplaceInternalNumber: string;
+
+  @Column({ type: 'int', nullable: true, name: 'marketplace_id' })
+  marketplaceId: number;
 
   @Column({
     type: 'varchar',
@@ -49,6 +53,9 @@ export class Warehouses {
 
   @OneToMany(() => Stocks, stocks => stocks.warehouse)
   stocks: Stocks[];
+
+  @OneToMany(() => Marketplaces, marketplace => marketplace.warehouses)
+  marketplace: Marketplaces;
 
   @OneToMany(() => Orders, orders => orders.warehouse)
   orders: Orders[];
