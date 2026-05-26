@@ -25,13 +25,6 @@ export class Marketplaces {
   })
   title: string;
 
-  @Column({
-    type: 'varchar',
-    default: 'FBO',
-    nullable: false
-  })
-  type: string;
-
   @CreateDateColumn({
     type: 'timestamp',
     nullable: false,
