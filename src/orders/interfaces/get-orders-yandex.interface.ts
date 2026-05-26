@@ -15,8 +15,8 @@ export interface GetOrdersYandex {
           marketSku: number;
           shopSku: string;
           count: number;
+          partnerWarehouseId: string;
           prices: [{ type: string; total: number }];
-          warehouse: { id: number; name: string };
           details: [];
           cisList: [];
         }
@@ -53,7 +53,7 @@ export interface YandexOrderInfo {
   shopSku: string;
   count: number;
   orderDate: string;
-  warehouse: { id: number; name: string }
-  orderSum: number
-  isCancel: boolean
+  warehouseId: string;
+  orderSum: number;
+  isCancel: boolean;
 }
