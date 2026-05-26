@@ -98,7 +98,7 @@ export class InfoService {
     return findDirection;
   }
 
-  @Cron(CronExpression.EVERY_6_HOURS)
+  @Cron(CronExpression.EVERY_30_MINUTES)
   async getYandexWarehouses() {
     const yandexToken = await this.configService.get('yandexToken');
     const warehousesUrl = 'https://api.partner.market.yandex.ru/warehouses';
@@ -130,6 +130,11 @@ export class InfoService {
             marketplaceId: findMarketplace.id
           });
           await queryRunner.manager.save(Warehouses, createWarehouse);
+        } else {
+          await queryRunner.manager.update(Warehouses, findWarehouse.id, {
+            title: warehouse.name,
+            marketplaceInternalNumber: String(warehouse.id)
+          });
         }
       }
     } catch (error) {
@@ -140,7 +145,7 @@ export class InfoService {
     }
   }
 
-  @Cron(CronExpression.EVERY_30_MINUTES)
+  @Cron(CronExpression.EVERY_6_HOURS)
   async getWbOwnWarehouses() {
     const apiToken = await this.configService.get('wbToken');
     const warehousesUrl = 'https://marketplace-api.wildberries.ru/api/v3/warehouses';
