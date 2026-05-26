@@ -118,7 +118,7 @@ export class InfoService {
             title: warehouse.name,
             marketplaceId: String(warehouse.id)
           });
-          await queryRunner.manager.insert(Warehouses, createWarehouse);
+          await queryRunner.manager.save(Warehouses, createWarehouse);
         }
       } catch (error) {
         this.logger.error(error);

@@ -14,6 +14,7 @@ import { GetYandexStocks, ItemTypes } from './interfaces/yandex-stocks.interface
 import { GetStocksByDateDto } from './dto/get-stocks-by-date.dto';
 import { GetStocksByDate } from './interfaces/get-stocks-by-date.interface';
 import { Items } from '../items/entities/items.entity';
+import { Warehouses } from '../info/entities/warehouses.entity';
 
 @Injectable()
 export class StocksService {
@@ -296,10 +297,14 @@ export class StocksService {
     await queryRunner.connect();
     try {
       for (const stock of stocks) {
-        const findWarehouse = await this.infoService.findOrCreateWarehouses(
-          { marketplaceId: String(stock.warehouseId) },
-          queryRunner
-        );
+        const findWarehouse = await queryRunner.manager.findOne(Warehouses, {
+          where: {
+            marketplaceId: String(stock.warehouseId)
+          }
+        });
+        if (!findWarehouse) {
+          continue;
+        }
         for (const item of stock.items) {
           const findItem = await this.itemsService.findItem(
             { article: item.supplierArticle, marketplaceId: findMarketplace.id },
