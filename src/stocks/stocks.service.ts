@@ -248,7 +248,7 @@ export class StocksService {
         const { data }: { data: GetWbOwnWarehousesStocks } = await axios.post(
           `${urlStocks}/${warehouse.marketplaceInternalNumber}`,
           {
-            chrtIds: findWbItems.map(item => item.chrtId)
+            chrtIds: findWbItems.map(item => Number(item.chrtId))
           },
           {
             headers: {
