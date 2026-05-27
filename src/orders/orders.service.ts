@@ -13,6 +13,7 @@ import { GetDynamicOrdersDto } from './dto/get-dynamic-orders.dto';
 import { StocksService } from '../stocks/stocks.service';
 import { GetDynamicOrders } from './interfaces/get-dynamic-orders.interface';
 import { Cron } from '@nestjs/schedule';
+import { Warehouses } from '../info/entities/warehouses.entity';
 
 @Injectable()
 export class OrdersService {
@@ -414,7 +415,7 @@ export class OrdersService {
             shopSku: item.shopSku,
             count: !item?.details?.length ? item.count : 0,
             orderDate: order.creationDate,
-            warehouseId: item.partnerWarehouseId,
+            warehouseId: String(item.warehouse.id),
             orderSum: price ? price.total : 0,
             isCancel: findRejectedStatus ? true : false
           });
@@ -442,10 +443,9 @@ export class OrdersService {
           await queryRunner.commitTransaction();
           continue;
         }
-        const findWarehouse = await this.infoService.findOrCreateWarehouses(
-          { marketplaceInternalNumber: order.warehouseId },
-          queryRunner
-        );
+        const findWarehouse = await queryRunner.manager.findOne(Warehouses, {
+          where: { marketplaceInternalNumber: order.warehouseId }
+        });
         if (!findWarehouse) {
           await queryRunner.commitTransaction();
           continue;

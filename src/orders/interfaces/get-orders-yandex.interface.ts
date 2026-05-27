@@ -15,7 +15,10 @@ export interface GetOrdersYandex {
           marketSku: number;
           shopSku: string;
           count: number;
-          partnerWarehouseId: string;
+          warehouse: {
+            id: number;
+            name: string;
+          };
           prices: [{ type: string; total: number }];
           details: [];
           cisList: [];
