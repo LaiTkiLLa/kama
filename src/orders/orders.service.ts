@@ -173,6 +173,7 @@ export class OrdersService {
         Authorization: apiToken
       }
     });
+    this.logger.log('Получил данные по заказам WB');
 
     for (const order of data) {
       if (+new Date(order.date) < +new Date(formattedDateFrom)) {
