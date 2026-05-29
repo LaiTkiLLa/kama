@@ -142,8 +142,7 @@ export class OrdersService {
   }
 
   async getWbOrders(days: number, result: GetDynamicOrders[]) {
-    const apiToken =
-      'eyJhbGciOiJFUzI1NiIsImtpZCI6IjIwMjYwMzAydjEiLCJ0eXAiOiJKV1QifQ.eyJhY2MiOjMsImVudCI6MSwiZXhwIjoxNzg4NDY2NTMwLCJmb3IiOiJzZWxmIiwiaWQiOiIwMTljYmQxMC1mMjAwLTdjZGQtYWRhMC05OTE3MmY3MzMxZmEiLCJpaWQiOjMyNDUxMDA5LCJvaWQiOjQ5NjYwLCJzIjozODM4LCJzaWQiOiIxYTE5YzVjNC03OTBhLTVmN2ItYWJiMy0xOWQ2ODE3ZGI2ODciLCJ0IjpmYWxzZSwidWlkIjozMjQ1MTAwOX0.inLSInrNJO1tid5tAOPfx-c5c-lbk_PW-sy17kYUpCJLvlxRwE7946NM3lSMntq-CnQ6c0QFhxkBkmVfsL7rUA';
+    const apiToken = this.configService.get<string>('wbToken');
 
     const prevDate = new Date(
       new Date(new Date().setDate(new Date().getDate() - days + 1)).setHours(0, 0, 0)
