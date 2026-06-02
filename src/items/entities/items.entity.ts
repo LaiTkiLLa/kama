@@ -308,6 +308,10 @@ export class Items {
   @Column({ type: 'text', nullable: true, name: 'own_images_url' })
   ownImagesUrl: string | null;
 
+  //Метод расчета загрузки
+  @Column({ type: 'varchar', nullable: true, name: 'download_calculation_method' })
+  downloadCalculationMethod: string;
+
   @CreateDateColumn({
     type: 'timestamp',
     nullable: false,

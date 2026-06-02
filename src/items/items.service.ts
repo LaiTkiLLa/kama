@@ -249,7 +249,8 @@ export class ItemsService {
             seasonalityForOrder: item.seasonalityForOrder,
             virality: item.virality,
             costCalculationType: item.costCalculationType,
-            calculationType: item.calculationType
+            calculationType: item.calculationType,
+            downloadCalculationMethod: item.downloadCalculationMethod
           };
         });
       const filterOzonItems = findItems.filter(item => item.marketplace.title === 'Озон');
@@ -360,7 +361,8 @@ export class ItemsService {
             seasonalityForOrder: item.seasonalityForOrder,
             virality: item.virality,
             costCalculationType: item.costCalculationType,
-            calculationType: item.calculationType
+            calculationType: item.calculationType,
+            downloadCalculationMethod: item.downloadCalculationMethod
           }
         );
       }
