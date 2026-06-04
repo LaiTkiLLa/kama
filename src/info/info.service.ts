@@ -11,6 +11,7 @@ import { Directions } from './entities/directions.entity';
 import { Statuses } from './entities/statuses.entity';
 import { GetStatusesListDto } from './dto/get-statuses-list.dto';
 import { GetWbWarehouses } from './interfaces/wb-warehouses.interface';
+import { OzonWarehouses } from './interfaces/ozon-warehouses.interface';
 
 @Injectable()
 export class InfoService {
@@ -183,6 +184,93 @@ export class InfoService {
     } catch (error) {
       this.logger.error(error);
       this.logger.error('Не смог получить склады WB');
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  // @Cron(CronExpression.EVERY_DAY_AT_1AM)
+  @Cron(CronExpression.EVERY_5_MINUTES)
+  async getOzonWarehouses() {
+    let data: OzonWarehouses;
+    try {
+      const ozonToken = await this.configService.get('ozonToken');
+      const clientId = await this.configService.get('ozonClientId');
+      const warehousesUrl = 'https://api-seller.ozon.ru/v1/warehouse/ozon/list';
+      const response = await axios.post<OzonWarehouses>(
+        warehousesUrl,
+        {
+          warehouse_types: [
+            'FULL_FILLMENT',
+            'FULL_FILLMENT_RETURNS',
+            'FULL_FILLMENT_DEFECT',
+            'EXPRESS_DARK_STORE',
+            'CROSS_DOCK',
+            'SORTING_CENTER',
+            'PHARMACY',
+            'DISTRIBUTION_CENTER',
+            'ORDERS_RECEIVING_POINT',
+            'OUTSOURCE_FF',
+            'B2B',
+            'EXTERNAL_FF'
+          ]
+        },
+        {
+          headers: {
+            'Client-Id': clientId,
+            'Api-Key': ozonToken
+          }
+        }
+      );
+      data = response.data;
+    } catch (error) {
+      this.logger.error(error);
+      this.logger.error('Не смог получить склады Озон по АПИ');
+      return;
+    }
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    try {
+      const findMarketplace = await queryRunner.manager.findOne(Marketplaces, {
+        where: {
+          title: 'Озон'
+        }
+      });
+      if (!findMarketplace) {
+        this.logger.error('Не нашел Озон в маркетплейсах');
+        return;
+      }
+      for (const warehouse of data.warehouses) {
+        // const findWarehouse = await queryRunner.manager.findOne(Warehouses, {
+        //   where: { marketplaceInternalNumber: String(warehouse.warehouse_id) }
+        // });
+        const findWarehouse = await queryRunner.manager.findOne(Warehouses, {
+          where: { title: warehouse.name }
+        });
+        if (!findWarehouse) {
+          const createWarehouse = queryRunner.manager.create(Warehouses, {
+            title: warehouse.name,
+            marketplaceInternalNumber: String(warehouse.warehouse_id),
+            type: 'FBO',
+            marketplaceId: findMarketplace.id
+          });
+          await queryRunner.manager.save(Warehouses, createWarehouse);
+        } else {
+          queryRunner.manager.update(
+            Warehouses,
+            { id: findWarehouse.id },
+            {
+              title: warehouse.name,
+              marketplaceInternalNumber: String(warehouse.warehouse_id),
+              type: 'FBO',
+              marketplaceId: findMarketplace.id
+            }
+          );
+        }
+      }
+    } catch (error) {
+      this.logger.error(error);
+      this.logger.error('Не смог получить склады FBO Ozon');
     } finally {
       await queryRunner.release();
     }
