@@ -241,11 +241,8 @@ export class InfoService {
         return;
       }
       for (const warehouse of data.warehouses) {
-        // const findWarehouse = await queryRunner.manager.findOne(Warehouses, {
-        //   where: { marketplaceInternalNumber: String(warehouse.warehouse_id) }
-        // });
         const findWarehouse = await queryRunner.manager.findOne(Warehouses, {
-          where: { title: warehouse.name }
+          where: { marketplaceInternalNumber: String(warehouse.warehouse_id) }
         });
         if (!findWarehouse) {
           const createWarehouse = queryRunner.manager.create(Warehouses, {
