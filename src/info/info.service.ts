@@ -146,7 +146,7 @@ export class InfoService {
     }
   }
 
-  @Cron(CronExpression.EVERY_6_HOURS)
+  @Cron(CronExpression.EVERY_DAY_AT_3PM)
   async getWbOwnWarehouses() {
     const apiToken = await this.configService.get('wbToken');
     const warehousesUrl = 'https://marketplace-api.wildberries.ru/api/v3/warehouses';
