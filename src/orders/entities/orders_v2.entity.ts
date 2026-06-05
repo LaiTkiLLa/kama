@@ -87,6 +87,9 @@ export class OrdersV2 {
   @Column({ type: 'int', name: 'marketplace_id', nullable: false })
   marketplaceId: number;
 
+  @Column({ type: 'timestamptz', name: 'marketplace_created_at', nullable: true })
+  marketplaceCreatedAt: Date;
+
   @CreateDateColumn({
     type: 'timestamp',
     nullable: false,

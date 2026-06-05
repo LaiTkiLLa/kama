@@ -515,7 +515,7 @@ export class OrdersService {
     return;
   }
 
-  @Cron(CronExpression.EVERY_HOUR)
+  @Cron(CronExpression.EVERY_3_HOURS)
   async getOrdersOzonFirst() {
     const ozonToken = await this.configService.get('ozonToken');
     const clientId = await this.configService.get('ozonClientId');
@@ -683,7 +683,8 @@ export class OrdersService {
               city: order.city,
               itemId: findItem.id,
               warehouseId: findWarehouse.id,
-              marketplaceId
+              marketplaceId,
+              marketplaceCreatedAt: order.createdAt
             });
             await queryRunner.manager.save(OrdersV2, createOrder);
           } else {
