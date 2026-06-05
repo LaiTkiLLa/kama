@@ -685,7 +685,7 @@ export class OrdersService {
               warehouseId: findWarehouse.id,
               marketplaceId
             });
-            await queryRunner.manager.save(Orders, createOrder);
+            await queryRunner.manager.save(OrdersV2, createOrder);
           } else {
             await queryRunner.manager.update(OrdersV2, findOrder.id, {
               status: order.status,
