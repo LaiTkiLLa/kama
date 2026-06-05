@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
-import { GetOrdersOzon, GetOrdersResult } from './interfaces/get-orders-ozon.interface';
+import { GetOrdersOzon, GetOrdersOzonV2, GetOrdersResult } from './interfaces/get-orders-ozon.interface';
 import { ItemsService } from '../items/items.service';
 import { InfoService } from '../info/info.service';
 import { Orders } from './entities/orders.entity';
@@ -12,8 +12,9 @@ import { Items } from '../items/entities/items.entity';
 import { GetDynamicOrdersDto } from './dto/get-dynamic-orders.dto';
 import { StocksService } from '../stocks/stocks.service';
 import { GetDynamicOrders } from './interfaces/get-dynamic-orders.interface';
-import { Cron } from '@nestjs/schedule';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { Warehouses } from '../info/entities/warehouses.entity';
+import { OrdersV2 } from './entities/orders_v2.entity';
 
 @Injectable()
 export class OrdersService {
@@ -78,7 +79,7 @@ export class OrdersService {
     today.setHours(0, 0, 0);
     const ozonToken = this.configService.get('ozonToken');
     const clientId = this.configService.get('ozonClientId');
-    const ozonUrlListPosts = 'https://api-seller.ozon.ru/v2/posting/fbo/list';
+    const ozonUrlListPosts = 'https://api-seller.ozon.ru/v3/posting/fbo/list';
 
     const datesInterval = this.getMonthlyIntervals(prevNinetyDays, today);
 
@@ -514,7 +515,7 @@ export class OrdersService {
     return;
   }
 
-  // @Cron('0 */22 * * * *')
+  @Cron(CronExpression.EVERY_HOUR)
   async getOrdersOzonFirst() {
     const ozonToken = await this.configService.get('ozonToken');
     const clientId = await this.configService.get('ozonClientId');
@@ -537,134 +538,199 @@ export class OrdersService {
       'Client-Id': clientId,
       'Api-Key': ozonToken
     };
-    const ozonUrlOrders = 'https://api-seller.ozon.ru/v2/posting/fbo/list';
+    const ozonUrlOrders = 'https://api-seller.ozon.ru/v3/posting/fbo/list';
 
-    const lastWeek = new Date();
-    lastWeek.setDate(lastWeek.getDate() - 14);
-    lastWeek.setHours(3, 0, 0, 0);
+    const lastMonth = new Date();
+    lastMonth.setDate(lastMonth.getDate() - 180);
+    lastMonth.setHours(3, 0, 0, 0);
 
     const todayEvening = new Date();
     todayEvening.setDate(todayEvening.getDate() + 1);
     todayEvening.setHours(2, 59, 59, 999);
 
     let hasMoreData = true;
-    let offset = 0;
+    let cursor = '';
 
     const orders: GetOrdersResult[] = [];
-
-    while (hasMoreData) {
-      //Запрос на получение заказов
-      const { data }: { data: GetOrdersOzon } = await axios.post(
-        ozonUrlOrders,
-        {
-          dir: 'ASC',
-          filter: {
-            since: lastWeek,
-            status: '',
-            to: todayEvening
+    try {
+      while (hasMoreData) {
+        //Запрос на получение заказов
+        const response = await axios.post<GetOrdersOzonV2>(
+          ozonUrlOrders,
+          {
+            dir: 'ASC',
+            filter: {
+              since: lastMonth,
+              status: '',
+              to: todayEvening
+            },
+            limit: 100,
+            cursor,
+            with: {
+              analytics_data: true,
+              financial_data: true
+            }
           },
-          limit: 1000,
-          offset,
-          with: {
-            analytics_data: true,
-            financial_data: true
-          }
-        },
-        { headers }
-      );
-
-      if (data.result.length === 0) {
-        hasMoreData = false;
-      } else {
-        offset += 1000;
-        for (const order of data.result) {
-          order.products.map(item => {
-            orders.push({
-              sku: String(item.sku),
-              quantity: item.quantity,
-              sum: item.price,
-              article: item.offer_id,
-              warehouse: order.analytics_data.warehouse_name,
-              cancelReasonId: order.cancel_reason_id,
-              createdAt: order.created_at,
-              orderId: order.order_id
-            });
+          { headers }
+        );
+        if (!response.data.has_next) {
+          hasMoreData = false;
+        }
+        if (!response.data.postings.length) {
+          hasMoreData = false;
+        }
+        cursor = response.data.cursor;
+        for (const order of response.data.postings) {
+          orders.push({
+            warehouseId: order.analytics_data.warehouse_id,
+            warehouseTitle: order.analytics_data.warehouse_name,
+            cancelReasonId: order.cancel_reason_id,
+            createdAt: order.created_at,
+            orderId: order.order_id,
+            postingNumber: order.posting_number,
+            orderNumber: order.order_number,
+            status: order.status,
+            substatus: order.substatus,
+            city: order.analytics_data.city,
+            products: order.products.map(product => {
+              const findProductFinancialInfo = order.financial_data.products.find(
+                el => el.product_id === product.sku
+              );
+              const financialInfo = {
+                payout: 0,
+                oldPrice: 0,
+                totalDiscountValue: 0,
+                totalDiscountPercent: 0,
+                commission: {
+                  amount: 0,
+                  percent: 0
+                },
+                clusterFrom: '',
+                clusterTo: ''
+              };
+              if (findProductFinancialInfo) {
+                financialInfo.payout = findProductFinancialInfo.payout;
+                financialInfo.oldPrice = findProductFinancialInfo.old_price;
+                financialInfo.totalDiscountValue = findProductFinancialInfo.total_discount_value;
+                financialInfo.totalDiscountPercent = findProductFinancialInfo.total_discount_percent;
+                financialInfo.commission.amount = findProductFinancialInfo.commission.amount;
+                financialInfo.commission.percent = findProductFinancialInfo.commission.percent;
+                financialInfo.clusterFrom = order.financial_data.cluster_from;
+                financialInfo.clusterTo = order.financial_data.cluster_to;
+              }
+              return {
+                offerId: product.offer_id,
+                name: product.name,
+                sku: product.sku,
+                quantity: product.quantity,
+                price: Number(product.price.amount),
+                ...financialInfo
+              };
+            })
           });
         }
       }
+    } catch (error) {
+      this.logger.error(error);
+      this.logger.error('Не смог получить данные по заказам Озон');
     }
-    for (const order of orders) {
-      const queryRunner = this.dataSource.createQueryRunner();
-      await queryRunner.connect();
-      await queryRunner.startTransaction();
-      try {
-        const findItem = await this.itemsService.findItem({ sku: order.sku }, queryRunner);
-        const findWarehouse = await this.infoService.findOrCreateWarehouses(
-          { title: order.warehouse },
-          queryRunner
-        );
-        if (!findItem) {
-          await queryRunner.commitTransaction();
-          continue;
-        }
-        const findOrder = await queryRunner.manager.findOne(Orders, {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    try {
+      for (const order of orders) {
+        const findWarehouse = await queryRunner.manager.findOne(Warehouses, {
           where: {
-            marketplaceOrderIdentification: String(order.orderId),
-            createdAt: new Date(order.createdAt),
-            itemId: findItem.id
+            marketplaceInternalNumber: String(order.warehouseId)
           }
         });
-        const isCanceled = order.cancelReasonId ? true : false;
-        if (!findOrder) {
-          const countItemOrder = await queryRunner.manager.count(Orders, {
+        if (!findWarehouse) {
+          continue;
+        }
+        for (const item of order.products) {
+          const findItem = await queryRunner.manager.findOne(Items, {
             where: {
+              marketplaceId,
+              sku: String(item.sku)
+            }
+          });
+          if (!findItem) {
+            continue;
+          }
+          const findOrder = await queryRunner.manager.findOne(OrdersV2, {
+            where: {
+              marketplaceOrderIdentification: String(order.orderId),
+              marketplaceOrderPostingNumber: String(order.postingNumber),
               itemId: findItem.id
             }
           });
-          if (!countItemOrder) {
-            await queryRunner.manager.update(
-              Items,
-              {
-                id: findItem.id
-              },
-              {
-                wbCreatedAt: new Date(order.createdAt),
-                classification: 'Новинка / A',
-                virality: 'виральный предположительно'
-              }
-            );
+          if (!findOrder) {
+            const createOrder = queryRunner.manager.create(OrdersV2, {
+              marketplaceOrderIdentification: String(order.orderId),
+              marketplaceOrderNumber: String(order.orderNumber),
+              marketplaceOrderPostingNumber: order.postingNumber,
+              status: order.status,
+              quantity: item.quantity,
+              price: item.price,
+              oldPrice: item.oldPrice,
+              payout: item.payout,
+              discountValue: item.totalDiscountValue,
+              discountPercent: item.totalDiscountPercent,
+              commissionPercent: item.commission.percent,
+              commissionValue: item.commission.amount,
+              clusterFrom: item.clusterFrom,
+              clusterTo: item.clusterTo,
+              cancelReasonId: order.cancelReasonId,
+              city: order.city,
+              itemId: findItem.id,
+              warehouseId: findWarehouse.id,
+              marketplaceId
+            });
+            await queryRunner.manager.save(Orders, createOrder);
+          } else {
+            await queryRunner.manager.update(OrdersV2, findOrder.id, {
+              status: order.status,
+              quantity: item.quantity,
+              price: item.price,
+              oldPrice: item.oldPrice,
+              payout: item.payout,
+              discountValue: item.totalDiscountValue,
+              discountPercent: item.totalDiscountPercent,
+              commissionPercent: item.commission.percent,
+              commissionValue: item.commission.amount,
+              clusterFrom: item.clusterFrom,
+              clusterTo: item.clusterTo,
+              cancelReasonId: order.cancelReasonId,
+              city: order.city
+            });
           }
-          const createOrder = queryRunner.manager.create(Orders, {
-            quantity: order.quantity,
-            sum: Number(order.sum),
-            marketplaceOrderIdentification: String(order.orderId),
-            isCanceled,
-            itemId: findItem.id,
-            warehouseId: findWarehouse.id,
-            createdAt: new Date(order.createdAt),
-            marketplaceId
-          });
-          await queryRunner.manager.save(Orders, createOrder);
-        } else {
-          await queryRunner.manager.update(
-            Orders,
-            { id: findOrder.id },
-            {
-              quantity: order.quantity,
-              isCanceled,
-              sum: Number(order.sum)
-            }
-          );
         }
-        await queryRunner.commitTransaction();
-      } catch (error) {
-        this.logger.error(error);
-        this.logger.error('Не смог сказать заказы Ozon');
-      } finally {
-        await queryRunner.release();
+
+        //     if (!findOrder) {
+        //       const countItemOrder = await queryRunner.manager.count(Orders, {
+        //         where: {
+        //           itemId: findItem.id
+        //         }
+        //       });
+        //       if (!countItemOrder) {
+        //         await queryRunner.manager.update(
+        //           Items,
+        //           {
+        //             id: findItem.id
+        //           },
+        //           {
+        //             wbCreatedAt: new Date(order.createdAt),
+        //             classification: 'Новинка / A',
+        //             virality: 'виральный предположительно'
+        //           }
+        //         );
+        //       }
       }
+    } catch (error) {
+      this.logger.error(error);
+      this.logger.error(`Не смог скачать заказы Ozon ${marketplaceId}`);
+    } finally {
+      await queryRunner.release();
     }
-    return;
   }
 
   getMonthlyIntervals(startDate: Date, endDate: Date): { startDate: Date; finishDate: Date }[] {
