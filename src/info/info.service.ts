@@ -189,7 +189,7 @@ export class InfoService {
     }
   }
 
-  @Cron(CronExpression.EVERY_5_MINUTES)
+  @Cron(CronExpression.EVERY_DAY_AT_2PM)
   async getWbWarehouses() {
     const apiToken = this.configService.get<string>('wbToken');
     const warehousesUrl = 'https://supplies-api.wildberries.ru/api/v1/warehouses';
@@ -211,11 +211,8 @@ export class InfoService {
         return;
       }
       for (const warehouse of response.data) {
-        // const findWarehouse = await queryRunner.manager.findOne(Warehouses, {
-        //   where: { marketplaceInternalNumber: String(warehouse.ID) }
-        // });
         const findWarehouse = await queryRunner.manager.findOne(Warehouses, {
-          where: { title: warehouse.name }
+          where: { marketplaceInternalNumber: String(warehouse.ID) }
         });
         if (!findWarehouse) {
           const createWarehouse = queryRunner.manager.create(Warehouses, {
@@ -225,12 +222,6 @@ export class InfoService {
             marketplaceId: findMarketplace.id
           });
           await queryRunner.manager.save(Warehouses, createWarehouse);
-        } else {
-          await queryRunner.manager.update(Warehouses, findWarehouse.id, {
-            marketplaceInternalNumber: String(warehouse.ID),
-            type: 'FBO',
-            marketplaceId: findMarketplace.id
-          });
         }
       }
     } catch (error) {
