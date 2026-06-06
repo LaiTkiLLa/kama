@@ -1,4 +1,4 @@
-export interface GetWbWarehouses {
+export interface GetWbOwnWarehouses {
   name: string;
   officeId: number;
   id: number;
@@ -6,4 +6,13 @@ export interface GetWbWarehouses {
   deliveryType: number;
   isDeleting: boolean;
   isProcessing: boolean;
+}
+
+export interface GetWbWarehouses {
+  ID: number;
+  name: string;
+  address: string;
+  workTime: string;
+  isActive: boolean;
+  isTransitActive: boolean;
 }

@@ -10,7 +10,7 @@ import { GetYandexWarehouses } from './interfaces/yandex-warehouses.interface';
 import { Directions } from './entities/directions.entity';
 import { Statuses } from './entities/statuses.entity';
 import { GetStatusesListDto } from './dto/get-statuses-list.dto';
-import { GetWbWarehouses } from './interfaces/wb-warehouses.interface';
+import { GetWbOwnWarehouses, GetWbWarehouses } from './interfaces/wb-warehouses.interface';
 import { OzonWarehouses } from './interfaces/ozon-warehouses.interface';
 
 @Injectable()
@@ -101,7 +101,7 @@ export class InfoService {
 
   @Cron(CronExpression.EVERY_30_MINUTES)
   async getYandexWarehouses() {
-    const yandexToken = await this.configService.get('yandexToken');
+    const yandexToken = this.configService.get<string>('yandexToken');
     const warehousesUrl = 'https://api.partner.market.yandex.ru/warehouses';
     const { data }: { data: GetYandexWarehouses } = await axios.get(warehousesUrl, {
       headers: {
@@ -148,9 +148,9 @@ export class InfoService {
 
   @Cron(CronExpression.EVERY_DAY_AT_3PM)
   async getWbOwnWarehouses() {
-    const apiToken = await this.configService.get('wbToken');
+    const apiToken = this.configService.get<string>('wbToken');
     const warehousesUrl = 'https://marketplace-api.wildberries.ru/api/v3/warehouses';
-    const { data }: { data: GetWbWarehouses[] } = await axios.get(warehousesUrl, {
+    const response = await axios.get<GetWbOwnWarehouses[]>(warehousesUrl, {
       headers: {
         Authorization: apiToken
       }
@@ -167,7 +167,7 @@ export class InfoService {
         this.logger.error('Не нашел ВБ в маркетплейсах');
         return;
       }
-      for (const warehouse of data) {
+      for (const warehouse of response.data) {
         const findWarehouse = await queryRunner.manager.findOne(Warehouses, {
           where: { marketplaceInternalNumber: String(warehouse.id) }
         });
@@ -189,12 +189,64 @@ export class InfoService {
     }
   }
 
+  @Cron(CronExpression.EVERY_5_MINUTES)
+  async getWbWarehouses() {
+    const apiToken = this.configService.get<string>('wbToken');
+    const warehousesUrl = 'https://supplies-api.wildberries.ru/api/v1/warehouses';
+    const response = await axios.get<GetWbWarehouses[]>(warehousesUrl, {
+      headers: {
+        Authorization: apiToken
+      }
+    });
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    try {
+      const findMarketplace = await queryRunner.manager.findOne(Marketplaces, {
+        where: {
+          title: 'WB'
+        }
+      });
+      if (!findMarketplace) {
+        this.logger.error('Не нашел ВБ в маркетплейсах');
+        return;
+      }
+      for (const warehouse of response.data) {
+        // const findWarehouse = await queryRunner.manager.findOne(Warehouses, {
+        //   where: { marketplaceInternalNumber: String(warehouse.ID) }
+        // });
+        const findWarehouse = await queryRunner.manager.findOne(Warehouses, {
+          where: { title: warehouse.name }
+        });
+        if (!findWarehouse) {
+          const createWarehouse = queryRunner.manager.create(Warehouses, {
+            title: warehouse.name,
+            marketplaceInternalNumber: String(warehouse.ID),
+            type: 'FBO',
+            marketplaceId: findMarketplace.id
+          });
+          await queryRunner.manager.save(Warehouses, createWarehouse);
+        } else {
+          await queryRunner.manager.update(Warehouses, findWarehouse.id, {
+            marketplaceInternalNumber: String(warehouse.ID),
+            type: 'FBO',
+            marketplaceId: findMarketplace.id
+          });
+        }
+      }
+    } catch (error) {
+      this.logger.error(error);
+      this.logger.error('Не смог получить склады WB');
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
   @Cron(CronExpression.EVERY_DAY_AT_1AM)
   async getOzonWarehouses() {
     let data: OzonWarehouses;
     try {
-      const ozonToken = await this.configService.get('ozonToken');
-      const clientId = await this.configService.get('ozonClientId');
+      const ozonToken = this.configService.get<string>('ozonToken');
+      const clientId = this.configService.get<string>('ozonClientId');
       const warehousesUrl = 'https://api-seller.ozon.ru/v1/warehouse/ozon/list';
       const response = await axios.post<OzonWarehouses>(
         warehousesUrl,
@@ -252,7 +304,7 @@ export class InfoService {
           });
           await queryRunner.manager.save(Warehouses, createWarehouse);
         } else {
-          queryRunner.manager.update(
+          await queryRunner.manager.update(
             Warehouses,
             { id: findWarehouse.id },
             {
