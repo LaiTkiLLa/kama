@@ -403,7 +403,7 @@ export class OrdersService {
     return;
   }
 
-  @Cron('0 */15 * * * *')
+  @Cron('0 */17 * * * *')
   async getOrdersWbV2() {
     const tenDaysAgo = new Date(new Date().setDate(new Date().getDate() - 180));
     const apiToken = this.configService.get<string>('wbToken');
@@ -439,7 +439,7 @@ export class OrdersService {
         if (!findItem) {
           continue;
         }
-        const findOrder = await queryRunner.manager.findOne(Orders, {
+        const findOrder = await queryRunner.manager.findOne(OrdersV2, {
           where: {
             marketplaceOrderIdentification: order.srid,
             itemId: findItem.id
@@ -485,7 +485,7 @@ export class OrdersService {
             marketplaceId: findMarketplace.id,
             marketplaceCreatedAt: order.date
           });
-          await queryRunner.manager.save(Orders, createOrder);
+          await queryRunner.manager.save(OrdersV2, createOrder);
         } else {
           await queryRunner.manager.update(
             OrdersV2,
