@@ -403,7 +403,7 @@ export class OrdersService {
     return;
   }
 
-  @Cron('0 */17 * * * *')
+  @Cron('0 */18 * * * *')
   async getOrdersWbV2() {
     const tenDaysAgo = new Date(new Date().setDate(new Date().getDate() - 180));
     const apiToken = this.configService.get<string>('wbToken');
