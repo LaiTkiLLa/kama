@@ -95,14 +95,14 @@ export class OrdersService {
         continue;
       }
       const orderDate = new Date(order.marketplaceCreatedAt);
-      if (order.itemId === 9240) {
-        console.log(order);
-      }
       findItem.ordersLastNinetyDays += order.quantity;
       if (orderDate >= prevThirtyDays) {
         findItem.ordersLastThirtyDays += order.quantity;
       }
       if (orderDate >= lastWeek) {
+        if (order.itemId === 9240) {
+          console.log(order);
+        }
         findItem.ordersLastWeek += order.quantity;
       }
       if (orderDate >= prevDate) {
