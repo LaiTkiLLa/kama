@@ -403,7 +403,7 @@ export class OrdersService {
     return;
   }
 
-  @Cron('0 */18 * * * *')
+  @Cron('0 */19 * * * *')
   async getOrdersWbV2() {
     const tenDaysAgo = new Date(new Date().setDate(new Date().getDate() - 180));
     const apiToken = this.configService.get<string>('wbToken');
@@ -424,6 +424,7 @@ export class OrdersService {
     }
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
+    console.log(response)
     try {
       for (const order of response.data) {
         const findWarehouse = await queryRunner.manager.findOne(Warehouses, {
