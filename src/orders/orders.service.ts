@@ -61,9 +61,9 @@ export class OrdersService {
         });
       }
       if (getDynamicOrdersDto.marketplace === 'Озон') {
-        return this.getOzonOrders(getDynamicOrdersDto.days, result);
+        return this.getOrders(getDynamicOrdersDto.days, 'Озон', result);
       } else if (getDynamicOrdersDto.marketplace === 'WB') {
-        return this.getWbOrders(getDynamicOrdersDto.days, result);
+        return this.getOrders(getDynamicOrdersDto.days, 'WB', result);
       } else if (getDynamicOrdersDto.marketplace === 'Yandex') {
         return this.getYandexOrders(getDynamicOrdersDto.days, result);
       }
@@ -76,18 +76,19 @@ export class OrdersService {
     }
   }
 
-  async getOzonOrders(days: number, result: GetDynamicOrders[]) {
-    const prevDate = new Date(new Date().setDate(new Date().getDate() - days));
-    const prevNinetyDays = new Date(new Date().setDate(new Date().getDate() - 60));
-    const prevThirtyDays = new Date(new Date().setDate(new Date().getDate() - 30));
-    const lastWeek = new Date(new Date().setDate(new Date().getDate() - 7));
-    const today = new Date();
-    today.setHours(0, 0, 0);
+  async getOrders(days: number, marketplaceTitle: 'Озон' | 'WB', result: GetDynamicOrders[]) {
+    const prevDate = this.moscowMidnightDaysAgo(days);
+    const prevNinetyDays = this.moscowMidnightDaysAgo(60);
+    const prevThirtyDays = this.moscowMidnightDaysAgo(30);
+    const lastWeek = this.moscowMidnightDaysAgo(7);
+    const prevNinetyDaysStr = prevNinetyDays.toLocaleDateString('sv-SE', { timeZone: 'Europe/Moscow' });
     const orders = await this.dataSource.manager
       .createQueryBuilder(OrdersV2, 'orders')
       .leftJoinAndSelect('orders.marketplace', 'marketplace')
-      .where('DATE(orders.marketplaceCreatedAt) >= DATE(:prevNinetyDays)', { prevNinetyDays })
-      .andWhere('marketplace.title = :marketplaceTitle', { marketplaceTitle: 'Озон' })
+      .where("DATE(orders.marketplaceCreatedAt AT TIME ZONE 'Europe/Moscow') >= :prevNinetyDays", {
+        prevNinetyDays: prevNinetyDaysStr
+      })
+      .andWhere('marketplace.title = :marketplaceTitle', { marketplaceTitle })
       .getMany();
     for (const order of orders) {
       const findItem = result.find(item => item.itemId === order.itemId);
@@ -405,7 +406,7 @@ export class OrdersService {
 
   @Cron('0 45 * * * *')
   async getOrdersWbV2() {
-    const tenDaysAgo = new Date(new Date().setDate(new Date().getDate() - 180));
+    const tenDaysAgo = new Date(new Date().setDate(new Date().getDate() - 40));
     const apiToken = this.configService.get<string>('wbToken');
     const urlOrders = 'https://statistics-api.wildberries.ru/api/v1/supplier/orders';
     const response = await axios.get<GetOrdersWb[]>(urlOrders, {
@@ -424,7 +425,6 @@ export class OrdersService {
     }
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
-    console.log(response)
     try {
       for (const order of response.data) {
         const findWarehouse = await queryRunner.manager.findOne(Warehouses, {
@@ -939,5 +939,18 @@ export class OrdersService {
     }
 
     return intervals;
+  }
+
+  private moscowMidnightDaysAgo(days: number): Date {
+    const MOSCOW_OFFSET_MS = 3 * 60 * 60 * 1000; // UTC+3
+    // Текущий момент в московском времени (как timestamp)
+    const nowMoscowMs = Date.now() + MOSCOW_OFFSET_MS;
+    // Обнуляем до полуночи по Москве
+    const nowMoscow = new Date(nowMoscowMs);
+    nowMoscow.setUTCHours(0, 0, 0, 0);
+    // Отнимаем нужное количество дней
+    nowMoscow.setUTCDate(nowMoscow.getUTCDate() - days);
+    // Возвращаем обратно в UTC
+    return new Date(nowMoscow.getTime() - MOSCOW_OFFSET_MS);
   }
 }
