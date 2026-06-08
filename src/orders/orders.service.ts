@@ -56,6 +56,8 @@ export class OrdersService {
       });
     }
 
+    console.log('1', responseStocks.length);
+
     if (getDynamicOrdersDto.marketplace === 'Озон') {
       return this.getOzonOrders(getDynamicOrdersDto.days, result);
     } else if (getDynamicOrdersDto.marketplace === 'WB') {
@@ -100,6 +102,8 @@ export class OrdersService {
         findItem.ordersSum += Number(order.price);
       }
     }
+
+    console.log('result', result);
 
     // const ozonToken = this.configService.get('ozonToken');
     // const clientId = this.configService.get('ozonClientId');
