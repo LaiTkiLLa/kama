@@ -81,6 +81,7 @@ export class OrdersService {
     const prevNinetyDays = this.daysAgo(60);
     const prevThirtyDays = this.daysAgo(30);
     const lastWeek = this.daysAgo(7);
+    console.log(lastWeek.toISOString());
     const orders = await this.dataSource.manager
       .createQueryBuilder(OrdersV2, 'orders')
       .leftJoinAndSelect('orders.marketplace', 'marketplace')
@@ -95,14 +96,18 @@ export class OrdersService {
         continue;
       }
       const orderDate = new Date(order.marketplaceCreatedAt);
+      if (order.itemId === 9240) {
+        console.log('CHECK:', {
+          order: order.marketplaceCreatedAt.toISOString(),
+          lastWeek: lastWeek.toISOString(),
+          diff: order.marketplaceCreatedAt.getTime() - lastWeek.getTime()
+        });
+      }
       findItem.ordersLastNinetyDays += order.quantity;
       if (orderDate >= prevThirtyDays) {
         findItem.ordersLastThirtyDays += order.quantity;
       }
       if (orderDate >= lastWeek) {
-        if (order.itemId === 9240) {
-          console.log(order);
-        }
         findItem.ordersLastWeek += order.quantity;
       }
       if (orderDate >= prevDate) {
