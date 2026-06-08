@@ -63,7 +63,7 @@ export class OrdersService {
       if (getDynamicOrdersDto.marketplace === 'Озон') {
         return this.getOrders(getDynamicOrdersDto.days, 'Озон', result);
       } else if (getDynamicOrdersDto.marketplace === 'WB') {
-        return this.getOrders(getDynamicOrdersDto.days, 'WB', result);
+        return this.getWbOrders(getDynamicOrdersDto.days, result);
       } else if (getDynamicOrdersDto.marketplace === 'Yandex') {
         return this.getYandexOrders(getDynamicOrdersDto.days, result);
       }
