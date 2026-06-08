@@ -56,8 +56,6 @@ export class OrdersService {
       });
     }
 
-    console.log('1', responseStocks.length);
-
     if (getDynamicOrdersDto.marketplace === 'Озон') {
       return this.getOzonOrders(getDynamicOrdersDto.days, result);
     } else if (getDynamicOrdersDto.marketplace === 'WB') {
@@ -84,6 +82,7 @@ export class OrdersService {
       .createQueryBuilder(OrdersV2, 'orders')
       .where('DATE(orders.marketplaceCreatedAt) >= DATE(:prevNinetyDays)', { prevNinetyDays })
       .getMany();
+    console.log('orders', orders);
     for (const order of orders) {
       const findItem = result.find(item => item.itemId === order.itemId);
       if (!findItem) {
