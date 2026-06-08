@@ -63,7 +63,7 @@ export class OrdersService {
       if (getDynamicOrdersDto.marketplace === 'Озон') {
         return this.getOrders(getDynamicOrdersDto.days, 'Озон', result);
       } else if (getDynamicOrdersDto.marketplace === 'WB') {
-        return this.getWbOrders(getDynamicOrdersDto.days, result);
+        return this.getOrders(getDynamicOrdersDto.days, 'WB', result);
       } else if (getDynamicOrdersDto.marketplace === 'Yandex') {
         return this.getYandexOrders(getDynamicOrdersDto.days, result);
       }
@@ -77,16 +77,15 @@ export class OrdersService {
   }
 
   async getOrders(days: number, marketplaceTitle: 'Озон' | 'WB', result: GetDynamicOrders[]) {
-    const prevDate = this.moscowMidnightDaysAgo(days);
-    const prevNinetyDays = this.moscowMidnightDaysAgo(60);
-    const prevThirtyDays = this.moscowMidnightDaysAgo(30);
-    const lastWeek = this.moscowMidnightDaysAgo(7);
-    const prevNinetyDaysStr = prevNinetyDays.toLocaleDateString('sv-SE', { timeZone: 'Europe/Moscow' });
+    const prevDate = this.daysAgo(days);
+    const prevNinetyDays = this.daysAgo(60);
+    const prevThirtyDays = this.daysAgo(30);
+    const lastWeek = this.daysAgo(7);
     const orders = await this.dataSource.manager
       .createQueryBuilder(OrdersV2, 'orders')
       .leftJoinAndSelect('orders.marketplace', 'marketplace')
-      .where("DATE(orders.marketplaceCreatedAt AT TIME ZONE 'Europe/Moscow') >= :prevNinetyDays", {
-        prevNinetyDays: prevNinetyDaysStr
+      .where('orders.marketplaceCreatedAt >= :prevNinetyDays', {
+        prevNinetyDays
       })
       .andWhere('marketplace.title = :marketplaceTitle', { marketplaceTitle })
       .getMany();
@@ -108,69 +107,6 @@ export class OrdersService {
         findItem.ordersSum += Number(order.price);
       }
     }
-
-    // const ozonToken = this.configService.get('ozonToken');
-    // const clientId = this.configService.get('ozonClientId');
-    // const ozonUrlListPosts = 'https://api-seller.ozon.ru/v3/posting/fbo/list';
-    //
-    // const datesInterval = this.getMonthlyIntervals(prevNinetyDays, today);
-    //
-    // const headers = {
-    //   'Client-Id': clientId,
-    //   'Api-Key': ozonToken
-    // };
-    //
-    // for (const interval of datesInterval) {
-    //   let hasMoreData = true;
-    //   let offset = 0;
-    //   while (hasMoreData) {
-    //     //Запрос на получение заказов
-    //     const { data }: { data: GetOrdersOzon } = await axios.post(
-    //       ozonUrlListPosts,
-    //       {
-    //         dir: 'ASC',
-    //         filter: {
-    //           since: interval.startDate,
-    //           status: '',
-    //           to: interval.finishDate
-    //         },
-    //         limit: 1000,
-    //         offset,
-    //         with: {
-    //           financial_data: true
-    //         }
-    //       },
-    //       {
-    //         headers
-    //       }
-    //     );
-    //     if (data.result.length === 0) {
-    //       hasMoreData = false;
-    //     } else {
-    //       offset += 1000;
-    //       for (const order of data.result) {
-    //         order.products.map(o => {
-    //           const findItem = result.find(item => Number(item.sku) === o.sku);
-    //           if (!findItem) {
-    //             return;
-    //           }
-    //           const orderDate = new Date(order.created_at);
-    //           findItem.ordersLastNinetyDays += o.quantity;
-    //           if (orderDate >= prevThirtyDays) {
-    //             findItem.ordersLastThirtyDays += o.quantity;
-    //           }
-    //           if (orderDate >= lastWeek) {
-    //             findItem.ordersLastWeek += o.quantity;
-    //           }
-    //           if (orderDate >= prevDate) {
-    //             findItem.orders += o.quantity;
-    //             findItem.ordersSum += Number(o.price);
-    //           }
-    //         });
-    //       }
-    //     }
-    //   }
-    // }
     return result;
   }
 
@@ -941,16 +877,7 @@ export class OrdersService {
     return intervals;
   }
 
-  private moscowMidnightDaysAgo(days: number): Date {
-    const MOSCOW_OFFSET_MS = 3 * 60 * 60 * 1000; // UTC+3
-    // Текущий момент в московском времени (как timestamp)
-    const nowMoscowMs = Date.now() + MOSCOW_OFFSET_MS;
-    // Обнуляем до полуночи по Москве
-    const nowMoscow = new Date(nowMoscowMs);
-    nowMoscow.setUTCHours(0, 0, 0, 0);
-    // Отнимаем нужное количество дней
-    nowMoscow.setUTCDate(nowMoscow.getUTCDate() - days);
-    // Возвращаем обратно в UTC
-    return new Date(nowMoscow.getTime() - MOSCOW_OFFSET_MS);
+  private daysAgo(days: number): Date {
+    return new Date(Date.now() - days * 24 * 60 * 60 * 1000);
   }
 }
