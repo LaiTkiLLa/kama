@@ -90,16 +90,20 @@ export class OrdersService {
       .andWhere('marketplace.title = :marketplaceTitle', { marketplaceTitle })
       .getMany();
     for (const order of orders) {
+      console.log('1');
       const findItem = result.find(item => item.itemId === order.itemId);
       if (!findItem) {
         continue;
       }
+      console.log('2');
       const orderDate = new Date(order.marketplaceCreatedAt);
+      console.log(orderDate);
       findItem.ordersLastNinetyDays += order.quantity;
       if (orderDate >= prevThirtyDays) {
         findItem.ordersLastThirtyDays += order.quantity;
       }
       if (orderDate >= lastWeek) {
+        console.log(555555);
         findItem.ordersLastWeek += order.quantity;
       }
       if (orderDate >= prevDate) {
