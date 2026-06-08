@@ -80,13 +80,14 @@ export class OrdersService {
     today.setHours(0, 0, 0);
     const orders = await this.dataSource.manager
       .createQueryBuilder(OrdersV2, 'orders')
+      .leftJoinAndSelect('orders.marketplace', 'marketplace')
       .where('DATE(orders.marketplaceCreatedAt) >= DATE(:prevNinetyDays)', { prevNinetyDays })
+      .andWhere('marketplace.title = :marketplaceTitle', { marketplaceTitle: 'Озон' })
       .getMany();
-    console.log('orders', orders);
     for (const order of orders) {
       const findItem = result.find(item => item.itemId === order.itemId);
       if (!findItem) {
-        return;
+        continue;
       }
       const orderDate = new Date(order.marketplaceCreatedAt);
       findItem.ordersLastNinetyDays += order.quantity;
@@ -101,8 +102,6 @@ export class OrdersService {
         findItem.ordersSum += Number(order.price);
       }
     }
-
-    console.log('result', result);
 
     // const ozonToken = this.configService.get('ozonToken');
     // const clientId = this.configService.get('ozonClientId');
