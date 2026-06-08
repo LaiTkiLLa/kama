@@ -1,4 +1,5 @@
 export interface GetOrdersWb {
+  //Время указано московское, как я понимаю, нарпимер 2026-06-04T03:46:05
   date: string;
   lastChangeDate: string;
   warehouseName: string;

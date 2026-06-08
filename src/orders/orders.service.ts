@@ -41,6 +41,7 @@ export class OrdersService {
       result.push({
         supplierArticle: item.supplierArticle,
         sku: Number(item.sku),
+        itemId: item.id,
         barcode: String(item.barcode),
         orders: 0,
         reserved: item.inWayToClient,
@@ -69,7 +70,7 @@ export class OrdersService {
       new Date(new Date().setDate(new Date().getDate() - Number(days) + 1)).setHours(0, 0, 0)
     );
     const prevNinetyDays = new Date(
-      new Date(new Date().setDate(new Date().getDate() - 60 + 1)).setHours(0, 0, 0)
+      new Date(new Date().setDate(new Date().getDate() - 90 + 1)).setHours(0, 0, 0)
     );
     const prevThirtyDays = new Date(
       new Date(new Date().setDate(new Date().getDate() - 30 + 1)).setHours(0, 0, 0)
@@ -77,68 +78,91 @@ export class OrdersService {
     const lastWeek = new Date(new Date(new Date().setDate(new Date().getDate() - 7)).setHours(0, 0, 0));
     const today = new Date();
     today.setHours(0, 0, 0);
-    const ozonToken = this.configService.get('ozonToken');
-    const clientId = this.configService.get('ozonClientId');
-    const ozonUrlListPosts = 'https://api-seller.ozon.ru/v3/posting/fbo/list';
-
-    const datesInterval = this.getMonthlyIntervals(prevNinetyDays, today);
-
-    const headers = {
-      'Client-Id': clientId,
-      'Api-Key': ozonToken
-    };
-
-    for (const interval of datesInterval) {
-      let hasMoreData = true;
-      let offset = 0;
-      while (hasMoreData) {
-        //Запрос на получение заказов
-        const { data }: { data: GetOrdersOzon } = await axios.post(
-          ozonUrlListPosts,
-          {
-            dir: 'ASC',
-            filter: {
-              since: interval.startDate,
-              status: '',
-              to: interval.finishDate
-            },
-            limit: 1000,
-            offset,
-            with: {
-              financial_data: true
-            }
-          },
-          {
-            headers
-          }
-        );
-        if (data.result.length === 0) {
-          hasMoreData = false;
-        } else {
-          offset += 1000;
-          for (const order of data.result) {
-            order.products.map(o => {
-              const findItem = result.find(item => Number(item.sku) === o.sku);
-              if (!findItem) {
-                return;
-              }
-              const orderDate = new Date(order.created_at);
-              findItem.ordersLastNinetyDays += o.quantity;
-              if (orderDate >= prevThirtyDays) {
-                findItem.ordersLastThirtyDays += o.quantity;
-              }
-              if (orderDate >= lastWeek) {
-                findItem.ordersLastWeek += o.quantity;
-              }
-              if (orderDate >= prevDate) {
-                findItem.orders += o.quantity;
-                findItem.ordersSum += Number(o.price);
-              }
-            });
-          }
-        }
+    const orders = await this.dataSource.manager
+      .createQueryBuilder(OrdersV2, 'orders')
+      .where('DATE(orders.marketplaceCreatedAt) >= DATE(:prevNinetyDays)', { prevNinetyDays })
+      .getMany();
+    for (const order of orders) {
+      const findItem = result.find(item => item.itemId === order.itemId);
+      if (!findItem) {
+        return;
+      }
+      const orderDate = new Date(order.marketplaceCreatedAt);
+      findItem.ordersLastNinetyDays += order.quantity;
+      if (orderDate >= prevThirtyDays) {
+        findItem.ordersLastThirtyDays += order.quantity;
+      }
+      if (orderDate >= lastWeek) {
+        findItem.ordersLastWeek += order.quantity;
+      }
+      if (orderDate >= prevDate) {
+        findItem.orders += order.quantity;
+        findItem.ordersSum += Number(order.price);
       }
     }
+
+    // const ozonToken = this.configService.get('ozonToken');
+    // const clientId = this.configService.get('ozonClientId');
+    // const ozonUrlListPosts = 'https://api-seller.ozon.ru/v3/posting/fbo/list';
+    //
+    // const datesInterval = this.getMonthlyIntervals(prevNinetyDays, today);
+    //
+    // const headers = {
+    //   'Client-Id': clientId,
+    //   'Api-Key': ozonToken
+    // };
+    //
+    // for (const interval of datesInterval) {
+    //   let hasMoreData = true;
+    //   let offset = 0;
+    //   while (hasMoreData) {
+    //     //Запрос на получение заказов
+    //     const { data }: { data: GetOrdersOzon } = await axios.post(
+    //       ozonUrlListPosts,
+    //       {
+    //         dir: 'ASC',
+    //         filter: {
+    //           since: interval.startDate,
+    //           status: '',
+    //           to: interval.finishDate
+    //         },
+    //         limit: 1000,
+    //         offset,
+    //         with: {
+    //           financial_data: true
+    //         }
+    //       },
+    //       {
+    //         headers
+    //       }
+    //     );
+    //     if (data.result.length === 0) {
+    //       hasMoreData = false;
+    //     } else {
+    //       offset += 1000;
+    //       for (const order of data.result) {
+    //         order.products.map(o => {
+    //           const findItem = result.find(item => Number(item.sku) === o.sku);
+    //           if (!findItem) {
+    //             return;
+    //           }
+    //           const orderDate = new Date(order.created_at);
+    //           findItem.ordersLastNinetyDays += o.quantity;
+    //           if (orderDate >= prevThirtyDays) {
+    //             findItem.ordersLastThirtyDays += o.quantity;
+    //           }
+    //           if (orderDate >= lastWeek) {
+    //             findItem.ordersLastWeek += o.quantity;
+    //           }
+    //           if (orderDate >= prevDate) {
+    //             findItem.orders += o.quantity;
+    //             findItem.ordersSum += Number(o.price);
+    //           }
+    //         });
+    //       }
+    //     }
+    //   }
+    // }
     return result;
   }
 
@@ -277,7 +301,7 @@ export class OrdersService {
   @Cron('0 */23 * * * *')
   async getOrdersWb() {
     const tenDaysAgo = new Date(new Date().setDate(new Date().getDate() - 10));
-    const apiToken = await this.configService.get('wbToken');
+    const apiToken = this.configService.get<string>('wbToken');
     const urlOrders = 'https://statistics-api.wildberries.ru/api/v1/supplier/orders';
     const { data }: { data: GetOrdersWb[] } = await axios.get(urlOrders, {
       params: {
@@ -371,6 +395,125 @@ export class OrdersService {
     }
     return;
   }
+
+  // @Cron('0 */23 * * * *')
+  // async getOrdersWbV2() {
+  //   const tenDaysAgo = new Date(new Date().setDate(new Date().getDate() - 180));
+  //   const apiToken = this.configService.get<string>('wbToken');
+  //   const urlOrders = 'https://statistics-api.wildberries.ru/api/v1/supplier/orders';
+  //   const response = await axios.get<GetOrdersWb[]>(urlOrders, {
+  //     params: {
+  //       dateFrom: tenDaysAgo,
+  //       flag: 0
+  //     },
+  //     headers: {
+  //       Authorization: apiToken
+  //     }
+  //   });
+  //   const findMarketplace = await this.infoService.findMarketplace({ title: 'WB' });
+  //   if (!findMarketplace) {
+  //     this.logger.error('WB не найден среди МП. Не удалось получить заказы v2');
+  //     return;
+  //   }
+  //   for (const order of response.data) {
+  //     const queryRunner = this.dataSource.createQueryRunner();
+  //     await queryRunner.connect();
+  //     try {
+  //       const findWarehouse = await queryRunner.manager.findOne(Warehouses, {
+  //         where: { title: order.warehouseName }
+  //       });
+  //       if (!findWarehouse) {
+  //         continue;
+  //       }
+  //       const findItem = await this.itemsService.findItem(
+  //         { marketplaceIdentifier: String(order.nmId), marketplaceId: findMarketplace.id },
+  //         queryRunner
+  //       );
+  //       if (!findItem) {
+  //         continue;
+  //       }
+  //       const orderDate = new Date(`${order.date}Z`);
+  //       const findOrder = await queryRunner.manager.findOne(Orders, {
+  //         where: {
+  //           marketplaceOrderIdentification: order.srid,
+  //           itemId: findItem.id
+  //         }
+  //       });
+  //       if (!findOrder) {
+  //         // const countItemOrder = await queryRunner.manager.count(Orders, {
+  //         //   where: {
+  //         //     itemId: findItem.id
+  //         //   }
+  //         // });
+  //         // if (!countItemOrder) {
+  //         //   await queryRunner.manager.update(
+  //         //     Items,
+  //         //     {
+  //         //       id: findItem.id
+  //         //     },
+  //         //     {
+  //         //       wbCreatedAt: orderDate,
+  //         //       classification: 'Новинка / A',
+  //         //       virality: 'виральный предположительно'
+  //         //     }
+  //         //   );
+  //         // }
+  //         const createOrder = queryRunner.manager.create(Orders, {
+  //
+  //           marketplaceOrderIdentification: order.srid),
+  //           marketplaceOrderNumber: String(order.orderNumber),
+  //           marketplaceOrderPostingNumber: order.postingNumber,
+  //           status: order.status,
+  //           quantity: 1,
+  //           price: order.finishedPrice,
+  //           oldPrice: item.oldPrice,
+  //           payout: item.payout,
+  //           discountValue: item.totalDiscountValue,
+  //           discountPercent: item.totalDiscountPercent,
+  //           commissionPercent: item.commission.percent,
+  //           commissionValue: item.commission.amount,
+  //           clusterFrom: item.clusterFrom,
+  //           clusterTo: item.clusterTo,
+  //           cancelReasonId: order.cancelReasonId,
+  //           city: order.city,
+  //           itemId: findItem.id,
+  //           warehouseId: findWarehouse.id,
+  //           marketplaceId,
+  //           marketplaceCreatedAt: order.createdAt
+  //
+  //           marketplaceOrderIdentification: order.srid,
+  //           isCanceled: order.isCancel,
+  //           itemId: findItem.id,
+  //           totalPrice: order.totalPrice,
+  //           spp: order.spp,
+  //           priceWithDisc: order.priceWithDisc,
+  //           warehouseId: findWarehouse.id,
+  //           createdAt: orderDate,
+  //           marketplaceId: findMarketplace.id
+  //         });
+  //         await queryRunner.manager.save(Orders, createOrder);
+  //       } else {
+  //         await queryRunner.manager.update(
+  //           Orders,
+  //           { id: findOrder.id },
+  //           {
+  //             isCanceled: order.isCancel,
+  //             sum: order.finishedPrice,
+  //             totalPrice: order.totalPrice,
+  //             spp: order.spp,
+  //             priceWithDisc: order.priceWithDisc
+  //           }
+  //         );
+  //       }
+  //     } catch (error) {
+  //       this.logger.error(error);
+  //       this.logger.error('Не смог сказать заказы WB');
+  //     } finally {
+  //       await queryRunner.release();
+  //     }
+  //   }
+  //   return;
+  // }
 
   @Cron('0 */21 * * * *')
   async getOrdersYandex() {
@@ -515,7 +658,7 @@ export class OrdersService {
     return;
   }
 
-  @Cron(CronExpression.EVERY_3_HOURS)
+  @Cron(CronExpression.EVERY_HOUR)
   async getOrdersOzonFirst() {
     const ozonToken = await this.configService.get('ozonToken');
     const clientId = await this.configService.get('ozonClientId');
@@ -541,7 +684,7 @@ export class OrdersService {
     const ozonUrlOrders = 'https://api-seller.ozon.ru/v3/posting/fbo/list';
 
     const lastMonth = new Date();
-    lastMonth.setDate(lastMonth.getDate() - 180);
+    lastMonth.setDate(lastMonth.getDate() - 40);
     lastMonth.setHours(3, 0, 0, 0);
 
     const todayEvening = new Date();
