@@ -41,6 +41,7 @@ export interface GetOrdersOzonV2 {
     order_id: number;
     order_number: string;
     cancel_reason_id: number;
+    //Указано в 0 часом поясе, для Москвы нужно +3 часа
     created_at: string;
     status: string;
     substatus: string;

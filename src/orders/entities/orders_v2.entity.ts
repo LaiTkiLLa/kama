@@ -36,6 +36,7 @@ export class OrdersV2 {
   quantity: number;
 
   //Ozon Цена товара с учётом акций, кроме акций за счёт Ozon.
+  //У WB это цена с учетом всех скидок, кроме суммы по WB Кошельку finishedPrice
   @Column({ type: 'float', nullable: true })
   price: number;
 
@@ -43,7 +44,8 @@ export class OrdersV2 {
   @Column({ type: 'float', nullable: true, name: 'old_price' })
   oldPrice: number;
 
-  //Выплата продавцу.
+  //Выплата продавцу Ozon.
+  //У WB совпадает с finishedPrice
   @Column({ type: 'float', nullable: true })
   payout: number;
 
@@ -59,7 +61,8 @@ export class OrdersV2 {
   @Column({ type: 'float', nullable: true, name: 'commission_percent' })
   commissionPercent: number;
 
-  //Значение комиссии
+  //Значение комиссии OZON
+  //SPP у WB
   @Column({ type: 'float', nullable: true, name: 'commission_value' })
   commissionValue: number;
 
@@ -87,6 +90,7 @@ export class OrdersV2 {
   @Column({ type: 'int', name: 'marketplace_id', nullable: false })
   marketplaceId: number;
 
+  //Указано в 0 часом поясе, для Москвы нужно +3 часа
   @Column({ type: 'timestamptz', name: 'marketplace_created_at', nullable: true })
   marketplaceCreatedAt: Date;
 

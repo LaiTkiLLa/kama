@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { DataSource, IsNull, Not } from 'typeorm';
+import { DataSource, IsNull, Not, QueryRunner } from 'typeorm';
 import { Cron } from '@nestjs/schedule';
 import { ItemsService } from '../items/items.service';
 import axios from 'axios';
@@ -61,9 +61,9 @@ export class StocksService {
     }, []);
   }
 
-  async getCurrentStocksV2(getCurrentStocksDto: GetCurrentStocksDto): Promise<GetCurrentStocks[]> {
+  async getStocks(getCurrentStocksDto: GetCurrentStocksDto, queryRunner: QueryRunner) {
     const today = new Date();
-    const queryBuilder = this.dataSource.manager
+    const queryBuilder = queryRunner.manager
       .createQueryBuilder(Items, 'items')
       .leftJoinAndSelect('items.marketplace', 'marketplace')
       .leftJoinAndSelect('items.stocks', 'stocks', 'Date(stocks.createdAt) = Date(:today)', { today })
@@ -104,6 +104,20 @@ export class StocksService {
         sku: item.sku
       };
     });
+  }
+
+  async getCurrentStocksV2(getCurrentStocksDto: GetCurrentStocksDto): Promise<GetCurrentStocks[]> {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    try {
+      return this.getStocks(getCurrentStocksDto, queryRunner);
+    } catch (error) {
+      this.logger.error(error);
+      this.logger.error('Не смог получить текущий список остатков');
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
   }
 
   async getStocksByDate(getStocksByDateDto: GetStocksByDateDto): Promise<GetStocksByDate[]> {
