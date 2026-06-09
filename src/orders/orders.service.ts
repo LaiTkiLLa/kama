@@ -342,7 +342,7 @@ export class OrdersService {
 
   @Cron('0 45 * * * *')
   async getOrdersWbV2() {
-    const tenDaysAgo = new Date(new Date().setDate(new Date().getDate() - 40));
+    const tenDaysAgo = new Date(new Date().setDate(new Date().getDate() - 43));
     const apiToken = this.configService.get<string>('wbToken');
     const urlOrders = 'https://statistics-api.wildberries.ru/api/v1/supplier/orders';
     const response = await axios.get<GetOrdersWb[]>(urlOrders, {
@@ -420,7 +420,8 @@ export class OrdersService {
             itemId: findItem.id,
             warehouseId: findWarehouse.id,
             marketplaceId: findMarketplace.id,
-            marketplaceCreatedAt: order.date
+            //Приведение к 0 часовому поясу
+            marketplaceCreatedAt: new Date(order.date + '+03:00')
           });
           await queryRunner.manager.save(OrdersV2, createOrder);
         } else {
