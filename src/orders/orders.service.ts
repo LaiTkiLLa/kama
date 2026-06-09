@@ -443,7 +443,7 @@ export class OrdersService {
               city: order.regionName,
               warehouseId: findWarehouse.id,
               marketplaceId: findMarketplace.id,
-              marketplaceCreatedAt: order.date
+              marketplaceCreatedAt: new Date(order.date + '+03:00')
             }
           );
         }
