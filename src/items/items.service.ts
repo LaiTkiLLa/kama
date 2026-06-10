@@ -23,6 +23,7 @@ import { ChangePricesHistories } from './entities/change-prices-histories.entity
 import { CreateLowDaysStocksDto } from './dto/create-low-days-stocks.dto';
 import { LowDaysStocks } from './entities/low-days-stocks.entity';
 import { GetChangePriceHistoryDto } from './dto/get-change-price-history.dto';
+import { it } from 'node:test';
 
 @Injectable()
 export class ItemsService {
@@ -194,6 +195,7 @@ export class ItemsService {
             articleOld: item.articleOld,
             classification: item.classification,
             multiplicity: item.multiplicity,
+            wbMarketplaceIdentifier: item.marketplaceIdentifier,
             boxNumber: item.boxNumber,
             dimensionsFact: item.dimensionsFact,
             dimensionsWB: item.dimensionsWB,
