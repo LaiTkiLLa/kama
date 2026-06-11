@@ -299,7 +299,7 @@ export class ItemsService {
         if (!findItems.length) {
           throw new NotFoundException('Артикул не найден');
         }
-        let supplierId: number | null = null;
+        let supplierId: number | undefined;
         if (item.supplier) {
           const findSupplier = await queryRunner.manager.findOne(Suppliers, {
             where: {
