@@ -107,6 +107,15 @@ export class OrdersService {
         findItem.ordersSum += Number(order.price);
       }
     }
+    for (const item of result) {
+      const speedSales = item.orders / days;
+      item.speedSales = speedSales;
+      let reserve = 0;
+      if (speedSales) {
+        reserve = item.quantityFull / speedSales;
+      }
+      item.reserve = reserve;
+    }
     return result;
   }
 
