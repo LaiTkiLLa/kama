@@ -196,6 +196,7 @@ export class ItemsService {
             classification: item.classification,
             multiplicity: item.multiplicity,
             wbMarketplaceIdentifier: item.marketplaceIdentifier,
+            ozonMarketplaceIdentifier: '',
             boxNumber: item.boxNumber,
             dimensionsFact: item.dimensionsFact,
             dimensionsWB: item.dimensionsWB,
@@ -266,6 +267,7 @@ export class ItemsService {
           findItem.ozonCategory = ozonItem.category;
           findItem.ozonPrice = ozonItem.priceOzon;
           findItem.priceWithDiscountOzon = ozonItem.priceWithDiscountOzon;
+          findItem.ozonMarketplaceIdentifier = ozonItem.marketplaceIdentifier;
         }
       }
       for (const yandexItem of filterYandexItems) {
