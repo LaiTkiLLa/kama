@@ -57,7 +57,8 @@ export class OrdersService {
           ordersLastThirtyDays: 0,
           ordersLastWeek: 0,
           reserve: 0,
-          speedSales: 0
+          speedSales: 0,
+          ordersLastFifteenDays: 0
         });
       }
       if (getDynamicOrdersDto.marketplace === 'Озон') {
@@ -80,6 +81,7 @@ export class OrdersService {
     const prevDate = this.daysAgo(days);
     const prevNinetyDays = this.daysAgo(60);
     const prevThirtyDays = this.daysAgo(30);
+    const prevFifteenDays = this.daysAgo(15);
     const lastWeek = this.daysAgo(7);
     const orders = await this.dataSource.manager
       .createQueryBuilder(OrdersV2, 'orders')
@@ -98,6 +100,9 @@ export class OrdersService {
       findItem.ordersLastNinetyDays += order.quantity;
       if (orderDate >= prevThirtyDays) {
         findItem.ordersLastThirtyDays += order.quantity;
+      }
+      if (orderDate >= prevFifteenDays) {
+        findItem.ordersLastFifteenDays += order.quantity;
       }
       if (orderDate >= lastWeek) {
         findItem.ordersLastWeek += order.quantity;
@@ -200,6 +205,10 @@ export class OrdersService {
 
     const prev7Days = new Date(now);
     prev7Days.setDate(prev7Days.getDate() - 7);
+
+    const prev15Days = new Date(now);
+    prev15Days.setDate(prev15Days.getDate() - 15);
+    const prevFifteenDays = prev15Days.toISOString().split('T')[0];
     const lastWeek = prev7Days.toISOString().split('T')[0];
     let hasMoreData = true;
     let pageToken;
@@ -232,6 +241,9 @@ export class OrdersService {
           }
           if (orderDate >= lastWeek && orderDate <= today) {
             findItem.ordersLastWeek += item.count;
+          }
+          if (orderDate >= prevFifteenDays && orderDate <= today) {
+            findItem.ordersLastFifteenDays += item.count;
           }
           if (orderDate >= prevDate && orderDate <= today) {
             findItem.orders += count;

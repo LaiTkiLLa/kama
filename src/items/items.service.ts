@@ -23,7 +23,6 @@ import { ChangePricesHistories } from './entities/change-prices-histories.entity
 import { CreateLowDaysStocksDto } from './dto/create-low-days-stocks.dto';
 import { LowDaysStocks } from './entities/low-days-stocks.entity';
 import { GetChangePriceHistoryDto } from './dto/get-change-price-history.dto';
-import { it } from 'node:test';
 
 @Injectable()
 export class ItemsService {
@@ -443,7 +442,8 @@ export class ItemsService {
               .select('stock.item_id', 'item_id')
               .addSelect('SUM(stock.current_value)', 'stocks_sum')
               .from('stocks', 'stock')
-              .where('DATE(stock.created_at) = CURRENT_DATE')
+              .where('stock.created_at >= CURRENT_DATE')
+              .andWhere("stock.created_at < CURRENT_DATE + INTERVAL '1 day'")
               .groupBy('stock.item_id');
           },
           'stocks_summary',
@@ -1318,7 +1318,7 @@ export class ItemsService {
     }
   }
 
-  @Cron('0 1 * * 1')
+  // @Cron('0 1 * * 1')
   async updateItemsClassification() {
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
