@@ -65,8 +65,11 @@ export class StocksService {
     const queryBuilder = queryRunner.manager
       .createQueryBuilder(Items, 'items')
       .leftJoinAndSelect('items.marketplace', 'marketplace')
-      .where('stock.created_at >= CURRENT_DATE')
-      .andWhere("stock.created_at < CURRENT_DATE + INTERVAL '1 day'")
+      .leftJoinAndSelect(
+        'items.stocks',
+        'stocks',
+        "stocks.created_at >= CURRENT_DATE AND stock.created_at < CURRENT_DATE + INTERVAL '1 day'"
+      )
       .leftJoinAndSelect('items.supplier', 'supplier')
       .where('marketplace.title = :marketplace', { marketplace: getCurrentStocksDto.marketplace })
       .andWhere('items.isArchive = :isArchive', { isArchive: false })
