@@ -81,7 +81,7 @@ export class OrdersService {
 
   async getOrders(days: number, marketplaceTitle: 'Озон' | 'WB', result: GetDynamicOrders[]) {
     const prevDate = this.daysAgo(days);
-    const prevNinetyNewDays = this.daysAgo(90);
+    const prevNinetyDays = this.daysAgo(90);
     const prevSixtyDays = this.daysAgo(60);
     const prevThirtyDays = this.daysAgo(30);
     const prevFifteenDays = this.daysAgo(15);
@@ -91,7 +91,7 @@ export class OrdersService {
       .createQueryBuilder(OrdersV2, 'orders')
       .leftJoinAndSelect('orders.marketplace', 'marketplace')
       .where('orders.marketplaceCreatedAt >= :prevNinetyDays', {
-        prevNinetyNewDays
+        prevNinetyDays
       })
       .andWhere('marketplace.title = :marketplaceTitle', { marketplaceTitle })
       .getMany();
