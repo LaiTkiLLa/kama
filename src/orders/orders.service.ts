@@ -55,6 +55,8 @@ export class OrdersService {
           ordersSum: 0,
           ordersLastNinetyDays: 0,
           ordersLastThirtyDays: 0,
+          ordersLastSixtyDays: 0,
+          ordersLastNinetyNewDays: 0,
           ordersLastWeek: 0,
           reserve: 0,
           speedSales: 0,
@@ -80,6 +82,8 @@ export class OrdersService {
   async getOrders(days: number, marketplaceTitle: 'Озон' | 'WB', result: GetDynamicOrders[]) {
     const prevDate = this.daysAgo(days);
     const prevNinetyDays = this.daysAgo(60);
+    const prevNinetyNewDays = this.daysAgo(90);
+    const prevSixtyDays = this.daysAgo(60);
     const prevThirtyDays = this.daysAgo(30);
     const prevFifteenDays = this.daysAgo(15);
     const lastWeek = this.daysAgo(7);
@@ -103,6 +107,12 @@ export class OrdersService {
       }
       if (orderDate >= prevFifteenDays) {
         findItem.ordersLastFifteenDays += order.quantity;
+      }
+      if (orderDate >= prevNinetyNewDays) {
+        findItem.ordersLastNinetyNewDays += order.quantity;
+      }
+      if (orderDate >= prevSixtyDays) {
+        findItem.ordersLastSixtyDays += order.quantity;
       }
       if (orderDate >= lastWeek) {
         findItem.ordersLastWeek += order.quantity;
@@ -210,6 +220,14 @@ export class OrdersService {
     prev15Days.setDate(prev15Days.getDate() - 15);
     const prevFifteenDays = prev15Days.toISOString().split('T')[0];
     const lastWeek = prev7Days.toISOString().split('T')[0];
+
+    const prev60Days = new Date(now);
+    prev60Days.setDate(prev15Days.getDate() - 60);
+    const prevSixtyDays = prev60Days.toISOString().split('T')[0];
+
+    const prev90NewDays = new Date(now);
+    prev90NewDays.setDate(prev15Days.getDate() - 90);
+    const prevNinetyNewDays = prev90NewDays.toISOString().split('T')[0];
     let hasMoreData = true;
     let pageToken;
 
@@ -238,6 +256,12 @@ export class OrdersService {
           const orderDate = order.creationDate;
           if (orderDate >= prevThirtyDays && orderDate <= today) {
             findItem.ordersLastThirtyDays += item.count;
+          }
+          if (orderDate >= prevSixtyDays && orderDate <= today) {
+            findItem.ordersLastSixtyDays += item.count;
+          }
+          if (orderDate >= prevNinetyNewDays && orderDate <= today) {
+            findItem.ordersLastNinetyNewDays += item.count;
           }
           if (orderDate >= lastWeek && orderDate <= today) {
             findItem.ordersLastWeek += item.count;
