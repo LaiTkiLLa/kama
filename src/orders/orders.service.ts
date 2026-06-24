@@ -235,7 +235,7 @@ export class OrdersService {
       const { data }: { data: GetOrdersYandex } = await axios.post(
         ordersUrl,
         {
-          dateFrom: prevNinetyDays,
+          dateFrom: prevNinetyNewDays,
           dateTo: today,
           hasCis: false
         },
