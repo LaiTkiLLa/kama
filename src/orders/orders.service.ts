@@ -56,11 +56,11 @@ export class OrdersService {
           ordersLastNinetyDays: 0,
           ordersLastThirtyDays: 0,
           ordersLastSixtyDays: 0,
-          ordersLastNinetyNewDays: 0,
           ordersLastWeek: 0,
           reserve: 0,
           speedSales: 0,
-          ordersLastFifteenDays: 0
+          ordersLastFifteenDays: 0,
+          ordersLastTwentyOneDays: 0
         });
       }
       if (getDynamicOrdersDto.marketplace === 'Озон') {
@@ -81,17 +81,17 @@ export class OrdersService {
 
   async getOrders(days: number, marketplaceTitle: 'Озон' | 'WB', result: GetDynamicOrders[]) {
     const prevDate = this.daysAgo(days);
-    const prevNinetyDays = this.daysAgo(60);
     const prevNinetyNewDays = this.daysAgo(90);
     const prevSixtyDays = this.daysAgo(60);
     const prevThirtyDays = this.daysAgo(30);
     const prevFifteenDays = this.daysAgo(15);
+    const prevTwentyOneDays = this.daysAgo(21);
     const lastWeek = this.daysAgo(7);
     const orders = await this.dataSource.manager
       .createQueryBuilder(OrdersV2, 'orders')
       .leftJoinAndSelect('orders.marketplace', 'marketplace')
       .where('orders.marketplaceCreatedAt >= :prevNinetyDays', {
-        prevNinetyDays
+        prevNinetyNewDays
       })
       .andWhere('marketplace.title = :marketplaceTitle', { marketplaceTitle })
       .getMany();
@@ -108,8 +108,8 @@ export class OrdersService {
       if (orderDate >= prevFifteenDays) {
         findItem.ordersLastFifteenDays += order.quantity;
       }
-      if (orderDate >= prevNinetyNewDays) {
-        findItem.ordersLastNinetyNewDays += order.quantity;
+      if (orderDate >= prevTwentyOneDays) {
+        findItem.ordersLastTwentyOneDays += order.quantity;
       }
       if (orderDate >= prevSixtyDays) {
         findItem.ordersLastSixtyDays += order.quantity;
@@ -209,10 +209,6 @@ export class OrdersService {
     prev30Days.setDate(prev30Days.getDate() - 30);
     const prevThirtyDays = prev30Days.toISOString().split('T')[0];
 
-    const prev90Days = new Date(now);
-    prev90Days.setDate(prev90Days.getDate() - 60);
-    const prevNinetyDays = prev90Days.toISOString().split('T')[0];
-
     const prev7Days = new Date(now);
     prev7Days.setDate(prev7Days.getDate() - 7);
 
@@ -222,12 +218,16 @@ export class OrdersService {
     const lastWeek = prev7Days.toISOString().split('T')[0];
 
     const prev60Days = new Date(now);
-    prev60Days.setDate(prev15Days.getDate() - 60);
+    prev60Days.setDate(prev60Days.getDate() - 60);
     const prevSixtyDays = prev60Days.toISOString().split('T')[0];
 
     const prev90NewDays = new Date(now);
-    prev90NewDays.setDate(prev15Days.getDate() - 90);
+    prev90NewDays.setDate(prev90NewDays.getDate() - 90);
     const prevNinetyNewDays = prev90NewDays.toISOString().split('T')[0];
+
+    const prev21Days = new Date(now);
+    prev21Days.setDate(prev21Days.getDate() - 21);
+    const prevTwentyOneDays = prev21Days.toISOString().split('T')[0];
     let hasMoreData = true;
     let pageToken;
 
@@ -260,8 +260,8 @@ export class OrdersService {
           if (orderDate >= prevSixtyDays && orderDate <= today) {
             findItem.ordersLastSixtyDays += item.count;
           }
-          if (orderDate >= prevNinetyNewDays && orderDate <= today) {
-            findItem.ordersLastNinetyNewDays += item.count;
+          if (orderDate >= prevTwentyOneDays && orderDate <= today) {
+            findItem.ordersLastTwentyOneDays += item.count;
           }
           if (orderDate >= lastWeek && orderDate <= today) {
             findItem.ordersLastWeek += item.count;
