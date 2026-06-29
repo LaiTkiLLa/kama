@@ -60,6 +60,7 @@ export class OrdersService {
           reserve: 0,
           speedSales: 0,
           ordersLastFifteenDays: 0,
+          ordersLastFourteenDays: 0,
           ordersLastTwentyOneDays: 0,
           ordersThirdDays: 0
         });
@@ -88,6 +89,7 @@ export class OrdersService {
     const prevThirtyDays = this.daysAgo(30);
     const prevFifteenDays = this.daysAgo(15);
     const prevTwentyOneDays = this.daysAgo(21);
+    const prevFourteenDays = this.daysAgo(14);
     const lastWeek = this.daysAgo(7);
     const orders = await this.dataSource.manager
       .createQueryBuilder(OrdersV2, 'orders')
@@ -112,6 +114,9 @@ export class OrdersService {
       }
       if (orderDate >= prevFifteenDays) {
         findItem.ordersLastFifteenDays += order.quantity;
+      }
+      if (orderDate >= prevFourteenDays) {
+        findItem.ordersLastFourteenDays += order.quantity;
       }
       if (orderDate >= prevTwentyOneDays) {
         findItem.ordersLastTwentyOneDays += order.quantity;
@@ -222,6 +227,10 @@ export class OrdersService {
     prev15Days.setDate(prev15Days.getDate() - 15);
     const prevFifteenDays = prev15Days.toISOString().split('T')[0];
 
+    const prev14Days = new Date(now);
+    prev14Days.setDate(prev14Days.getDate() - 14);
+    const prevFourteenDays = prev14Days.toISOString().split('T')[0];
+
     const prev3Days = new Date(now);
     prev3Days.setDate(prev3Days.getDate() - 3);
     const prevThirdDays = prev3Days.toISOString().split('T')[0];
@@ -280,6 +289,9 @@ export class OrdersService {
           }
           if (orderDate >= prevFifteenDays && orderDate <= today) {
             findItem.ordersLastFifteenDays += item.count;
+          }
+          if (orderDate >= prevFourteenDays && orderDate <= today) {
+            findItem.ordersLastFourteenDays += item.count;
           }
           if (orderDate >= prevDate && orderDate <= today) {
             findItem.orders += count;
