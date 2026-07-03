@@ -15,6 +15,7 @@ import { Directions } from '../../info/entities/directions.entity';
 import { Statuses } from '../../info/entities/statuses.entity';
 import { Suppliers } from '../../info/entities/suppliers.entity';
 import { ChangePricesHistories } from './change-prices-histories.entity';
+import { ItemsSizes } from './items-sizes.entity';
 
 @Entity({
   name: 'items'
@@ -339,6 +340,9 @@ export class Items {
 
   @OneToMany(() => Orders, orders => orders.item)
   orders: Orders[];
+
+  @OneToMany(() => ItemsSizes, sizes => sizes.item)
+  sizes: ItemsSizes[];
 
   @ManyToOne(() => Directions, direction => direction.items)
   @JoinColumn({

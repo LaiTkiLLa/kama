@@ -23,6 +23,7 @@ import { ChangePricesHistories } from './entities/change-prices-histories.entity
 import { CreateLowDaysStocksDto } from './dto/create-low-days-stocks.dto';
 import { LowDaysStocks } from './entities/low-days-stocks.entity';
 import { GetChangePriceHistoryDto } from './dto/get-change-price-history.dto';
+import { ItemsSizes } from './entities/items-sizes.entity';
 
 @Injectable()
 export class ItemsService {
@@ -252,7 +253,8 @@ export class ItemsService {
             virality: item.virality,
             costCalculationType: item.costCalculationType,
             calculationType: item.calculationType,
-            downloadCalculationMethod: item.downloadCalculationMethod
+            downloadCalculationMethod: item.downloadCalculationMethod,
+            wbSizes: item.sizes.map(el => el.techSize)
           };
         });
       const filterOzonItems = findItems.filter(item => item.marketplace.title === 'Озон');
@@ -760,6 +762,18 @@ export class ItemsService {
             chrtId: String(item?.sizes[0]?.chrtID)
           });
           await queryRunner.manager.save(Items, createItem);
+          if (item?.sizes?.length) {
+            for (const size of item.sizes) {
+              if (size.techSize === '0') continue;
+              const createSize = queryRunner.manager.create(ItemsSizes, {
+                itemId: createItem.id,
+                chrtId: String(size.chrtID),
+                techSize: size.techSize,
+                wbSize: size.wbSize
+              });
+              await queryRunner.manager.save(ItemsSizes, createSize);
+            }
+          }
         } else {
           await queryRunner.manager.update(
             Items,
@@ -778,6 +792,16 @@ export class ItemsService {
               chrtId: String(item?.sizes[0]?.chrtID)
             }
           );
+          // if (item?.sizes?.length) {
+          //   for (const size of item.sizes) {
+          //     const createSize = queryRunner.manager.update(ItemsSizes, {
+          //       itemId: createItem.id,
+          //       chrtId: size.chrtID,
+          //       techSize: size.techSize,
+          //       wbSize: size.wbSize
+          //     });
+          //   }
+          // }
         }
       }
     } catch (error) {
