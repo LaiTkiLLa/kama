@@ -254,7 +254,7 @@ export class ItemsService {
             costCalculationType: item.costCalculationType,
             calculationType: item.calculationType,
             downloadCalculationMethod: item.downloadCalculationMethod,
-            wbSizes: item.sizes.map(el => el.techSize)
+            wbSizes: item?.sizes?.map(el => el.techSize) ?? []
           };
         });
       const filterOzonItems = findItems.filter(item => item.marketplace.title === 'Озон');
