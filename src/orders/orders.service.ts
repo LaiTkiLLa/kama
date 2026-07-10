@@ -63,8 +63,8 @@ export class OrdersService {
           ordersLastFourteenDays: 0,
           ordersLastTwentyOneDays: 0,
           ordersThirdDays: 0,
-          intervalOrders: [],
-          intervalSpeedSales: []
+          intervalOrders: [0, 0, 0, 0, 0, 0],
+          intervalSpeedSales: [0, 0, 0, 0, 0, 0]
         });
       }
       if (getDynamicOrdersDto.marketplace === 'Озон') {
