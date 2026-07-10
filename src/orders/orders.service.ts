@@ -326,6 +326,7 @@ export class OrdersService {
       [marketplaceTitle]
     )) as ItemOrdersStats[];
     for (const order of ordersResult) {
+      console.log(order);
       const findItem = result.find(item => item.itemId === Number(order.item_id));
       if (!findItem) {
         continue;
@@ -333,6 +334,7 @@ export class OrdersService {
       const speedSales = Number(order.days_above_avg) / Number(order.total_orders_period);
       findItem.orders = Number(order.total_orders_period);
       findItem.speedSales = speedSales;
+      console.log(findItem);
     }
     return result;
   }
