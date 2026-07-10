@@ -255,73 +255,73 @@ export class OrdersService {
   ): Promise<GetDynamicOrders[]> {
     const ordersResult = (await queryRunner.query(
       `
-    WITH date_series AS (
-        SELECT generate_series(
-            date_trunc('day', now() - INTERVAL '90 days'),
-            date_trunc('day', now()),
-            INTERVAL '1 day'
-        )::date AS order_day
-    ),
-    item_list AS (
-        SELECT DISTINCT orders_v2.item_id
-        FROM orders_v2
-        LEFT JOIN public.marketplaces m ON orders_v2.marketplace_id = m.id
-        WHERE orders_v2.marketplace_created_at >= now() - INTERVAL '90 days'
+        WITH date_series AS (
+          SELECT generate_series(
+                   date_trunc('day', now() - INTERVAL '90 days'),
+                   date_trunc('day', now()),
+                   INTERVAL '1 day'
+                 )::date AS order_day
+        ),
+             item_list AS (
+               SELECT DISTINCT orders_v2.item_id
+               FROM orders_v2
+                      LEFT JOIN public.marketplaces m ON orders_v2.marketplace_id = m.id
+               WHERE orders_v2.marketplace_created_at >= now() - INTERVAL '90 days'
           AND m.title = $1
-    ),
-    item_days AS (
+          ),
+          item_days AS (
         SELECT item_id, order_day
         FROM item_list
-        CROSS JOIN date_series
-    ),
-    daily_counts AS (
+          CROSS JOIN date_series
+          ),
+          daily_counts AS (
         SELECT
-            orders_v2.item_id,
-            date_trunc('day', orders_v2.marketplace_created_at)::date AS order_day,
-            count(*) AS orders_count
+          orders_v2.item_id,
+          date_trunc('day', orders_v2.marketplace_created_at)::date AS order_day,
+          count(*) AS orders_count
         FROM orders_v2
-        LEFT JOIN public.marketplaces m ON orders_v2.marketplace_id = m.id
+          LEFT JOIN public.marketplaces m ON orders_v2.marketplace_id = m.id
         WHERE orders_v2.marketplace_created_at >= now() - INTERVAL '90 days'
           AND m.title = $1
         GROUP BY orders_v2.item_id, date_trunc('day', orders_v2.marketplace_created_at)::date
-    ),
-    full_counts AS (
+          ),
+          full_counts AS (
         SELECT
-            id.item_id,
-            id.order_day,
-            coalesce(dc.orders_count, 0) AS orders_count
+          id.item_id,
+          id.order_day,
+          coalesce(dc.orders_count, 0) AS orders_count
         FROM item_days id
-        LEFT JOIN daily_counts dc
-            ON dc.item_id = id.item_id
-            AND dc.order_day = id.order_day
-    ),
-    with_totals AS (
+          LEFT JOIN daily_counts dc
+        ON dc.item_id = id.item_id
+          AND dc.order_day = id.order_day
+          ),
+          with_totals AS (
         SELECT
-            item_id,
-            order_day,
-            orders_count,
-            sum(orders_count) OVER (PARTITION BY item_id) AS total_orders_period
+          item_id,
+          order_day,
+          orders_count,
+          sum(orders_count) OVER (PARTITION BY item_id) AS total_orders_period
         FROM full_counts
-    ),
-    with_avg AS (
+          ),
+          with_avg AS (
         SELECT
-            item_id,
-            order_day,
-            orders_count,
-            total_orders_period,
-            ceil(total_orders_period / 90.0) AS avg_orders_day
-        FROM with_totalsspeedSales
-    )
-    SELECT
-        item_id,
-        max(total_orders_period) AS total_orders_period,
-        max(avg_orders_day)      AS avg_orders_day,
-        sum(orders_count)        AS total_orders_above_avg,
-        count(*)                 AS days_above_avg
-    FROM with_avg
-    WHERE orders_count > avg_orders_day
-    GROUP BY item_id
-    ORDER BY item_id;
+          item_id,
+          order_day,
+          orders_count,
+          total_orders_period,
+          ceil(total_orders_period / 90.0) AS avg_orders_day
+        FROM with_totals
+          )
+        SELECT
+          item_id,
+          max(total_orders_period) AS total_orders_period,
+          max(avg_orders_day)      AS avg_orders_day,
+          sum(orders_count)        AS total_orders_above_avg,
+          count(*)                 AS days_above_avg
+        FROM with_avg
+        WHERE orders_count > avg_orders_day
+        GROUP BY item_id
+        ORDER BY item_id;
   `,
       [marketplaceTitle]
     )) as ItemOrdersStats[];
