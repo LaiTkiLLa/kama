@@ -74,6 +74,11 @@ export class OrdersService {
       } else if (getDynamicOrdersDto.marketplace === 'Yandex') {
         return this.getYandexOrders(getDynamicOrdersDto.days, result);
       }
+
+      const intervalSize = 15;
+      for (const item of result) {
+        item.intervalSpeedSales = item.intervalOrders.map(qty => qty / intervalSize);
+      }
     } catch (error) {
       this.logger.error(error);
       this.logger.error('Не смог получить остатки и заказы');
@@ -160,9 +165,6 @@ export class OrdersService {
         reserve = item.quantityFull / speedSales;
       }
       item.reserve = reserve;
-
-      // скорость продаж по каждому 15-дневному интервалу
-      item.intervalSpeedSales = item.intervalOrders.map(qty => qty / intervalSize);
     }
     return result;
   }
@@ -306,14 +308,6 @@ export class OrdersService {
           findItem.ordersLastNinetyDays += count;
           const orderDate = order.creationDate;
 
-          console.log(
-            'orderDate:',
-            orderDate,
-            'intervalBoundaries:',
-            intervalBoundaries,
-            'intervalOrders before:',
-            findItem.intervalOrders
-          );
           if (orderDate >= prevThirtyDays && orderDate <= today) {
             findItem.ordersLastThirtyDays += item.count;
           }
