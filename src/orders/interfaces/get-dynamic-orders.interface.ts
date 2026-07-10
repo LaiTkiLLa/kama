@@ -18,4 +18,6 @@ export interface GetDynamicOrders {
   ordersLastFifteenDays: number;
   ordersLastSixtyDays: number;
   ordersLastTwentyOneDays: number;
+  intervalOrders: number[];
+  intervalSpeedSales: number[];
 }
