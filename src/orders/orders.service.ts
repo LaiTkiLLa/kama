@@ -305,6 +305,15 @@ export class OrdersService {
           const count = !item?.details?.length ? item.count : 0;
           findItem.ordersLastNinetyDays += count;
           const orderDate = order.creationDate;
+
+          console.log(
+            'orderDate:',
+            orderDate,
+            'intervalBoundaries:',
+            intervalBoundaries,
+            'intervalOrders before:',
+            findItem.intervalOrders
+          );
           if (orderDate >= prevThirtyDays && orderDate <= today) {
             findItem.ordersLastThirtyDays += item.count;
           }
