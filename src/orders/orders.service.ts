@@ -62,7 +62,9 @@ export class OrdersService {
           ordersLastFifteenDays: 0,
           ordersLastFourteenDays: 0,
           ordersLastTwentyOneDays: 0,
-          ordersThirdDays: 0
+          ordersThirdDays: 0,
+          intervalOrders: [],
+          intervalSpeedSales: []
         });
       }
       if (getDynamicOrdersDto.marketplace === 'Озон') {
@@ -91,6 +93,14 @@ export class OrdersService {
     const prevTwentyOneDays = this.daysAgo(21);
     const prevFourteenDays = this.daysAgo(14);
     const lastWeek = this.daysAgo(7);
+
+    // границы 6 интервалов по 15 дней: [0], [15], [30], [45], [60], [75], [90]
+    const intervalSize = 15;
+    const intervalsCount = 6;
+    const intervalBoundaries = Array.from({ length: intervalsCount + 1 }, (_, i) =>
+      this.daysAgo(i * intervalSize)
+    );
+
     const orders = await this.dataSource.manager
       .createQueryBuilder(OrdersV2, 'orders')
       .leftJoinAndSelect('orders.marketplace', 'marketplace')
@@ -131,6 +141,16 @@ export class OrdersService {
         findItem.orders += order.quantity;
         findItem.ordersSum += Number(order.price);
       }
+
+      // распределение по 15-дневным интервалам
+      for (let i = 0; i < intervalsCount; i++) {
+        const upperBound = intervalBoundaries[i]; // ближе к сегодня
+        const lowerBound = intervalBoundaries[i + 1]; // дальше от сегодня
+        if (orderDate >= lowerBound && orderDate < upperBound) {
+          findItem.intervalOrders[i] += order.quantity;
+          break; // попал в один интервал — дальше не проверяем
+        }
+      }
     }
     for (const item of result) {
       const speedSales = item.orders / days;
@@ -140,6 +160,9 @@ export class OrdersService {
         reserve = item.quantityFull / speedSales;
       }
       item.reserve = reserve;
+
+      // скорость продаж по каждому 15-дневному интервалу
+      item.intervalSpeedSales = item.intervalOrders.map(qty => qty / intervalSize);
     }
     return result;
   }
@@ -246,6 +269,16 @@ export class OrdersService {
     const prev21Days = new Date(now);
     prev21Days.setDate(prev21Days.getDate() - 21);
     const prevTwentyOneDays = prev21Days.toISOString().split('T')[0];
+
+    // границы 6 интервалов по 15 дней в виде строк 'YYYY-MM-DD'
+    const intervalSize = 15;
+    const intervalsCount = 6;
+    const intervalBoundaries = Array.from({ length: intervalsCount + 1 }, (_, i) => {
+      const d = new Date(now);
+      d.setDate(d.getDate() - i * intervalSize);
+      return d.toISOString().split('T')[0];
+    });
+
     let hasMoreData = true;
     let pageToken;
 
@@ -297,6 +330,16 @@ export class OrdersService {
             findItem.orders += count;
             const price = item.prices.find(price => price.type === 'BUYER');
             findItem.ordersSum += price ? price.total : 0;
+          }
+
+          // распределение по 15-дневным интервалам
+          for (let i = 0; i < intervalsCount; i++) {
+            const upperBound = intervalBoundaries[i];
+            const lowerBound = intervalBoundaries[i + 1];
+            if (orderDate >= lowerBound && orderDate < upperBound) {
+              findItem.intervalOrders[i] += item.count;
+              break;
+            }
           }
         });
       }
