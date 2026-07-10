@@ -71,93 +71,21 @@ export class OrdersService {
           ordersLastFourteenDays: 0,
           ordersLastTwentyOneDays: 0,
           ordersThirdDays: 0,
-          intervalOrders: [0, 0, 0, 0, 0, 0],
-          intervalSpeedSales: [0, 0, 0, 0, 0, 0]
+          totalOrdersAboveAvg: 0,
+          daysAboveAvg: 0,
+          speedSalesAboveAvg: 0
         });
       }
 
-      let finalResult = result;
-
       if (getDynamicOrdersDto.marketplace === 'Озон') {
-        finalResult = await this.getOrders(getDynamicOrdersDto.days, 'Озон', result);
+        const ordersResult = await this.getOrders(getDynamicOrdersDto.days, 'Озон', result);
+        return await this.getOrdersV2(queryRunner, 'Озон', ordersResult);
       } else if (getDynamicOrdersDto.marketplace === 'WB') {
-        finalResult = await this.getOrders(getDynamicOrdersDto.days, 'WB', result);
+        const ordersResult = await this.getOrders(getDynamicOrdersDto.days, 'WB', result);
+        return await this.getOrdersV2(queryRunner, 'WB', ordersResult);
       } else if (getDynamicOrdersDto.marketplace === 'Yandex') {
-        finalResult = await this.getYandexOrders(getDynamicOrdersDto.days, result);
+        return this.getYandexOrders(getDynamicOrdersDto.days, result);
       }
-
-      const intervalSize = 15;
-      for (const item of finalResult) {
-        item.intervalSpeedSales = item.intervalOrders.map(qty => qty / intervalSize);
-      }
-
-      return finalResult;
-    } catch (error) {
-      this.logger.error(error);
-      this.logger.error('Не смог получить остатки и заказы');
-      throw error;
-    } finally {
-      await queryRunner.release();
-    }
-  }
-
-  async getV2DynamicOrders(getDynamicOrdersDto: GetDynamicOrdersDto) {
-    const queryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
-    try {
-      const result: GetDynamicOrders[] = [];
-      //Получаем значения со склада
-      const responseStocks = await this.stocksService.getStocks(
-        {
-          marketplace: getDynamicOrdersDto.marketplace,
-          suppliers: getDynamicOrdersDto?.suppliers?.length ? getDynamicOrdersDto.suppliers : undefined
-        },
-        queryRunner
-      );
-
-      for (const item of responseStocks) {
-        result.push({
-          supplierArticle: item.supplierArticle,
-          sku: Number(item.sku),
-          itemId: item.id,
-          barcode: String(item.barcode),
-          orders: 0,
-          reserved: item.inWayToClient,
-          promiseAmount: item.inWayFromClient,
-          quantityFull: item.quantityFull,
-          ordersSum: 0,
-          ordersLastNinetyDays: 0,
-          ordersLastThirtyDays: 0,
-          ordersLastSixtyDays: 0,
-          ordersLastWeek: 0,
-          reserve: 0,
-          speedSales: 0,
-          ordersLastFifteenDays: 0,
-          ordersLastFourteenDays: 0,
-          ordersLastTwentyOneDays: 0,
-          ordersThirdDays: 0,
-          intervalOrders: [0, 0, 0, 0, 0, 0],
-          intervalSpeedSales: [0, 0, 0, 0, 0, 0]
-        });
-      }
-
-      let finalResult = result;
-
-      if (getDynamicOrdersDto.marketplace === 'Озон') {
-        finalResult = await this.getOrdersV2(queryRunner, 'Озон', result);
-      } else if (getDynamicOrdersDto.marketplace === 'WB') {
-        finalResult = await this.getOrdersV2(queryRunner, 'WB', result);
-      }
-      // else if (getDynamicOrdersDto.marketplace === 'Yandex') {
-      //   finalResult = await this.getYandexOrders(getDynamicOrdersDto.days, result);
-      // }
-
-      const intervalSize = 15;
-      for (const item of finalResult) {
-        item.intervalSpeedSales = item.intervalOrders.map(qty => qty / intervalSize);
-      }
-
-      return finalResult;
     } catch (error) {
       this.logger.error(error);
       this.logger.error('Не смог получить остатки и заказы');
@@ -177,13 +105,6 @@ export class OrdersService {
     const prevTwentyOneDays = this.daysAgo(21);
     const prevFourteenDays = this.daysAgo(14);
     const lastWeek = this.daysAgo(7);
-
-    // границы 6 интервалов по 15 дней: [0], [15], [30], [45], [60], [75], [90]
-    const intervalSize = 15;
-    const intervalsCount = 6;
-    const intervalBoundaries = Array.from({ length: intervalsCount + 1 }, (_, i) =>
-      this.daysAgo(i * intervalSize)
-    );
 
     const orders = await this.dataSource.manager
       .createQueryBuilder(OrdersV2, 'orders')
@@ -224,16 +145,6 @@ export class OrdersService {
       if (orderDate >= prevDate) {
         findItem.orders += order.quantity;
         findItem.ordersSum += Number(order.price);
-      }
-
-      // распределение по 15-дневным интервалам
-      for (let i = 0; i < intervalsCount; i++) {
-        const upperBound = intervalBoundaries[i]; // ближе к сегодня
-        const lowerBound = intervalBoundaries[i + 1]; // дальше от сегодня
-        if (orderDate >= lowerBound && orderDate < upperBound) {
-          findItem.intervalOrders[i] += order.quantity;
-          break; // попал в один интервал — дальше не проверяем
-        }
       }
     }
     for (const item of result) {
@@ -326,15 +237,14 @@ export class OrdersService {
       [marketplaceTitle]
     )) as ItemOrdersStats[];
     for (const order of ordersResult) {
-      console.log(order);
       const findItem = result.find(item => item.itemId === Number(order.item_id));
       if (!findItem) {
         continue;
       }
-      const speedSales = Number(order.days_above_avg) / Number(order.total_orders_period);
-      findItem.orders = Number(order.total_orders_period);
-      findItem.speedSales = speedSales;
-      console.log(findItem);
+      const speedSalesAboveAvg = Number(order.total_orders_above_avg) / Number(order.days_above_avg);
+      findItem.totalOrdersAboveAvg = Number(order.total_orders_above_avg);
+      findItem.daysAboveAvg = Number(order.days_above_avg);
+      findItem.speedSalesAboveAvg = speedSalesAboveAvg;
     }
     return result;
   }
@@ -503,16 +413,6 @@ export class OrdersService {
             findItem.orders += count;
             const price = item.prices.find(price => price.type === 'BUYER');
             findItem.ordersSum += price ? price.total : 0;
-          }
-
-          // распределение по 15-дневным интервалам
-          for (let i = 0; i < intervalsCount; i++) {
-            const upperBound = intervalBoundaries[i];
-            const lowerBound = intervalBoundaries[i + 1];
-            if (orderDate >= lowerBound && orderDate < upperBound) {
-              findItem.intervalOrders[i] += item.count;
-              break;
-            }
           }
         });
       }
