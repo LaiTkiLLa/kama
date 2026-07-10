@@ -67,18 +67,23 @@ export class OrdersService {
           intervalSpeedSales: [0, 0, 0, 0, 0, 0]
         });
       }
+
+      let finalResult = result;
+
       if (getDynamicOrdersDto.marketplace === 'Озон') {
-        return this.getOrders(getDynamicOrdersDto.days, 'Озон', result);
+        finalResult = await this.getOrders(getDynamicOrdersDto.days, 'Озон', result);
       } else if (getDynamicOrdersDto.marketplace === 'WB') {
-        return this.getOrders(getDynamicOrdersDto.days, 'WB', result);
+        finalResult = await this.getOrders(getDynamicOrdersDto.days, 'WB', result);
       } else if (getDynamicOrdersDto.marketplace === 'Yandex') {
-        return this.getYandexOrders(getDynamicOrdersDto.days, result);
+        finalResult = await this.getYandexOrders(getDynamicOrdersDto.days, result);
       }
 
       const intervalSize = 15;
-      for (const item of result) {
+      for (const item of finalResult) {
         item.intervalSpeedSales = item.intervalOrders.map(qty => qty / intervalSize);
       }
+
+      return finalResult;
     } catch (error) {
       this.logger.error(error);
       this.logger.error('Не смог получить остатки и заказы');
