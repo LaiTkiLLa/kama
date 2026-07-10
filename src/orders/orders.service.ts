@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { DataSource } from 'typeorm';
+import { DataSource, QueryRunner } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 import { GetOrdersOzonV2, GetOrdersResult } from './interfaces/get-orders-ozon.interface';
@@ -15,6 +15,14 @@ import { GetDynamicOrders } from './interfaces/get-dynamic-orders.interface';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { Warehouses } from '../info/entities/warehouses.entity';
 import { OrdersV2 } from './entities/orders_v2.entity';
+
+interface ItemOrdersStats {
+  item_id: string;
+  total_orders_period: string; //кол-во заказов за весь 90 дневный период
+  avg_orders_day: string; //среднее кол-во заказов за 90 дней округленное вверх
+  total_orders_above_avg: string; //кол-во заказов, которых больше чем avg_orders_day
+  days_above_avg: string;
+}
 
 @Injectable()
 export class OrdersService {
@@ -77,6 +85,72 @@ export class OrdersService {
       } else if (getDynamicOrdersDto.marketplace === 'Yandex') {
         finalResult = await this.getYandexOrders(getDynamicOrdersDto.days, result);
       }
+
+      const intervalSize = 15;
+      for (const item of finalResult) {
+        item.intervalSpeedSales = item.intervalOrders.map(qty => qty / intervalSize);
+      }
+
+      return finalResult;
+    } catch (error) {
+      this.logger.error(error);
+      this.logger.error('Не смог получить остатки и заказы');
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  async getV2DynamicOrders(getDynamicOrdersDto: GetDynamicOrdersDto) {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    try {
+      const result: GetDynamicOrders[] = [];
+      //Получаем значения со склада
+      const responseStocks = await this.stocksService.getStocks(
+        {
+          marketplace: getDynamicOrdersDto.marketplace,
+          suppliers: getDynamicOrdersDto?.suppliers?.length ? getDynamicOrdersDto.suppliers : undefined
+        },
+        queryRunner
+      );
+
+      for (const item of responseStocks) {
+        result.push({
+          supplierArticle: item.supplierArticle,
+          sku: Number(item.sku),
+          itemId: item.id,
+          barcode: String(item.barcode),
+          orders: 0,
+          reserved: item.inWayToClient,
+          promiseAmount: item.inWayFromClient,
+          quantityFull: item.quantityFull,
+          ordersSum: 0,
+          ordersLastNinetyDays: 0,
+          ordersLastThirtyDays: 0,
+          ordersLastSixtyDays: 0,
+          ordersLastWeek: 0,
+          reserve: 0,
+          speedSales: 0,
+          ordersLastFifteenDays: 0,
+          ordersLastFourteenDays: 0,
+          ordersLastTwentyOneDays: 0,
+          ordersThirdDays: 0,
+          intervalOrders: [0, 0, 0, 0, 0, 0],
+          intervalSpeedSales: [0, 0, 0, 0, 0, 0]
+        });
+      }
+
+      let finalResult = result;
+
+      if (getDynamicOrdersDto.marketplace === 'Озон') {
+        finalResult = await this.getOrdersV2(queryRunner, 'Озон', result);
+      } else if (getDynamicOrdersDto.marketplace === 'WB') {
+        finalResult = await this.getOrdersV2(queryRunner, 'WB', result);
+      }
+      // else if (getDynamicOrdersDto.marketplace === 'Yandex') {
+      //   finalResult = await this.getYandexOrders(getDynamicOrdersDto.days, result);
+      // }
 
       const intervalSize = 15;
       for (const item of finalResult) {
@@ -170,6 +244,95 @@ export class OrdersService {
         reserve = item.quantityFull / speedSales;
       }
       item.reserve = reserve;
+    }
+    return result;
+  }
+
+  async getOrdersV2(
+    queryRunner: QueryRunner,
+    marketplaceTitle: 'Озон' | 'WB',
+    result: GetDynamicOrders[]
+  ): Promise<GetDynamicOrders[]> {
+    const ordersResult = (await queryRunner.query(
+      `
+    WITH date_series AS (
+        SELECT generate_series(
+            date_trunc('day', now() - INTERVAL '90 days'),
+            date_trunc('day', now()),
+            INTERVAL '1 day'
+        )::date AS order_day
+    ),
+    item_list AS (
+        SELECT DISTINCT orders_v2.item_id
+        FROM orders_v2
+        LEFT JOIN public.marketplaces m ON orders_v2.marketplace_id = m.id
+        WHERE orders_v2.marketplace_created_at >= now() - INTERVAL '90 days'
+          AND m.title = $1
+    ),
+    item_days AS (
+        SELECT item_id, order_day
+        FROM item_list
+        CROSS JOIN date_series
+    ),
+    daily_counts AS (
+        SELECT
+            orders_v2.item_id,
+            date_trunc('day', orders_v2.marketplace_created_at)::date AS order_day,
+            count(*) AS orders_count
+        FROM orders_v2
+        LEFT JOIN public.marketplaces m ON orders_v2.marketplace_id = m.id
+        WHERE orders_v2.marketplace_created_at >= now() - INTERVAL '90 days'
+          AND m.title = $1
+        GROUP BY orders_v2.item_id, date_trunc('day', orders_v2.marketplace_created_at)::date
+    ),
+    full_counts AS (
+        SELECT
+            id.item_id,
+            id.order_day,
+            coalesce(dc.orders_count, 0) AS orders_count
+        FROM item_days id
+        LEFT JOIN daily_counts dc
+            ON dc.item_id = id.item_id
+            AND dc.order_day = id.order_day
+    ),
+    with_totals AS (
+        SELECT
+            item_id,
+            order_day,
+            orders_count,
+            sum(orders_count) OVER (PARTITION BY item_id) AS total_orders_period
+        FROM full_counts
+    ),
+    with_avg AS (
+        SELECT
+            item_id,
+            order_day,
+            orders_count,
+            total_orders_period,
+            ceil(total_orders_period / 90.0) AS avg_orders_day
+        FROM with_totalsspeedSales
+    )
+    SELECT
+        item_id,
+        max(total_orders_period) AS total_orders_period,
+        max(avg_orders_day)      AS avg_orders_day,
+        sum(orders_count)        AS total_orders_above_avg,
+        count(*)                 AS days_above_avg
+    FROM with_avg
+    WHERE orders_count > avg_orders_day
+    GROUP BY item_id
+    ORDER BY item_id;
+  `,
+      [marketplaceTitle]
+    )) as ItemOrdersStats[];
+    for (const order of ordersResult) {
+      const findItem = result.find(item => item.itemId === Number(order.item_id));
+      if (!findItem) {
+        continue;
+      }
+      const speedSales = Number(order.days_above_avg) / Number(order.total_orders_period);
+      findItem.orders = Number(order.total_orders_period);
+      findItem.speedSales = speedSales;
     }
     return result;
   }

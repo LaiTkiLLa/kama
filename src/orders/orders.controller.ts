@@ -16,4 +16,15 @@ export class OrdersController {
     }
     return this.ordersService.getDynamicOrders(getDynamicOrdersDto);
   }
+
+  @Get('v2/dynamic')
+  async getV2DynamicOrders(
+    @Headers('api-key') apiKey: string,
+    @Query() getDynamicOrdersDto: GetDynamicOrdersDto
+  ) {
+    if (!apiKey || apiKey !== process.env.apiKey) {
+      throw new ForbiddenException('Отсутствует токен');
+    }
+    return this.ordersService.getV2DynamicOrders(getDynamicOrdersDto);
+  }
 }
