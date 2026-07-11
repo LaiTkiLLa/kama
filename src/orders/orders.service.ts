@@ -793,7 +793,6 @@ export class OrdersService {
       let pageToken: string | undefined;
 
       while (hasMoreData) {
-        console.log(1);
         const { data }: { data: GetOrdersYandexV2 } = await axios.post(
           urlOrders,
           {
