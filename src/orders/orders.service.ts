@@ -5,9 +5,12 @@ import axios from 'axios';
 import { GetOrdersOzonV2, GetOrdersResult } from './interfaces/get-orders-ozon.interface';
 import { ItemsService } from '../items/items.service';
 import { InfoService } from '../info/info.service';
-import { Orders } from './entities/orders.entity';
 import { GetOrdersWb } from './interfaces/get-orders-wb.interface';
-import { GetOrdersYandex, YandexOrderInfo } from './interfaces/get-orders-yandex.interface';
+import {
+  GetOrdersYandex,
+  GetOrdersYandexV2,
+  YandexOrderInfoV2
+} from './interfaces/get-orders-yandex.interface';
 import { Items } from '../items/entities/items.entity';
 import { GetDynamicOrdersDto } from './dto/get-dynamic-orders.dto';
 import { StocksService } from '../stocks/stocks.service';
@@ -352,15 +355,6 @@ export class OrdersService {
     prev21Days.setDate(prev21Days.getDate() - 21);
     const prevTwentyOneDays = prev21Days.toISOString().split('T')[0];
 
-    // границы 6 интервалов по 15 дней в виде строк 'YYYY-MM-DD'
-    const intervalSize = 15;
-    const intervalsCount = 6;
-    const intervalBoundaries = Array.from({ length: intervalsCount + 1 }, (_, i) => {
-      const d = new Date(now);
-      d.setDate(d.getDate() - i * intervalSize);
-      return d.toISOString().split('T')[0];
-    });
-
     let hasMoreData = true;
     let pageToken;
 
@@ -427,103 +421,103 @@ export class OrdersService {
     return result;
   }
 
-  @Cron('0 */23 * * * *')
-  async getOrdersWb() {
-    const tenDaysAgo = new Date(new Date().setDate(new Date().getDate() - 10));
-    const apiToken = this.configService.get<string>('wbToken');
-    const urlOrders = 'https://statistics-api.wildberries.ru/api/v1/supplier/orders';
-    const { data }: { data: GetOrdersWb[] } = await axios.get(urlOrders, {
-      params: {
-        dateFrom: tenDaysAgo,
-        flag: 0
-      },
-      headers: {
-        Authorization: apiToken
-      }
-    });
-    const findMarketplace = await this.infoService.findMarketplace({ title: 'WB' });
-    for (const order of data) {
-      const queryRunner = this.dataSource.createQueryRunner();
-      await queryRunner.connect();
-      await queryRunner.startTransaction();
-      try {
-        const findItem = await this.itemsService.findItem(
-          { marketplaceIdentifier: String(order.nmId) },
-          queryRunner
-        );
-        const findWarehouse = await this.infoService.findOrCreateWarehouses(
-          { title: order.warehouseName },
-          queryRunner
-        );
-        if (!findItem) {
-          await queryRunner.commitTransaction();
-          continue;
-        }
-        const orderDate = new Date(`${order.date}Z`);
-        const findOrder = await queryRunner.manager.findOne(Orders, {
-          where: {
-            marketplaceOrderIdentification: order.srid,
-            createdAt: orderDate,
-            itemId: findItem.id
-          }
-        });
-        if (!findOrder) {
-          const countItemOrder = await queryRunner.manager.count(Orders, {
-            where: {
-              itemId: findItem.id
-            }
-          });
-          if (!countItemOrder) {
-            await queryRunner.manager.update(
-              Items,
-              {
-                id: findItem.id
-              },
-              {
-                wbCreatedAt: orderDate,
-                classification: 'Новинка / A',
-                virality: 'виральный предположительно'
-              }
-            );
-          }
-          const createOrder = queryRunner.manager.create(Orders, {
-            quantity: 1,
-            sum: order.finishedPrice,
-            marketplaceOrderIdentification: order.srid,
-            isCanceled: order.isCancel,
-            itemId: findItem.id,
-            totalPrice: order.totalPrice,
-            spp: order.spp,
-            priceWithDisc: order.priceWithDisc,
-            warehouseId: findWarehouse.id,
-            createdAt: orderDate,
-            marketplaceId: findMarketplace.id
-          });
-          await queryRunner.manager.save(Orders, createOrder);
-        } else {
-          await queryRunner.manager.update(
-            Orders,
-            { id: findOrder.id },
-            {
-              isCanceled: order.isCancel,
-              sum: order.finishedPrice,
-              totalPrice: order.totalPrice,
-              spp: order.spp,
-              priceWithDisc: order.priceWithDisc
-            }
-          );
-        }
-        await queryRunner.commitTransaction();
-      } catch (error) {
-        await queryRunner.rollbackTransaction();
-        this.logger.error(error);
-        this.logger.error('Не смог сказать заказы WB');
-      } finally {
-        await queryRunner.release();
-      }
-    }
-    return;
-  }
+  // @Cron('0 */23 * * * *')
+  // async getOrdersWb() {
+  //   const tenDaysAgo = new Date(new Date().setDate(new Date().getDate() - 10));
+  //   const apiToken = this.configService.get<string>('wbToken');
+  //   const urlOrders = 'https://statistics-api.wildberries.ru/api/v1/supplier/orders';
+  //   const { data }: { data: GetOrdersWb[] } = await axios.get(urlOrders, {
+  //     params: {
+  //       dateFrom: tenDaysAgo,
+  //       flag: 0
+  //     },
+  //     headers: {
+  //       Authorization: apiToken
+  //     }
+  //   });
+  //   const findMarketplace = await this.infoService.findMarketplace({ title: 'WB' });
+  //   for (const order of data) {
+  //     const queryRunner = this.dataSource.createQueryRunner();
+  //     await queryRunner.connect();
+  //     await queryRunner.startTransaction();
+  //     try {
+  //       const findItem = await this.itemsService.findItem(
+  //         { marketplaceIdentifier: String(order.nmId) },
+  //         queryRunner
+  //       );
+  //       const findWarehouse = await this.infoService.findOrCreateWarehouses(
+  //         { title: order.warehouseName },
+  //         queryRunner
+  //       );
+  //       if (!findItem) {
+  //         await queryRunner.commitTransaction();
+  //         continue;
+  //       }
+  //       const orderDate = new Date(`${order.date}Z`);
+  //       const findOrder = await queryRunner.manager.findOne(Orders, {
+  //         where: {
+  //           marketplaceOrderIdentification: order.srid,
+  //           createdAt: orderDate,
+  //           itemId: findItem.id
+  //         }
+  //       });
+  //       if (!findOrder) {
+  //         const countItemOrder = await queryRunner.manager.count(Orders, {
+  //           where: {
+  //             itemId: findItem.id
+  //           }
+  //         });
+  //         if (!countItemOrder) {
+  //           await queryRunner.manager.update(
+  //             Items,
+  //             {
+  //               id: findItem.id
+  //             },
+  //             {
+  //               wbCreatedAt: orderDate,
+  //               classification: 'Новинка / A',
+  //               virality: 'виральный предположительно'
+  //             }
+  //           );
+  //         }
+  //         const createOrder = queryRunner.manager.create(Orders, {
+  //           quantity: 1,
+  //           sum: order.finishedPrice,
+  //           marketplaceOrderIdentification: order.srid,
+  //           isCanceled: order.isCancel,
+  //           itemId: findItem.id,
+  //           totalPrice: order.totalPrice,
+  //           spp: order.spp,
+  //           priceWithDisc: order.priceWithDisc,
+  //           warehouseId: findWarehouse.id,
+  //           createdAt: orderDate,
+  //           marketplaceId: findMarketplace.id
+  //         });
+  //         await queryRunner.manager.save(Orders, createOrder);
+  //       } else {
+  //         await queryRunner.manager.update(
+  //           Orders,
+  //           { id: findOrder.id },
+  //           {
+  //             isCanceled: order.isCancel,
+  //             sum: order.finishedPrice,
+  //             totalPrice: order.totalPrice,
+  //             spp: order.spp,
+  //             priceWithDisc: order.priceWithDisc
+  //           }
+  //         );
+  //       }
+  //       await queryRunner.commitTransaction();
+  //     } catch (error) {
+  //       await queryRunner.rollbackTransaction();
+  //       this.logger.error(error);
+  //       this.logger.error('Не смог сказать заказы WB');
+  //     } finally {
+  //       await queryRunner.release();
+  //     }
+  //   }
+  //   return;
+  // }
 
   @Cron('0 45 * * * *')
   async getOrdersWbV2() {
@@ -642,153 +636,292 @@ export class OrdersService {
     return;
   }
 
+  // @Cron('0 */21 * * * *')
+  // async getOrdersYandex() {
+  //   const monthAgo = new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split('T')[0];
+  //   const finalEndDate = new Date().toISOString().split('T')[0];
+  //   const apiToken = await this.configService.get('yandexToken');
+  //   const companyId = await this.configService.get('yandexCLientId');
+  //   let urlOrders = `https://api.partner.market.yandex.ru/campaigns/${companyId}/stats/orders`;
+  //
+  //   let hasMoreData = true;
+  //   let pageToken;
+  //
+  //   const ordersData: YandexOrderInfo[] = [];
+  //
+  //   const rejectedStatuses = [
+  //     'CANCELLED_BEFORE_PROCESSING',
+  //     'CANCELLED_IN_DELIVERY',
+  //     'CANCELLED_IN_PROCESSING',
+  //     'RETURNED'
+  //   ];
+  //
+  //   while (hasMoreData) {
+  //     const { data }: { data: GetOrdersYandex } = await axios.post(
+  //       urlOrders,
+  //       {
+  //         dateFrom: monthAgo,
+  //         dateTo: finalEndDate,
+  //         hasCis: false
+  //       },
+  //       {
+  //         headers: {
+  //           'Api-Key': apiToken
+  //         }
+  //       }
+  //     );
+  //     for (const order of data.result.orders) {
+  //       order.items.forEach(item => {
+  //         const findRejectedStatus = rejectedStatuses.find(el => el === order.status);
+  //         const price = item.prices.find(price => price.type === 'BUYER');
+  //         ordersData.push({
+  //           orderId: String(order.id),
+  //           marketSku: item.marketSku,
+  //           shopSku: item.shopSku,
+  //           count: !item?.details?.length ? item.count : 0,
+  //           orderDate: order.creationDate,
+  //           warehouseId: String(item.warehouse.id),
+  //           orderSum: price ? price.total : 0,
+  //           isCancel: findRejectedStatus ? true : false
+  //         });
+  //       });
+  //     }
+  //     if (data.result.paging.nextPageToken) {
+  //       hasMoreData = true;
+  //       pageToken = data.result.paging.nextPageToken;
+  //       urlOrders = `https://api.partner.market.yandex.ru/campaigns/${companyId}/stats/orders?page_token=${pageToken}`;
+  //     } else {
+  //       hasMoreData = false;
+  //     }
+  //   }
+  //   const findMarketplace = await this.infoService.findMarketplace({ title: 'Yandex' });
+  //   for (const order of ordersData) {
+  //     const queryRunner = this.dataSource.createQueryRunner();
+  //     await queryRunner.connect();
+  //     await queryRunner.startTransaction();
+  //     try {
+  //       const findItem = await this.itemsService.findItem(
+  //         { marketplaceIdentifier: String(order.marketSku) },
+  //         queryRunner
+  //       );
+  //       if (!findItem) {
+  //         await queryRunner.commitTransaction();
+  //         continue;
+  //       }
+  //       const findWarehouse = await queryRunner.manager.findOne(Warehouses, {
+  //         where: { marketplaceInternalNumber: order.warehouseId }
+  //       });
+  //       if (!findWarehouse) {
+  //         await queryRunner.commitTransaction();
+  //         continue;
+  //       }
+  //
+  //       const orderDate = new Date(`${order.orderDate}Z`);
+  //       const findOrder = await queryRunner.manager.findOne(Orders, {
+  //         where: {
+  //           marketplaceOrderIdentification: order.orderId,
+  //           createdAt: orderDate,
+  //           itemId: findItem.id
+  //         }
+  //       });
+  //       if (!findOrder) {
+  //         const countItemOrder = await queryRunner.manager.count(Orders, {
+  //           where: {
+  //             itemId: findItem.id
+  //           }
+  //         });
+  //         if (!countItemOrder) {
+  //           await queryRunner.manager.update(
+  //             Items,
+  //             {
+  //               id: findItem.id
+  //             },
+  //             {
+  //               wbCreatedAt: orderDate,
+  //               classification: 'Новинка / A',
+  //               virality: 'виральный предположительно'
+  //             }
+  //           );
+  //         }
+  //         const createOrder = queryRunner.manager.create(Orders, {
+  //           quantity: order.count,
+  //           sum: order.orderSum,
+  //           marketplaceOrderIdentification: String(order.orderId),
+  //           isCanceled: order.isCancel,
+  //           itemId: findItem.id,
+  //           totalPrice: order.orderSum,
+  //           warehouseId: findWarehouse.id,
+  //           createdAt: orderDate,
+  //           marketplaceId: findMarketplace.id
+  //         });
+  //         await queryRunner.manager.save(Orders, createOrder);
+  //       } else {
+  //         await queryRunner.manager.update(
+  //           Orders,
+  //           { id: findOrder.id },
+  //           {
+  //             quantity: order.count,
+  //             sum: order.orderSum,
+  //             isCanceled: order.isCancel,
+  //             totalPrice: order.orderSum
+  //           }
+  //         );
+  //       }
+  //       await queryRunner.commitTransaction();
+  //     } catch (error) {
+  //       await queryRunner.rollbackTransaction();
+  //       this.logger.error(error);
+  //       this.logger.error('Не смог добавить заказы Yandex');
+  //     } finally {
+  //       await queryRunner.release();
+  //     }
+  //   }
+  //   return;
+  // }
+
   @Cron('0 */21 * * * *')
-  async getOrdersYandex() {
-    const monthAgo = new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split('T')[0];
-    const finalEndDate = new Date().toISOString().split('T')[0];
-    const apiToken = await this.configService.get('yandexToken');
-    const companyId = await this.configService.get('yandexCLientId');
-    let urlOrders = `https://api.partner.market.yandex.ru/campaigns/${companyId}/stats/orders`;
+  async getOrdersYandexV2() {
+    const ordersData: YandexOrderInfoV2[] = [];
+    try {
+      const monthAgo = new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split('T')[0];
+      const finalEndDate = new Date().toISOString().split('T')[0];
+      const apiToken = this.configService.get<string>('yandexToken');
+      const businessId = this.configService.get<string>('yandexBusinessId');
+      let urlOrders = `https://api.partner.market.yandex.ru/v1/businesses/${businessId}/orders`;
 
-    let hasMoreData = true;
-    let pageToken;
+      let hasMoreData = true;
+      let pageToken: string | undefined;
 
-    const ordersData: YandexOrderInfo[] = [];
-
-    const rejectedStatuses = [
-      'CANCELLED_BEFORE_PROCESSING',
-      'CANCELLED_IN_DELIVERY',
-      'CANCELLED_IN_PROCESSING',
-      'RETURNED'
-    ];
-
-    while (hasMoreData) {
-      const { data }: { data: GetOrdersYandex } = await axios.post(
-        urlOrders,
-        {
-          dateFrom: monthAgo,
-          dateTo: finalEndDate,
-          hasCis: false
-        },
-        {
-          headers: {
-            'Api-Key': apiToken
+      while (hasMoreData) {
+        console.log(1);
+        const { data }: { data: GetOrdersYandexV2 } = await axios.post(
+          urlOrders,
+          {
+            date: {
+              dateFrom: monthAgo,
+              dateTo: finalEndDate
+            },
+            fake: false
+          },
+          {
+            headers: {
+              'Api-Key': apiToken
+            }
           }
-        }
-      );
-      for (const order of data.result.orders) {
-        order.items.forEach(item => {
-          const findRejectedStatus = rejectedStatuses.find(el => el === order.status);
-          const price = item.prices.find(price => price.type === 'BUYER');
+        );
+        for (const order of data.orders) {
+          const orderDate = new Date(order.creationDate);
           ordersData.push({
-            orderId: String(order.id),
-            marketSku: item.marketSku,
-            shopSku: item.shopSku,
-            count: !item?.details?.length ? item.count : 0,
-            orderDate: order.creationDate,
-            warehouseId: String(item.warehouse.id),
-            orderSum: price ? price.total : 0,
-            isCancel: findRejectedStatus ? true : false
+            warehouseId: order.delivery.warehouseId,
+            cancelRequested: order.cancelRequested,
+            createdAt: orderDate,
+            orderId: String(order.orderId),
+            orderNumber: order.externalOrderId,
+            status: order.status,
+            substatus: order.substatus,
+            products: order.items.map(product => {
+              const subsidy = product?.prices?.subsidy?.value ?? 0;
+              const payment = product.prices.payment.value;
+              return {
+                //Хз что это за id, он не связан с товарам, пихаю его как доп ключ для заказа, они вроде не повторяются
+                id: String(product.id),
+                offerId: product.offerId,
+                name: product.offerName,
+                quantity: product.count,
+                price: Number((payment + subsidy).toFixed(2)),
+                itemsStatuses: product.itemStatuses
+              };
+            })
           });
-        });
+        }
+        if (data.paging.nextPageToken) {
+          hasMoreData = true;
+          pageToken = data.paging.nextPageToken;
+          urlOrders = `https://api.partner.market.yandex.ru/v1/businesses/${businessId}/orders?page_token=${pageToken}`;
+        } else {
+          hasMoreData = false;
+        }
       }
-      if (data.result.paging.nextPageToken) {
-        hasMoreData = true;
-        pageToken = data.result.paging.nextPageToken;
-        urlOrders = `https://api.partner.market.yandex.ru/campaigns/${companyId}/stats/orders?page_token=${pageToken}`;
-      } else {
-        hasMoreData = false;
-      }
+    } catch (error) {
+      this.logger.error('Не смог получить заказы V2 яндекса');
+      return;
     }
     const findMarketplace = await this.infoService.findMarketplace({ title: 'Yandex' });
-    for (const order of ordersData) {
-      const queryRunner = this.dataSource.createQueryRunner();
-      await queryRunner.connect();
-      await queryRunner.startTransaction();
-      try {
-        const findItem = await this.itemsService.findItem(
-          { marketplaceIdentifier: String(order.marketSku) },
-          queryRunner
-        );
-        if (!findItem) {
-          await queryRunner.commitTransaction();
-          continue;
-        }
+    if (!findMarketplace) {
+      this.logger.error('Yandex не найден среди МП. Не удалось получить заказы v2');
+      return;
+    }
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    try {
+      for (const order of ordersData) {
         const findWarehouse = await queryRunner.manager.findOne(Warehouses, {
           where: { marketplaceInternalNumber: order.warehouseId }
         });
         if (!findWarehouse) {
-          await queryRunner.commitTransaction();
           continue;
         }
-
-        const orderDate = new Date(`${order.orderDate}Z`);
-        const findOrder = await queryRunner.manager.findOne(Orders, {
-          where: {
-            marketplaceOrderIdentification: order.orderId,
-            createdAt: orderDate,
-            itemId: findItem.id
-          }
-        });
-        if (!findOrder) {
-          const countItemOrder = await queryRunner.manager.count(Orders, {
+        for (const item of order.products) {
+          const findItem = await queryRunner.manager.findOne(Items, {
             where: {
+              marketplaceId: findMarketplace.id,
+              article: item.offerId
+            }
+          });
+          if (!findItem) {
+            continue;
+          }
+          const findOrder = await queryRunner.manager.findOne(OrdersV2, {
+            where: {
+              marketplaceOrderIdentification: order.orderId,
+              marketplaceCreatedAt: order.createdAt,
+              marketplaceOrderNumber: item.id,
               itemId: findItem.id
             }
           });
-          if (!countItemOrder) {
-            await queryRunner.manager.update(
-              Items,
-              {
-                id: findItem.id
-              },
-              {
-                wbCreatedAt: orderDate,
-                classification: 'Новинка / A',
-                virality: 'виральный предположительно'
-              }
-            );
+          if (!findOrder) {
+            const createOrder = queryRunner.manager.create(OrdersV2, {
+              marketplaceOrderIdentification: order.orderId,
+              marketplaceOrderNumber: item.id,
+              status: order.status,
+              quantity: item.quantity,
+              price: item.price,
+              payout: item.price,
+              cancelReasonId: order.cancelRequested ? 999 : undefined,
+              itemId: findItem.id,
+              warehouseId: findWarehouse.id,
+              marketplaceId: findMarketplace.id,
+              marketplaceCreatedAt: order.createdAt
+            });
+            await queryRunner.manager.save(OrdersV2, createOrder);
+          } else {
+            await queryRunner.manager.update(OrdersV2, findOrder.id, {
+              status: order.status,
+              quantity: item.quantity,
+              price: item.price,
+              payout: item.price,
+              cancelReasonId: order.cancelRequested ? 999 : undefined
+            });
           }
-          const createOrder = queryRunner.manager.create(Orders, {
-            quantity: order.count,
-            sum: order.orderSum,
-            marketplaceOrderIdentification: String(order.orderId),
-            isCanceled: order.isCancel,
-            itemId: findItem.id,
-            totalPrice: order.orderSum,
-            warehouseId: findWarehouse.id,
-            createdAt: orderDate,
-            marketplaceId: findMarketplace.id
-          });
-          await queryRunner.manager.save(Orders, createOrder);
-        } else {
-          await queryRunner.manager.update(
-            Orders,
-            { id: findOrder.id },
-            {
-              quantity: order.count,
-              sum: order.orderSum,
-              isCanceled: order.isCancel,
-              totalPrice: order.orderSum
-            }
-          );
         }
-        await queryRunner.commitTransaction();
-      } catch (error) {
-        await queryRunner.rollbackTransaction();
-        this.logger.error(error);
-        this.logger.error('Не смог добавить заказы Yandex');
-      } finally {
-        await queryRunner.release();
       }
+    } catch (error) {
+      this.logger.error(error);
+      this.logger.error('Не смог сохранить заказы Yandex');
+    } finally {
+      await queryRunner.release();
     }
     return;
   }
 
   @Cron(CronExpression.EVERY_HOUR)
   async getOrdersOzonFirst() {
-    const ozonToken = await this.configService.get('ozonToken');
-    const clientId = await this.configService.get('ozonClientId');
+    const ozonToken = this.configService.get<string>('ozonToken');
+    const clientId = this.configService.get<string>('ozonClientId');
+    if (!ozonToken || !clientId) {
+      this.logger.error('Не найден токен озона или id клиента ozon first');
+      return;
+    }
     const findMarketplace = await this.infoService.findMarketplace({ title: 'Озон' });
     await this.getOrdersOzon(ozonToken, clientId, findMarketplace.id);
     return;
@@ -796,8 +929,12 @@ export class OrdersService {
 
   // @Cron('0 */24 * * * *')
   async getOrdersOzonSecond() {
-    const ozonToken = await this.configService.get('ozonSecondToken');
-    const clientId = await this.configService.get('ozonSecondClientId');
+    const ozonToken = this.configService.get<string>('ozonSecondToken');
+    const clientId = this.configService.get<string>('ozonSecondClientId');
+    if (!ozonToken || !clientId) {
+      this.logger.error('Не найден токен озона или id клиента ozon second');
+      return;
+    }
     const findMarketplace = await this.infoService.findMarketplace({ title: 'Ozon Second' });
     await this.getOrdersOzon(ozonToken, clientId, findMarketplace.id);
     return;

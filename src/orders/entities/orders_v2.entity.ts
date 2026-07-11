@@ -37,6 +37,7 @@ export class OrdersV2 {
 
   //Ozon Цена товара с учётом акций, кроме акций за счёт Ozon.
   //У WB это цена с учетом всех скидок, кроме суммы по WB Кошельку finishedPrice
+  //Сколько выплатят продавцу Yandex (сумма payment и subsidy)
   @Column({ type: 'float', nullable: true })
   price: number;
 
@@ -46,6 +47,7 @@ export class OrdersV2 {
 
   //Выплата продавцу Ozon.
   //У WB совпадает с finishedPrice
+  //Сколько выплатят продавцу Yandex (сумма payment и subsidy)
   @Column({ type: 'float', nullable: true })
   payout: number;
 
