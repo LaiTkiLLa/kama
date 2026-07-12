@@ -87,7 +87,8 @@ export class OrdersService {
         const ordersResult = await this.getOrders(getDynamicOrdersDto.days, 'WB', result);
         return await this.getOrdersV2(queryRunner, 'WB', ordersResult);
       } else if (getDynamicOrdersDto.marketplace === 'Yandex') {
-        return this.getYandexOrders(getDynamicOrdersDto.days, result);
+        const ordersResult = await this.getYandexOrders(getDynamicOrdersDto.days, result);
+        return await this.getOrdersV2(queryRunner, 'Yandex', ordersResult);
       }
     } catch (error) {
       this.logger.error(error);
@@ -164,7 +165,7 @@ export class OrdersService {
 
   async getOrdersV2(
     queryRunner: QueryRunner,
-    marketplaceTitle: 'Озон' | 'WB',
+    marketplaceTitle: 'Озон' | 'WB' | 'Yandex',
     result: GetDynamicOrders[]
   ): Promise<GetDynamicOrders[]> {
     const ordersResult = (await queryRunner.query(
