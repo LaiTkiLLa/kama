@@ -7,7 +7,7 @@ import { ConfigService } from '@nestjs/config';
 import { InfoService } from '../info/info.service';
 import { OzonStocks, StocksResult } from './interfaces/ozon-stocks.interface';
 import { Stocks } from './entities/stocks.entity';
-import { GetWbOwnWarehousesStocks, GetWbStocks } from './interfaces/wb-stocks.intrerface';
+import { GetWbOwnWarehousesStocks, GetWbStocks, GetWbStocksV2 } from './interfaces/wb-stocks.intrerface';
 import { GetCurrentStocksDto } from './dto/get-current-stocks.dto';
 import { GetCurrentStocks } from './interfaces/get-current-stocks.interface';
 import { GetYandexStocks, ItemTypes } from './interfaces/yandex-stocks.interface';
@@ -157,9 +157,13 @@ export class StocksService {
     }
   }
 
-  @Cron('0 */18 * * * *')
+  // @Cron('0 */18 * * * *')
   async getWbStocks() {
-    const apiToken = await this.configService.get('wbToken');
+    const apiToken = this.configService.get<string>('wbToken');
+    if (!apiToken) {
+      this.logger.error('Не найден Апи токен для получения остатков WB');
+      return;
+    }
     const urlStocks = 'https://statistics-api.wildberries.ru/api/v1/supplier/stocks';
     const { data }: { data: GetWbStocks[] } = await axios.get(urlStocks, {
       params: {
@@ -223,6 +227,81 @@ export class StocksService {
           this.logger.error('Не смог скачать остатки WB');
         }
       }
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  @Cron('0 */18 * * * *')
+  async getWbStocksV2() {
+    const apiToken = this.configService.get<string>('wbToken');
+    if (!apiToken) {
+      this.logger.error('Не найден Апи токен для получения остатков WB');
+      return;
+    }
+    const urlStocks =
+      'https://seller-analytics-api.wildberries.ru/api/analytics/v1/stocks-report/wb-warehouses';
+    const { data }: { data: GetWbStocksV2 } = await axios.post(
+      urlStocks,
+      { limit: 250000, offset: 0 },
+      {
+        headers: {
+          Authorization: apiToken
+        }
+      }
+    );
+    const findMarketplace = await this.infoService.findMarketplace({ title: 'WB' });
+    if (!findMarketplace) {
+      this.logger.error('WB не найден среди МП. Не удалось получить остатки');
+      return;
+    }
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    try {
+      for (const stock of data.data.items) {
+        const findWarehouse = await queryRunner.manager.findOne(Warehouses, {
+          where: { marketplaceInternalNumber: String(stock.warehouseId), marketplaceId: findMarketplace.id }
+        });
+        if (!findWarehouse) {
+          continue;
+        }
+        const findItem = await this.itemsService.findItem(
+          { marketplaceIdentifier: String(stock.nmId), marketplaceId: findMarketplace.id },
+          queryRunner
+        );
+        if (!findItem) {
+          continue;
+        }
+        const findStock = await queryRunner.manager
+          .createQueryBuilder(Stocks, 'stocks')
+          .where("DATE(created_at) = DATE('now')")
+          .andWhere('item_id = :itemId', { itemId: findItem.id })
+          .andWhere('warehouse_id = :warehouseId', { warehouseId: findWarehouse.id })
+          .getOne();
+        if (findStock) {
+          await queryRunner.manager.update(
+            Stocks,
+            { id: findStock.id },
+            {
+              currentValue: stock.quantity,
+              reserved: stock.inWayToClient,
+              promised: stock.inWayFromClient
+            }
+          );
+        } else {
+          const createStock = queryRunner.manager.create(Stocks, {
+            itemId: findItem.id,
+            warehouseId: findWarehouse.id,
+            currentValue: stock.quantity,
+            reserved: stock.inWayToClient,
+            promised: stock.inWayFromClient,
+            marketplaceId: findMarketplace.id
+          });
+          await queryRunner.manager.save(Stocks, createStock);
+        }
+      }
+    } catch {
+      this.logger.error('Не смог получить список остатков WB');
     } finally {
       await queryRunner.release();
     }
