@@ -26,3 +26,18 @@ export interface GetWbOwnWarehousesStocks {
     amount: number;
   }[];
 }
+
+export interface GetWbStocksV2 {
+  data: {
+    items: {
+      nmId: number;
+      chrtId: number;
+      warehouseId: number;
+      warehouseName: string;
+      regionName: string;
+      quantity: number;
+      inWayToClient: number;
+      inWayFromClient: number;
+    }[];
+  };
+}
