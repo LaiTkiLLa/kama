@@ -224,7 +224,7 @@ export class OrdersService {
           order_day,
           orders_count,
           total_orders_period,
-          round(total_orders_period / 90.0) AS avg_orders_day
+          floor(total_orders_period / 90.0) AS avg_orders_day
         FROM with_totals
           )
         SELECT
