@@ -444,7 +444,7 @@ export class ItemsService {
               qb
                 .select('stock.item_id', 'item_id')
                 .addSelect(
-                  `SUM(CASE WHEN stock.warehouse_id IN (18, 1146895, 16) THEN 0 ELSE stock.current_value END)`,
+                  `SUM(CASE WHEN stock.warehouse_id IN (18, 1146895, 16, 59) THEN 0 ELSE stock.current_value END)`,
                   'stocks_sum'
                 )
                 // .addSelect('SUM(stock.current_value)', 'stocks_sum')
