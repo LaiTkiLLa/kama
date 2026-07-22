@@ -440,13 +440,19 @@ export class ItemsService {
         .leftJoin('items.sendStatus', 'sendStatus')
         .leftJoin(
           qb => {
-            return qb
-              .select('stock.item_id', 'item_id')
-              .addSelect('SUM(stock.current_value)', 'stocks_sum')
-              .from('stocks', 'stock')
-              .where('stock.created_at >= CURRENT_DATE')
-              .andWhere("stock.created_at < CURRENT_DATE + INTERVAL '1 day'")
-              .groupBy('stock.item_id');
+            return (
+              qb
+                .select('stock.item_id', 'item_id')
+                .addSelect(
+                  `SUM(CASE WHEN stock.warehouse_id IN (18, 1146897, 16) THEN 0 ELSE stock.current_value END)`,
+                  'stocks_sum'
+                )
+                // .addSelect('SUM(stock.current_value)', 'stocks_sum')
+                .from('stocks', 'stock')
+                .where('stock.created_at >= CURRENT_DATE')
+                .andWhere("stock.created_at < CURRENT_DATE + INTERVAL '1 day'")
+                .groupBy('stock.item_id')
+            );
           },
           'stocks_summary',
           'stocks_summary.item_id = items.id'
