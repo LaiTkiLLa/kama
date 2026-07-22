@@ -20,5 +20,5 @@ export interface GetDynamicOrders {
   ordersLastTwentyOneDays: number;
   totalOrdersAboveAvg: number;
   daysAboveAvg: number;
-  speedSalesAboveAvg: number
+  speedSalesAboveAvg: number;
 }
