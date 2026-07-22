@@ -6,7 +6,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn
 } from 'typeorm';
-import { Items } from '../../items/entities/items.entity';
+import { ItemsSuppliers } from '../../items/entities/items_suppliers.entity';
 
 @Entity({
   name: 'suppliers'
@@ -69,6 +69,6 @@ export class Suppliers {
   })
   updatedAt: Date;
 
-  @OneToMany(() => Items, items => items.sendStatus)
-  items: Items[];
+  @OneToMany(() => ItemsSuppliers, itemsSuppliers => itemsSuppliers.supplier)
+  itemsSuppliers: ItemsSuppliers[];
 }
