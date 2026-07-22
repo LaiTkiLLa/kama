@@ -85,7 +85,7 @@ export class StocksService {
     return findItemsWithStocks.map(item => {
       const stocksResult = item.stocks.reduce(
         (stAcc, stock) => {
-          if (stock.warehouseId === 18 || stock.warehouseId === 1146897) {
+          if (stock.warehouseId === 18 || stock.warehouseId === 1146897 || stock.warehouseId = 16) {
             return stAcc;
           }
           stAcc.quantityFull += stock.currentValue ?? 0;
