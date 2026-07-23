@@ -7,6 +7,7 @@ export interface GetDynamicOrders {
   reserved: number;
   promiseAmount: number;
   quantityFull: number;
+  quantityOwnWarehouse: number;
   ordersSum: number;
   ordersLastNinetyDays: number;
   ordersLastThirtyDays: number;
