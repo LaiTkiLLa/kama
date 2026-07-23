@@ -71,6 +71,7 @@ export class StocksService {
         "stocks.created_at >= CURRENT_DATE AND stocks.created_at < CURRENT_DATE + INTERVAL '1 day'"
       )
       .leftJoinAndSelect('items.supplier', 'supplier')
+      .leftJoinAndSelect('stocks.warehouse', 'warehouse')
       .where('marketplace.title = :marketplace', { marketplace: getCurrentStocksDto.marketplace })
       .andWhere('items.isArchive = :isArchive', { isArchive: false })
       .andWhere('items.createdForCalculation = :createdForCalculation', {
@@ -93,6 +94,9 @@ export class StocksService {
           ) {
             return stAcc;
           }
+          if (stock.warehouse.type === 'FBS') {
+            stAcc.quantityOwnWarehouses += stock.currentValue ?? 0;
+          }
           stAcc.quantityFull += stock.currentValue ?? 0;
           stAcc.inWayToClient += stock.reserved ?? 0;
           stAcc.inWayFromClient += stock.promised ?? 0;
@@ -101,7 +105,8 @@ export class StocksService {
         {
           quantityFull: 0,
           inWayToClient: 0,
-          inWayFromClient: 0
+          inWayFromClient: 0,
+          quantityOwnWarehouses: 0
         }
       );
       return {
@@ -112,7 +117,8 @@ export class StocksService {
         inWayToClient: stocksResult.inWayToClient,
         inWayFromClient: stocksResult.inWayFromClient,
         quantityFull: stocksResult.quantityFull,
-        sku: item.sku
+        sku: item.sku,
+        quantityOwnWarehouses: stocksResult.quantityOwnWarehouses
       };
     });
   }
