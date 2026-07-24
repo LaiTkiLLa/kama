@@ -90,7 +90,11 @@ export class StocksService {
             stock.warehouseId === 18 ||
             stock.warehouseId === 1146895 ||
             stock.warehouseId === 16 ||
-            stock.warehouseId === 59
+            stock.warehouseId === 59 ||
+            stock.warehouseId === 95 ||
+            stock.warehouseId === 1146938 ||
+            stock.warehouseId === 1146932 ||
+            stock.warehouseId === 1147083
           ) {
             return stAcc;
           }
