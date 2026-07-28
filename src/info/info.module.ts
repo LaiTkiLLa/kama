@@ -3,9 +3,12 @@ import { InfoService } from './info.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Marketplaces } from './entities/marketplaces.entity';
 import { InfoController } from './info.controller';
+import { Banks } from './entities/banks.entity';
+import { Suppliers } from './entities/suppliers.entity';
+import { Contaminants } from './entities/contaminants.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Marketplaces])],
+  imports: [TypeOrmModule.forFeature([Marketplaces, Banks, Suppliers, Contaminants])],
   providers: [InfoService],
   controllers: [InfoController],
   exports: [InfoService]
