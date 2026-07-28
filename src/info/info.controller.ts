@@ -15,4 +15,9 @@ export class InfoController {
   async getSuppliersList(@Headers('api-key') apiKey: string) {
     return this.infoService.getSuppliersList();
   }
+
+  @Get('contaminants')
+  async getContaminantsList(@Headers('api-key') apiKey: string) {
+    return this.infoService.getContaminantsList();
+  }
 }

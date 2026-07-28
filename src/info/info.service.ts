@@ -12,6 +12,8 @@ import { Statuses } from './entities/statuses.entity';
 import { GetStatusesListDto } from './dto/get-statuses-list.dto';
 import { GetWbOwnWarehouses, GetWbWarehouses } from './interfaces/wb-warehouses.interface';
 import { OzonWarehouses } from './interfaces/ozon-warehouses.interface';
+import { Contaminants } from './entities/contaminants.entity';
+import { Suppliers } from './entities/suppliers.entity';
 
 @Injectable()
 export class InfoService {
@@ -73,11 +75,54 @@ export class InfoService {
     }
   }
 
+  async getContaminantsList() {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    try {
+      const findContaminants = await queryRunner.manager.find(Contaminants, {
+        relations: {
+          bank: true
+        }
+      });
+      return findContaminants.map(contaminant => ({
+        id: contaminant.id,
+        title: contaminant.title,
+        country: contaminant.country,
+        type: contaminant.type,
+        legalTitle: contaminant.legalTitle,
+        legalAddress: contaminant.legalAddress,
+        accRaschet: contaminant.accRaschet,
+        inn: contaminant.inn,
+        kpp: contaminant.kpp,
+        contact: contaminant.contact,
+        paymentTerms: contaminant.paymentTerms,
+        reliabilityRating: contaminant.reliabilityRating,
+        warehouseAddress: contaminant.warehouseAddress,
+        responsibleEmployee: contaminant.responsibleEmployee,
+        comment: contaminant.comment,
+        typeOfMutualSettlements: contaminant.typeOfMutualSettlements,
+        bank: {
+          title: contaminant.bank.title,
+          accBik: contaminant.bank.accBik,
+          accKorschet: contaminant.bank.accKorschet,
+          address: contaminant.bank.address,
+          swift: contaminant.bank.swift
+        }
+      }));
+    } catch (error) {
+      this.logger.error(error);
+      this.logger.error('Не смог получить список поставщиков');
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
   async getSuppliersList() {
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     try {
-      const findSuppliers = await queryRunner.manager.find(Statuses, {});
+      const findSuppliers = await queryRunner.manager.find(Suppliers, {});
       return findSuppliers.map(supplier => ({
         id: supplier.id,
         title: supplier.title

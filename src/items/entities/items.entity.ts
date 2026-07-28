@@ -13,9 +13,9 @@ import { Marketplaces } from '../../info/entities/marketplaces.entity';
 import { Orders } from '../../orders/entities/orders.entity';
 import { Directions } from '../../info/entities/directions.entity';
 import { Statuses } from '../../info/entities/statuses.entity';
-import { Suppliers } from '../../info/entities/suppliers.entity';
 import { ChangePricesHistories } from './change-prices-histories.entity';
 import { ItemsSizes } from './items-sizes.entity';
+import { ItemsSuppliers } from './items_suppliers.entity';
 
 @Entity({
   name: 'items'
@@ -118,9 +118,6 @@ export class Items {
 
   @Column({ type: 'int', name: 'direction_id', nullable: false })
   directionId: number;
-
-  @Column({ type: 'int', name: 'supplier_id', nullable: true })
-  supplierId: number | null;
 
   //Классификация товара
   @Column({ type: 'varchar', nullable: true })
@@ -350,12 +347,6 @@ export class Items {
   })
   direction: Directions;
 
-  @ManyToOne(() => Suppliers, supplier => supplier.items)
-  @JoinColumn({
-    name: 'supplier_id'
-  })
-  supplier: Suppliers;
-
   @ManyToOne(() => Statuses, sendStatus => sendStatus.items)
   @JoinColumn({
     name: 'send_status_id'
@@ -364,4 +355,7 @@ export class Items {
 
   @OneToMany(() => ChangePricesHistories, priceHistories => priceHistories.item)
   priceHistories: ChangePricesHistories[];
+
+  @OneToMany(() => ItemsSuppliers, itemsSuppliers => itemsSuppliers.item)
+  itemsSuppliers: ItemsSuppliers[];
 }

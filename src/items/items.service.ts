@@ -24,6 +24,7 @@ import { CreateLowDaysStocksDto } from './dto/create-low-days-stocks.dto';
 import { LowDaysStocks } from './entities/low-days-stocks.entity';
 import { GetChangePriceHistoryDto } from './dto/get-change-price-history.dto';
 import { ItemsSizes } from './entities/items-sizes.entity';
+import { ItemsSuppliers } from './entities/items_suppliers.entity';
 
 @Injectable()
 export class ItemsService {
@@ -166,7 +167,8 @@ export class ItemsService {
     try {
       const queryBuilder = queryRunner.manager
         .createQueryBuilder(Items, 'items')
-        .leftJoinAndSelect('items.supplier', 'supplier')
+        .leftJoinAndSelect('items.itemsSuppliers', 'itemsSuppliers')
+        .leftJoinAndSelect('itemsSuppliers.supplier', 'supplier')
         .leftJoinAndSelect('items.marketplace', 'marketplace')
         .where('items.isArchive = :isArchive', { isArchive: false });
       if (getDirectoryListDto.supplierTitle) {
@@ -189,7 +191,7 @@ export class ItemsService {
             ownCategory: item.ownCategory,
             image: item.imageUrl,
             barcode: item.barcode,
-            supplierTitle: item.supplier ? item.supplier.title : null,
+            supplierTitle: item.itemsSuppliers.length ? item.itemsSuppliers[0].supplier.title : null,
             title: item.title,
             color: item.color,
             articleOld: item.articleOld,
@@ -302,7 +304,6 @@ export class ItemsService {
         if (!findItems.length) {
           throw new NotFoundException('Артикул не найден');
         }
-        let supplierId: number | undefined;
         if (item.supplier) {
           const findSupplier = await queryRunner.manager.findOne(Suppliers, {
             where: {
@@ -312,13 +313,32 @@ export class ItemsService {
           if (!findSupplier) {
             throw new NotFoundException('Поставщик не найден');
           }
-          supplierId = findSupplier.id;
+          const itemsId = findItems.map(el => el.id);
+          const findItemsSupplier = await queryRunner.manager.find(ItemsSuppliers, {
+            where: {
+              itemId: In(itemsId)
+            }
+          });
+          if (findItemsSupplier.length) {
+            await queryRunner.manager.update(
+              ItemsSuppliers,
+              { itemId: In(itemsId) },
+              { supplierId: findSupplier.id }
+            );
+          } else {
+            await queryRunner.manager.insert(
+              ItemsSuppliers,
+              itemsId.map(itemId => ({
+                supplierId: findSupplier.id,
+                itemId
+              }))
+            );
+          }
         }
         await queryRunner.manager.update(
           Items,
           { id: In(findItems.map(el => el.id)) },
           {
-            supplierId,
             ownCategory: item.ownCategory,
             classification: item.classification,
             multiplicity: item.multiplicity,
@@ -744,7 +764,10 @@ export class ItemsService {
       for (const item of items) {
         const findColor = item?.characteristics?.find(el => el.name === 'Цвет');
         const findItem = await queryRunner.manager.findOne(Items, {
-          where: { marketplaceIdentifier: String(item.nmID), marketplaceId: wbMarketplace.id }
+          where: { marketplaceIdentifier: String(item.nmID), marketplaceId: wbMarketplace.id },
+          relations: {
+            sizes: true
+          }
         });
         const volumeWB = (
           (item.dimensions.length * item.dimensions.width * item.dimensions.height) /
@@ -798,16 +821,27 @@ export class ItemsService {
               chrtId: String(item?.sizes[0]?.chrtID)
             }
           );
-          // if (item?.sizes?.length) {
-          //   for (const size of item.sizes) {
-          //     const createSize = queryRunner.manager.update(ItemsSizes, {
-          //       itemId: createItem.id,
-          //       chrtId: size.chrtID,
-          //       techSize: size.techSize,
-          //       wbSize: size.wbSize
-          //     });
-          //   }
-          // }
+          if (item?.sizes?.length) {
+            for (const size of item.sizes) {
+              if (size.techSize === '0') continue;
+              const findCurrentSize = findItem.sizes.find(el => el.chrtId === String(size.chrtID));
+              if (findCurrentSize) {
+                await queryRunner.manager.update(ItemsSizes, findCurrentSize.id, {
+                  chrtId: String(size.chrtID),
+                  techSize: size.techSize,
+                  wbSize: size.wbSize
+                });
+              } else {
+                const createSize = queryRunner.manager.create(ItemsSizes, {
+                  itemId: findItem.id,
+                  chrtId: String(size.chrtID),
+                  techSize: size.techSize,
+                  wbSize: size.wbSize
+                });
+                await queryRunner.manager.save(ItemsSizes, createSize);
+              }
+            }
+          }
         }
       }
     } catch (error) {
