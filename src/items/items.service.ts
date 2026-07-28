@@ -714,8 +714,7 @@ export class ItemsService {
     return queryRunner.manager.update(Items, where, updateData);
   }
 
-  // @Cron('0 */40 * * * *')
-  @Cron(CronExpression.EVERY_MINUTE)
+  @Cron('0 */40 * * * *')
   async getWbItems() {
     const itemsUrl = 'https://content-api.wildberries.ru/content/v2/get/cards/list';
     const apiToken = this.configService.get<string>('wbToken');
