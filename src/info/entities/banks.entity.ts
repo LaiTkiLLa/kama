@@ -1,6 +1,16 @@
-import { Column, CreateDateColumn, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  OneToMany,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn
+} from 'typeorm';
 import { Contaminants } from './contaminants.entity';
 
+@Entity({
+  name: 'banks'
+})
 export class Banks {
   @PrimaryGeneratedColumn('identity', {
     generatedIdentity: 'ALWAYS'
