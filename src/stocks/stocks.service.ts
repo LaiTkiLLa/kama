@@ -70,7 +70,8 @@ export class StocksService {
         'stocks',
         "stocks.created_at >= CURRENT_DATE AND stocks.created_at < CURRENT_DATE + INTERVAL '1 day'"
       )
-      .leftJoinAndSelect('items.supplier', 'supplier')
+      .leftJoinAndSelect('items.itemsSuppliers', 'itemsSuppliers')
+      .leftJoinAndSelect('itemsSuppliers.supplier', 'supplier')
       .leftJoinAndSelect('stocks.warehouse', 'warehouse')
       .where('marketplace.title = :marketplace', { marketplace: getCurrentStocksDto.marketplace })
       .andWhere('items.isArchive = :isArchive', { isArchive: false })
