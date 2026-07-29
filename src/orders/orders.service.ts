@@ -89,7 +89,7 @@ export class OrdersService {
         return await this.getOrdersV2(queryRunner, 'WB', ordersResult);
       } else if (getDynamicOrdersDto.marketplace === 'Yandex') {
         // const ordersResult = await this.getYandexOrders(getDynamicOrdersDto.days, result);
-        return await this.getOrdersV2(queryRunner, 'Yandex', ordersResult);
+        return await this.getOrdersV2(queryRunner, 'Yandex', []);
       }
     } catch (error) {
       this.logger.error(error);
