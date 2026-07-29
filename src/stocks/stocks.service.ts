@@ -34,7 +34,7 @@ export class StocksService {
       .createQueryBuilder(Stocks, 'stocks')
       .leftJoinAndSelect('stocks.marketplace', 'marketplace')
       .leftJoinAndSelect('stocks.item', 'item')
-      .leftJoinAndSelect('items.itemsSuppliers', 'itemsSuppliers')
+      .leftJoinAndSelect('item.itemsSuppliers', 'itemsSuppliers')
       .leftJoinAndSelect('itemsSuppliers.supplier', 'supplier')
       .where('marketplace.title = :marketplace', { marketplace: getCurrentStocksDto.marketplace })
       .andWhere('item.isArchive = :isArchive', { isArchive: false })
