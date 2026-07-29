@@ -191,7 +191,7 @@ export class InfoService {
     }
   }
 
-  @Cron(CronExpression.EVERY_DAY_AT_3PM)
+  @Cron(CronExpression.EVERY_30_MINUTES)
   async getWbOwnWarehouses() {
     const apiToken = this.configService.get<string>('wbToken');
     const warehousesUrl = 'https://marketplace-api.wildberries.ru/api/v3/warehouses';
@@ -224,6 +224,10 @@ export class InfoService {
             marketplaceId: findMarketplace.id
           });
           await queryRunner.manager.save(Warehouses, createWarehouse);
+        } else {
+          await queryRunner.manager.update(Warehouses, findWarehouse.id, {
+            title: warehouse.name
+          });
         }
       }
     } catch (error) {
