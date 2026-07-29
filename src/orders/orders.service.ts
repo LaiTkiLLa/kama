@@ -88,8 +88,8 @@ export class OrdersService {
         const ordersResult = await this.getOrders(getDynamicOrdersDto.days, 'WB', result);
         return await this.getOrdersV2(queryRunner, 'WB', ordersResult);
       } else if (getDynamicOrdersDto.marketplace === 'Yandex') {
-        // const ordersResult = await this.getYandexOrders(getDynamicOrdersDto.days, result);
-        return await this.getOrdersV2(queryRunner, 'Yandex', []);
+        const ordersResult = await this.getYandexOrders(getDynamicOrdersDto.days, result);
+        return await this.getOrdersV2(queryRunner, 'Yandex', ordersResult);
       }
     } catch (error) {
       this.logger.error(error);
