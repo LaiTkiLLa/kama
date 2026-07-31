@@ -86,7 +86,12 @@ export class StocksService {
     }
     const findItemsWithStocks = await queryBuilder.getMany();
     return findItemsWithStocks.map(item => {
-      const stocksResult = item.stocks.reduce(
+      const stocksResult = item.stocks.reduce<{
+        quantityFull: number;
+        inWayToClient: number;
+        inWayFromClient: number;
+        wbOwnWarehouses: { title: string; value: number }[];
+      }>(
         (stAcc, stock) => {
           if (
             stock.warehouseId === 18 ||
@@ -108,7 +113,11 @@ export class StocksService {
             return stAcc;
           }
           if (stock.warehouse.type === 'FBS') {
-            stAcc.quantityOwnWarehouses += stock.currentValue ?? 0;
+            // stAcc.quantityOwnWarehouses += stock.currentValue ?? 0;
+            stAcc.wbOwnWarehouses.push({
+              title: stock.warehouse.title,
+              value: stock.currentValue
+            });
           }
           stAcc.quantityFull += stock.currentValue ?? 0;
           stAcc.inWayToClient += stock.reserved ?? 0;
@@ -119,7 +128,8 @@ export class StocksService {
           quantityFull: 0,
           inWayToClient: 0,
           inWayFromClient: 0,
-          quantityOwnWarehouses: 0
+          // quantityOwnWarehouses: 0,
+          wbOwnWarehouses: []
         }
       );
       return {
@@ -131,7 +141,8 @@ export class StocksService {
         inWayFromClient: stocksResult.inWayFromClient,
         quantityFull: stocksResult.quantityFull,
         sku: item.sku,
-        quantityOwnWarehouses: stocksResult.quantityOwnWarehouses
+        // quantityOwnWarehouses: stocksResult.quantityOwnWarehouses,
+        wbOwnWarehouses: stocksResult.wbOwnWarehouses
       };
     });
   }

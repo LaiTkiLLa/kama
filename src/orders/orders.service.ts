@@ -63,7 +63,6 @@ export class OrdersService {
           reserved: item.inWayToClient,
           promiseAmount: item.inWayFromClient,
           quantityFull: item.quantityFull,
-          quantityOwnWarehouse: item.quantityOwnWarehouses,
           ordersSum: 0,
           ordersLastNinetyDays: 0,
           ordersLastThirtyDays: 0,
@@ -77,7 +76,8 @@ export class OrdersService {
           ordersThirdDays: 0,
           totalOrdersAboveAvg: 0,
           daysAboveAvg: 0,
-          speedSalesAboveAvg: 0
+          speedSalesAboveAvg: 0,
+          wbOwnWarehouses: item.wbOwnWarehouses
         });
       }
 

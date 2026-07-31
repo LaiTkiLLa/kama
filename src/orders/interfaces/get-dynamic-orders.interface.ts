@@ -7,7 +7,6 @@ export interface GetDynamicOrders {
   reserved: number;
   promiseAmount: number;
   quantityFull: number;
-  quantityOwnWarehouse: number;
   ordersSum: number;
   ordersLastNinetyDays: number;
   ordersLastThirtyDays: number;
@@ -22,4 +21,5 @@ export interface GetDynamicOrders {
   totalOrdersAboveAvg: number;
   daysAboveAvg: number;
   speedSalesAboveAvg: number;
+  wbOwnWarehouses: { title: string; value: number }[];
 }
