@@ -108,7 +108,9 @@ export class StocksService {
             stock.warehouseId === 242582 ||
             stock.warehouseId === 158 ||
             stock.warehouseId === 1146879 ||
-            stock.warehouseId === 67
+            stock.warehouseId === 67 ||
+            stock.warehouseId === 1146902 ||
+            stock.warehouseId === 1146903
           ) {
             return stAcc;
           }
@@ -390,6 +392,16 @@ export class StocksService {
             }
           }
         );
+        if (!data.stocks.length) {
+          for (const item of findWbItems) {
+            resultStocks.push({
+              warehouseId: warehouse.marketplaceInternalNumber,
+              sku: item.barcode,
+              chrtId: Number(item.chrtId),
+              amount: 0
+            });
+          }
+        }
         for (const stock of data.stocks) {
           resultStocks.push({
             warehouseId: warehouse.marketplaceInternalNumber,
