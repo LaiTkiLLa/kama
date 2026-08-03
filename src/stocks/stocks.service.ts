@@ -84,6 +84,10 @@ export class StocksService {
         suppliers: getCurrentStocksDto.suppliers
       });
     }
+    const excludeWarehouses = [
+      18, 1146895, 16, 59, 95, 1146938, 1146932, 1146912, 19, 1147083, 1146906, 242582, 158, 1146879, 67,
+      1146902, 1146903, 1146878, 1146919, 1147137
+    ];
     const findItemsWithStocks = await queryBuilder.getMany();
     return findItemsWithStocks.map(item => {
       const stocksResult = item.stocks.reduce<{
@@ -93,25 +97,7 @@ export class StocksService {
         wbOwnWarehouses: { title: string; value: number }[];
       }>(
         (stAcc, stock) => {
-          if (
-            stock.warehouseId === 18 ||
-            stock.warehouseId === 1146895 ||
-            stock.warehouseId === 16 ||
-            stock.warehouseId === 59 ||
-            stock.warehouseId === 95 ||
-            stock.warehouseId === 1146938 ||
-            stock.warehouseId === 1146932 ||
-            stock.warehouseId === 1146912 ||
-            stock.warehouseId === 19 ||
-            stock.warehouseId === 1147083 ||
-            stock.warehouseId === 1146906 ||
-            stock.warehouseId === 242582 ||
-            stock.warehouseId === 158 ||
-            stock.warehouseId === 1146879 ||
-            stock.warehouseId === 67 ||
-            stock.warehouseId === 1146902 ||
-            stock.warehouseId === 1146903
-          ) {
+          if (excludeWarehouses.includes(stock.warehouseId)) {
             return stAcc;
           }
           if (stock.warehouse.type === 'FBS') {
