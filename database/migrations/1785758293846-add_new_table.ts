@@ -136,7 +136,7 @@ export class AddNewTable1785758293846 implements MigrationInterface {
         WHEN i.marketplace_id = (
           SELECT id
           FROM marketplaces
-          WHERE title = 'Ozon'
+          WHERE title = 'Озон'
           LIMIT 1
         )
           THEN i.dimensions_ozon
@@ -164,7 +164,7 @@ export class AddNewTable1785758293846 implements MigrationInterface {
         WHEN i.marketplace_id = (
           SELECT id
           FROM marketplaces
-          WHERE title = 'Ozon'
+          WHERE title = 'Озон'
           LIMIT 1
         )
           THEN i.volume_ozon

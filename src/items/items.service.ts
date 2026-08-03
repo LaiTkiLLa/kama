@@ -24,6 +24,7 @@ import { GetChangePriceHistoryDto } from './dto/get-change-price-history.dto';
 import { ItemsSizes } from './entities/items-sizes.entity';
 import { ItemsSuppliers } from './entities/items_suppliers.entity';
 import { MarketplaceItems } from './entities/marketplace-items.entity';
+import { MarketplaceInfo } from './interfaces/get-items-directory-list.interface';
 
 @Injectable()
 export class ItemsService {
@@ -196,15 +197,7 @@ export class ItemsService {
             calculationType: item.calculationType,
             downloadCalculationMethod: item.downloadCalculationMethod,
             wbSizes: item?.sizes?.map(el => el.techSize) ?? [],
-            marketplacesInfo: item.marketplaceItems.map(el => {
-              return {
-                title: el.marketplace.title,
-                dimensions: el.dimensions,
-                volume: el.volume,
-                sku: el.sku,
-                marketplaceIdentifier: el.marketplaceIdentifier
-              };
-            })
+            marketplacesInfo: [] as MarketplaceInfo[]
           };
         });
       const filterOzonItems = findItems.filter(item => item.marketplace.title === 'Озон');
@@ -227,6 +220,20 @@ export class ItemsService {
           findItem.dimensionsYandex = yandexItem.dimensionsYandex;
           findItem.volumeYandex = yandexItem.volumeYandex;
           findItem.yandexCategory = yandexItem.category;
+        }
+      }
+      for (const item of findItems) {
+        const findItem = filterWbItems.find(wbItem => wbItem.article === item.article);
+        if (findItem) {
+          findItem.marketplacesInfo.push(
+            ...item.marketplaceItems.map(el => ({
+              title: el.marketplace.title,
+              dimensions: el.dimensions,
+              volume: Number(el.volume).toFixed(2),
+              sku: el.sku,
+              marketplaceIdentifier: el.marketplaceIdentifier
+            }))
+          );
         }
       }
       return filterWbItems;
