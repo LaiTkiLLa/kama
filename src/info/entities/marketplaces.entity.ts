@@ -10,6 +10,7 @@ import { Items } from '../../items/entities/items.entity';
 import { Stocks } from '../../stocks/entities/stocks.entity';
 import { Orders } from '../../orders/entities/orders.entity';
 import { Warehouses } from './warehouses.entity';
+import { MarketplaceItems } from '../../items/entities/marketplace-items.entity';
 
 @Entity({
   name: 'marketplaces'
@@ -44,6 +45,9 @@ export class Marketplaces {
 
   @OneToMany(() => Items, items => items.marketplace)
   items: Items[];
+
+  @OneToMany(() => MarketplaceItems, items => items.marketplace)
+  marketplaceItems: MarketplaceItems[];
 
   @OneToMany(() => Stocks, stocks => stocks.marketplace)
   stocks: Stocks[];

@@ -10,6 +10,7 @@ import {
 import { Items } from '../../items/entities/items.entity';
 import { Warehouses } from '../../info/entities/warehouses.entity';
 import { Marketplaces } from '../../info/entities/marketplaces.entity';
+import { MarketplaceItems } from '../../items/entities/marketplace-items.entity';
 
 @Entity({
   name: 'stocks'
@@ -74,4 +75,10 @@ export class Stocks {
     name: 'marketplace_id'
   })
   marketplace: Marketplaces;
+
+  // @ManyToOne(() => MarketplaceItems, marketplaceItem => marketplaceItem.stocks)
+  // @JoinColumn({
+  //   name: 'item_id'
+  // })
+  // marketplaceItem: MarketplaceItems;
 }

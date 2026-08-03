@@ -16,6 +16,7 @@ import { Statuses } from '../../info/entities/statuses.entity';
 import { ChangePricesHistories } from './change-prices-histories.entity';
 import { ItemsSizes } from './items-sizes.entity';
 import { ItemsSuppliers } from './items_suppliers.entity';
+import { MarketplaceItems } from './marketplace-items.entity';
 
 @Entity({
   name: 'items'
@@ -358,4 +359,7 @@ export class Items {
 
   @OneToMany(() => ItemsSuppliers, itemsSuppliers => itemsSuppliers.item)
   itemsSuppliers: ItemsSuppliers[];
+
+  @OneToMany(() => MarketplaceItems, marketplaceItems => marketplaceItems.item)
+  marketplaceItems: MarketplaceItems[];
 }

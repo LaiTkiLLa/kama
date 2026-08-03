@@ -20,11 +20,10 @@ import { Suppliers } from '../info/entities/suppliers.entity';
 import { OzonCategoryData, OzonItemsInfo, OzonItemsPrices } from './interfaces/ozon-items-info.interface';
 import { GetDirectoryListDto } from './dto/get-directory-list.dto';
 import { ChangePricesHistories } from './entities/change-prices-histories.entity';
-import { CreateLowDaysStocksDto } from './dto/create-low-days-stocks.dto';
-import { LowDaysStocks } from './entities/low-days-stocks.entity';
 import { GetChangePriceHistoryDto } from './dto/get-change-price-history.dto';
 import { ItemsSizes } from './entities/items-sizes.entity';
 import { ItemsSuppliers } from './entities/items_suppliers.entity';
+import { MarketplaceItems } from './entities/marketplace-items.entity';
 
 @Injectable()
 export class ItemsService {
@@ -70,60 +69,6 @@ export class ItemsService {
       await queryRunner.rollbackTransaction();
       this.logger.error(error);
       this.logger.error('Не добавить тестовый товар');
-      throw error;
-    } finally {
-      await queryRunner.release();
-    }
-  }
-
-  async lowDaysStocks(lowDaysStocksDto: CreateLowDaysStocksDto) {
-    const queryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
-    await queryRunner.startTransaction();
-    try {
-      for (const item of lowDaysStocksDto.items) {
-        const createLowDayStock = queryRunner.manager.create(LowDaysStocks, {
-          article: item.article,
-          daysStockFullfillment: item.daysStockFullfillment,
-          daysStockCountry: item.daysStockCountry
-        });
-        await queryRunner.manager.save(LowDaysStocks, createLowDayStock);
-      }
-      await queryRunner.commitTransaction();
-      return { status: 'success' };
-    } catch (error) {
-      await queryRunner.rollbackTransaction();
-      this.logger.error(error);
-      this.logger.error('Не смог добавить низкое кол-во дней запасов');
-      throw error;
-    } finally {
-      await queryRunner.release();
-    }
-  }
-
-  async getLowDaysStocks(getChangePriceHistoryDto: GetChangePriceHistoryDto) {
-    const queryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
-    try {
-      const queryBuilder = queryRunner.manager.createQueryBuilder(LowDaysStocks, 'lds');
-      if (getChangePriceHistoryDto.date) {
-        queryBuilder.andWhere('DATE(lds.createdAt) = DATE(:date)', { date: getChangePriceHistoryDto.date });
-      } else {
-        queryBuilder.andWhere('DATE(lds.createdAt) = DATE(now())');
-      }
-
-      const findLowDaysStocks = await queryBuilder.getMany();
-      return findLowDaysStocks.map(el => {
-        return {
-          id: el.id,
-          article: el.article,
-          daysStockFullfillment: el.daysStockFullfillment,
-          daysStockCountry: el.daysStockCountry
-        };
-      });
-    } catch (error) {
-      this.logger.error(error);
-      this.logger.error('Не смог получить низкое кол-во дней запасов');
       throw error;
     } finally {
       await queryRunner.release();
@@ -791,6 +736,18 @@ export class ItemsService {
             chrtId: String(item?.sizes[0]?.chrtID)
           });
           await queryRunner.manager.save(Items, createItem);
+          const createMarketplaceItem = queryRunner.manager.create(MarketplaceItems, {
+            itemId: createItem.id,
+            marketplaceIdentifier: String(item.nmID),
+            barcode: item?.sizes[0]?.skus[0] ?? '0',
+            sku: '0',
+            marketplaceId: wbMarketplace.id,
+            //Размеры в см, вес в кг
+            dimensions: `${item.dimensions.length}/${item.dimensions.width}/${item.dimensions.height}/${item.dimensions.weightBrutto}`,
+            volume: volumeWB,
+            chrtId: String(item?.sizes[0]?.chrtID)
+          });
+          await queryRunner.manager.save(MarketplaceItems, createMarketplaceItem);
           if (item?.sizes?.length) {
             for (const size of item.sizes) {
               if (size.techSize === '0') continue;
@@ -818,6 +775,18 @@ export class ItemsService {
               //Размеры в см, вес в кг
               dimensionsWB: `${item.dimensions.length}/${item.dimensions.width}/${item.dimensions.height}/${item.dimensions.weightBrutto}`,
               volumeWB,
+              chrtId: String(item?.sizes[0]?.chrtID)
+            }
+          );
+          await queryRunner.manager.update(
+            MarketplaceItems,
+            { itemId: findItem.id },
+            {
+              barcode: item?.sizes[0]?.skus[0] ?? '0',
+              sku: '0',
+              //Размеры в см, вес в кг
+              dimensions: `${item.dimensions.length}/${item.dimensions.width}/${item.dimensions.height}/${item.dimensions.weightBrutto}`,
+              volume: volumeWB,
               chrtId: String(item?.sizes[0]?.chrtID)
             }
           );
@@ -909,6 +878,13 @@ export class ItemsService {
               isArchive: true
             }
           );
+          await queryRunner.manager.update(
+            MarketplaceItems,
+            { itemId: findItem.id },
+            {
+              deletedAt: new Date()
+            }
+          );
         }
       }
       return;
@@ -957,6 +933,11 @@ export class ItemsService {
         });
         if (findItem) {
           await queryRunner.manager.update(Items, { id: findItem.id }, { isArchive: true });
+          await queryRunner.manager.update(
+            MarketplaceItems,
+            { itemId: findItem.id },
+            { deletedAt: new Date() }
+          );
         }
       }
       return;
@@ -1054,15 +1035,15 @@ export class ItemsService {
     return;
   }
 
-  @Cron('0 */46 * * * *')
-  async getOzonItemsSecond() {
-    const ozonToken = this.configService.get<string>('ozonSecondToken');
-    const clientId = this.configService.get<string>('ozonSecondClientId');
-    if (!ozonToken || !clientId) return;
-    const ozonMarketplace = await this.infoService.findMarketplace({ title: 'Ozon Second' });
-    await this.getOzonItems(ozonToken, clientId, ozonMarketplace.id);
-    return;
-  }
+  // @Cron('0 */46 * * * *')
+  // async getOzonItemsSecond() {
+  //   const ozonToken = this.configService.get<string>('ozonSecondToken');
+  //   const clientId = this.configService.get<string>('ozonSecondClientId');
+  //   if (!ozonToken || !clientId) return;
+  //   const ozonMarketplace = await this.infoService.findMarketplace({ title: 'Ozon Second' });
+  //   await this.getOzonItems(ozonToken, clientId, ozonMarketplace.id);
+  //   return;
+  // }
 
   @Cron('0 */44 * * * *')
   async getYandexItems() {
@@ -1146,6 +1127,17 @@ export class ItemsService {
             volumeYandex: item.volumeYandex
           });
           await queryRunner.manager.save(Items, createItem);
+          const createMarketplaceItem = queryRunner.manager.create(MarketplaceItems, {
+            itemId: createItem.id,
+            barcode: item.barcode,
+            sku: String(0),
+            marketplaceIdentifier: String(item.marketplaceIdentifier),
+            marketplaceId: yandexMarketplace.id,
+            //Размеры в см, вес в кг
+            dimensions: item.dimensionsYandex,
+            volume: item.volumeYandex
+          });
+          await queryRunner.manager.save(MarketplaceItems, createMarketplaceItem);
         } else {
           await queryRunner.manager.update(
             Items,
@@ -1157,6 +1149,15 @@ export class ItemsService {
               //Размеры в см, вес в кг
               dimensionsYandex: item.dimensionsYandex,
               volumeYandex: item.volumeYandex
+            }
+          );
+          await queryRunner.manager.update(
+            MarketplaceItems,
+            { itemId: findItem.id },
+            {
+              //Размеры в см, вес в кг
+              dimensions: item.dimensionsYandex,
+              volume: item.volumeYandex
             }
           );
         }
@@ -1245,6 +1246,17 @@ export class ItemsService {
             volumeOzon
           });
           await queryRunner.manager.save(Items, createItem);
+          const createMarketplaceItem = queryRunner.manager.create(MarketplaceItems, {
+            itemId: createItem.id,
+            barcode: item.barcode,
+            sku: String(item.sku),
+            marketplaceIdentifier: String(item.id),
+            marketplaceId,
+            //Переводим размеры в см, вес в кг
+            dimensions: `${Number((item.depth / 10).toFixed(2))}/${Number((item.width / 10).toFixed(2))}/${Number((item.height / 10).toFixed(2))}/${Number((item.weight / 1000).toFixed(3))}`,
+            volume: volumeOzon
+          });
+          await queryRunner.manager.save(MarketplaceItems, createMarketplaceItem);
         } else {
           await queryRunner.manager.update(
             Items,
@@ -1257,6 +1269,15 @@ export class ItemsService {
               dimensionsOzon: `${Number((item.depth / 10).toFixed(2))}/${Number((item.width / 10).toFixed(2))}/${Number((item.height / 10).toFixed(2))}/${Number((item.weight / 1000).toFixed(3))}`,
               volumeOzon,
               category
+            }
+          );
+          await queryRunner.manager.update(
+            MarketplaceItems,
+            { itemId: findItem.id },
+            {
+              //Переводим размеры в см, вес в кг
+              dimensions: `${Number((item.depth / 10).toFixed(2))}/${Number((item.width / 10).toFixed(2))}/${Number((item.height / 10).toFixed(2))}/${Number((item.weight / 1000).toFixed(3))}`,
+              volume: volumeOzon
             }
           );
         }
