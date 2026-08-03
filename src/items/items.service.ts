@@ -112,6 +112,8 @@ export class ItemsService {
     try {
       const queryBuilder = queryRunner.manager
         .createQueryBuilder(Items, 'items')
+        .leftJoinAndSelect('items.marketplaceItems', 'marketplaceItems')
+        .leftJoinAndSelect('marketplaceItems.marketplace', 'marketplaceV2')
         .leftJoinAndSelect('items.itemsSuppliers', 'itemsSuppliers')
         .leftJoinAndSelect('itemsSuppliers.supplier', 'supplier')
         .leftJoinAndSelect('items.marketplace', 'marketplace')
@@ -153,17 +155,10 @@ export class ItemsService {
             volume: item.volume,
             wbCreatedAt: item.wbCreatedAt,
             category: item.category,
-            planTime: item.planTime,
-            productionAndAssemblyTime: item.productionAndAssemblyTime,
-            deliveryTime: item.deliveryTime,
-            shippingPeriod: item.shippingPeriod,
-            stocksInDays: item.stocksInDays,
             costInYuan: item.costInYuan,
             costInRub: item.costInRub,
             replenishmentPeriod: item.replenishmentPeriod,
             remainingBalance: item.remainingBalance,
-            frequencyOfSendingCars: item.frequencyOfSendingCars,
-            dailyGrowthPercentage: item.dailyGrowthPercentage,
             volumeWB: Number(item.volumeWB).toFixed(2),
             volumeOzon: item.createdForCalculation ? item.volumeOzon : '',
             volumeYandex: '',
@@ -187,7 +182,6 @@ export class ItemsService {
             production: item.production,
             buffer: item.buffer,
             daysDeliveryToRussia: item.daysDeliveryToRussia,
-            plannedTurnover: item.plannedTurnover,
             yandexCategory: '',
             ozonCategory: '',
             wbPrice: item.priceWb,
@@ -195,13 +189,22 @@ export class ItemsService {
             priceWithDiscountOzon: 0,
             discountWb: item.discountWb,
             supplierMinimumOrder: item.supplierMinimumOrder,
-            seasonalityForExport: item.seasonalityForExport,
-            seasonalityForOrder: item.seasonalityForOrder,
+            // seasonalityForExport: item.seasonalityForExport,
+            // seasonalityForOrder: item.seasonalityForOrder,
             virality: item.virality,
             costCalculationType: item.costCalculationType,
             calculationType: item.calculationType,
             downloadCalculationMethod: item.downloadCalculationMethod,
-            wbSizes: item?.sizes?.map(el => el.techSize) ?? []
+            wbSizes: item?.sizes?.map(el => el.techSize) ?? [],
+            marketplacesInfo: item.marketplaceItems.map(el => {
+              return {
+                title: el.marketplace.title,
+                dimensions: el.dimensions,
+                volume: el.volume,
+                sku: el.sku,
+                marketplaceIdentifier: el.marketplaceIdentifier
+              };
+            })
           };
         });
       const filterOzonItems = findItems.filter(item => item.marketplace.title === 'Озон');
@@ -291,17 +294,10 @@ export class ItemsService {
             dimensionsFact: item.dimensionsFact,
             volume: item.volume,
             articleOld: item.articleOld,
-            planTime: item.planTime,
-            productionAndAssemblyTime: item.productionAndAssemblyTime,
-            deliveryTime: item.deliveryTime,
-            shippingPeriod: item.shippingPeriod,
-            stocksInDays: item.stocksInDays,
             costInYuan: item.costInYuan,
             costInRub: item.costInRub,
             replenishmentPeriod: item.replenishmentPeriod,
             remainingBalance: item.remainingBalance,
-            frequencyOfSendingCars: item.frequencyOfSendingCars,
-            dailyGrowthPercentage: item.dailyGrowthPercentage,
             ownImagesUrl: item.ownImagesUrl,
             volumePerUnit: item.volumePerUnit,
             weightPerUnit: item.weightPerUnit,
@@ -325,10 +321,9 @@ export class ItemsService {
             production: item.production,
             buffer: item.buffer,
             daysDeliveryToRussia: item.daysDeliveryToRussia,
-            plannedTurnover: item.plannedTurnover,
             supplierMinimumOrder: item.supplierMinimumOrder,
-            seasonalityForExport: item.seasonalityForExport,
-            seasonalityForOrder: item.seasonalityForOrder,
+            // seasonalityForExport: item.seasonalityForExport,
+            // seasonalityForOrder: item.seasonalityForOrder,
             virality: item.virality,
             costCalculationType: item.costCalculationType,
             calculationType: item.calculationType,
