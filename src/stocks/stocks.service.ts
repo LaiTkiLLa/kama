@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { DataSource, IsNull, Not, QueryRunner } from 'typeorm';
 import { Cron } from '@nestjs/schedule';
 import { ItemsService } from '../items/items.service';
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 import { ConfigService } from '@nestjs/config';
 import { InfoService } from '../info/info.service';
 import { OzonStocks, StocksResult } from './interfaces/ozon-stocks.interface';
@@ -367,32 +367,42 @@ export class StocksService {
         amount: number;
       }[] = [];
       for (const warehouse of findOwnWarehouses) {
-        const { data }: { data: GetWbOwnWarehousesStocks } = await axios.post(
-          `${urlStocks}/${warehouse.marketplaceInternalNumber}`,
-          {
-            chrtIds: findWbItems.map(item => Number(item.chrtId))
-          },
-          {
-            headers: {
-              Authorization: apiToken
+        try {
+          const { data }: { data: GetWbOwnWarehousesStocks } = await axios.post(
+            `${urlStocks}/${warehouse.marketplaceInternalNumber}`,
+            {
+              chrtIds: findWbItems.map(item => Number(item.chrtId))
+            },
+            {
+              headers: {
+                Authorization: apiToken
+              }
             }
-          }
-        );
-        if (!data.stocks.length) {
+          );
+
+          const stocksMap = new Map(data.stocks.map(stock => [Number(stock.chrtId), stock]));
+
           for (const item of findWbItems) {
+            const stock = stocksMap.get(Number(item.chrtId));
+
             resultStocks.push({
               warehouseId: warehouse.marketplaceInternalNumber,
               sku: item.barcode,
               chrtId: Number(item.chrtId),
-              amount: 0
+              amount: stock?.amount ?? 0
             });
           }
-        }
-        for (const stock of data.stocks) {
-          resultStocks.push({
-            warehouseId: warehouse.marketplaceInternalNumber,
-            ...stock
-          });
+        } catch (error) {
+          if (error instanceof AxiosError) {
+            this.logger.error(
+              `Ошибка получения остатков WB. Склад: ${warehouse.marketplaceInternalNumber}, status: ${error.response?.status}`
+            );
+
+            this.logger.error(error.response?.data);
+          } else {
+            this.logger.error(error);
+          }
+          continue;
         }
       }
 
