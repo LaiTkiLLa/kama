@@ -554,7 +554,7 @@ export class ItemsService {
           'sendStatus.id AS "sendStatusId"',
           'sendStatus.title AS "sendStatusTitle"'
         ])
-        .innerJoin('mpItems.item', 'marketplace')
+        .innerJoin('mpItems.item', 'item')
         .innerJoin('mpItems.marketplace', 'marketplace')
         .leftJoin('item.direction', 'directions')
         .leftJoin('item.sendStatus', 'sendStatus')
@@ -562,7 +562,7 @@ export class ItemsService {
           qb => {
             return (
               qb
-                .select('stock.item_id', 'item_id')
+                .select('stock.marketplace_item_id', 'marketplace_item_id')
                 .addSelect(
                   `SUM(CASE WHEN stock.warehouse_id IN (18, 1146895, 16, 59, 95, 1146938, 1146932, 1147083, 19, 1146912, 1146906, 242582, 158, 67, 1146879, 1146902, 1146903, 1146878, 1146919, 1147137, 1147160, 1146898, 1147058) THEN 0 ELSE stock.current_value END)`,
                   'stocks_sum'
@@ -571,23 +571,23 @@ export class ItemsService {
                 .from('stocks', 'stock')
                 .where('stock.created_at >= CURRENT_DATE')
                 .andWhere("stock.created_at < CURRENT_DATE + INTERVAL '1 day'")
-                .groupBy('stock.item_id')
+                .groupBy('stock.marketplace_item_id')
             );
           },
           'stocks_summary',
-          'stocks_summary.item_id = items.id'
+          'stocks_summary.marketplace_item_id = mpItems.id'
         )
         .leftJoin(
           qb => {
             return qb
-              .select('ord.item_id', 'item_id')
+              .select('ord.marketplace_item_id', 'marketplace_item_id')
               .addSelect('SUM(ord.quantity)', 'orders_sum')
               .from('orders', 'ord')
               .where(`ord.created_at >= :weekAgo`, { weekAgo })
-              .groupBy('ord.item_id');
+              .groupBy('ord.marketplace_item_id');
           },
           'orders_summary',
-          'orders_summary.item_id = items.id'
+          'orders_summary.marketplace_item_id = mpItems.id'
         )
 
         .addSelect([
