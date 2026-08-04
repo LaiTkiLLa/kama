@@ -104,7 +104,6 @@ export class StocksService {
             return stAcc;
           }
           if (stock.warehouse.type === 'FBS') {
-            // stAcc.quantityOwnWarehouses += stock.currentValue ?? 0;
             stAcc.wbOwnWarehouses.push({
               title: stock.warehouse.title,
               value: stock.currentValue
@@ -119,12 +118,11 @@ export class StocksService {
           quantityFull: 0,
           inWayToClient: 0,
           inWayFromClient: 0,
-          // quantityOwnWarehouses: 0,
           wbOwnWarehouses: []
         }
       );
       return {
-        id: mpItem.id,
+        id: mpItem.item.id,
         nmId: Number(mpItem.marketplaceIdentifier),
         supplierArticle: mpItem.item.article,
         barcode: Number(mpItem.barcode),
@@ -132,8 +130,8 @@ export class StocksService {
         inWayFromClient: stocksResult.inWayFromClient,
         quantityFull: stocksResult.quantityFull,
         sku: mpItem.sku,
-        // quantityOwnWarehouses: stocksResult.quantityOwnWarehouses,
-        wbOwnWarehouses: stocksResult.wbOwnWarehouses
+        wbOwnWarehouses: stocksResult.wbOwnWarehouses,
+        mpItem: mpItem.id
       };
     });
   }
