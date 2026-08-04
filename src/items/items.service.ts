@@ -582,7 +582,7 @@ export class ItemsService {
             return qb
               .select('ord.marketplace_item_id', 'marketplace_item_id')
               .addSelect('SUM(ord.quantity)', 'orders_sum')
-              .from('orders', 'ord')
+              .from('orders_v2', 'ord')
               .where(`ord.created_at >= :weekAgo`, { weekAgo })
               .groupBy('ord.marketplace_item_id');
           },
