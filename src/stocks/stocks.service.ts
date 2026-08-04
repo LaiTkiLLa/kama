@@ -86,7 +86,7 @@ export class StocksService {
     }
     const excludeWarehouses = [
       18, 1146895, 16, 59, 95, 1146938, 1146932, 1146912, 19, 1147083, 1146906, 242582, 158, 1146879, 67,
-      1146902, 1146903, 1146878, 1146919, 1147137
+      1146902, 1146903, 1146878, 1146919, 1147137, 1147160, 1146898, 1147058
     ];
     const findItemsWithStocks = await queryBuilder.getMany();
     return findItemsWithStocks.map(item => {
