@@ -17,6 +17,25 @@ export interface GetStopListFromDb {
   ordersSum: string;
 }
 
+export interface GetStopListFromDbV2 {
+  id: number;
+  article: string;
+  imageUrl: string;
+  title: string;
+  color: string;
+  barcode: string;
+  marketplaceIdentifier: string;
+  sku: string;
+  directionId: number;
+  directionTitle: string;
+  marketplaceId: number;
+  marketplaceTitle: string;
+  sendStatusId: number;
+  sendStatusTitle: string;
+  stocksSum: string;
+  ordersSum: string;
+}
+
 export interface StopListResponse {
   article: string;
   image: string | null;
