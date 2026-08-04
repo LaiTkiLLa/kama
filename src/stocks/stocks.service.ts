@@ -7,7 +7,7 @@ import { ConfigService } from '@nestjs/config';
 import { InfoService } from '../info/info.service';
 import { OzonStocks, StocksResult } from './interfaces/ozon-stocks.interface';
 import { Stocks } from './entities/stocks.entity';
-import { GetWbOwnWarehousesStocks, GetWbStocks, GetWbStocksV2 } from './interfaces/wb-stocks.intrerface';
+import { GetWbOwnWarehousesStocks, GetWbStocksV2 } from './interfaces/wb-stocks.intrerface';
 import { GetCurrentStocksDto } from './dto/get-current-stocks.dto';
 import { GetCurrentStocks } from './interfaces/get-current-stocks.interface';
 import { GetYandexStocks, ItemTypes } from './interfaces/yandex-stocks.interface';
@@ -16,6 +16,7 @@ import { GetStocksByDate } from './interfaces/get-stocks-by-date.interface';
 import { Items } from '../items/entities/items.entity';
 import { Warehouses } from '../info/entities/warehouses.entity';
 import { Marketplaces } from '../info/entities/marketplaces.entity';
+import { MarketplaceItems } from '../items/entities/marketplace-items.entity';
 
 @Injectable()
 export class StocksService {
@@ -183,81 +184,6 @@ export class StocksService {
     }
   }
 
-  // @Cron('0 */18 * * * *')
-  async getWbStocks() {
-    const apiToken = this.configService.get<string>('wbToken');
-    if (!apiToken) {
-      this.logger.error('Не найден Апи токен для получения остатков WB');
-      return;
-    }
-    const urlStocks = 'https://statistics-api.wildberries.ru/api/v1/supplier/stocks';
-    const { data }: { data: GetWbStocks[] } = await axios.get(urlStocks, {
-      params: {
-        dateFrom: '2019-09-06'
-      },
-      headers: {
-        Authorization: apiToken
-      }
-    });
-    const findMarketplace = await this.infoService.findMarketplace({ title: 'WB' });
-    const queryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
-    try {
-      for (const stock of data) {
-        await queryRunner.startTransaction();
-        try {
-          const findWarehouse = await this.infoService.findOrCreateWarehouses(
-            { title: stock.warehouseName },
-            queryRunner
-          );
-          const findItem = await this.itemsService.findItem(
-            { marketplaceIdentifier: String(stock.nmId), marketplaceId: findMarketplace.id },
-            queryRunner
-          );
-          if (!findItem) {
-            await queryRunner.commitTransaction();
-            continue;
-          }
-          await this.itemsService.updateItem({ id: findItem.id }, { barcode: stock.barcode }, queryRunner);
-          const findStock = await queryRunner.manager
-            .createQueryBuilder(Stocks, 'stocks')
-            .where("DATE(created_at) = DATE('now')")
-            .andWhere('item_id = :itemId', { itemId: findItem.id })
-            .andWhere('warehouse_id = :warehouseId', { warehouseId: findWarehouse.id })
-            .getOne();
-          if (findStock) {
-            await queryRunner.manager.update(
-              Stocks,
-              { id: findStock.id },
-              {
-                currentValue: stock.quantity,
-                reserved: stock.inWayToClient,
-                promised: stock.inWayFromClient
-              }
-            );
-          } else {
-            const createStock = queryRunner.manager.create(Stocks, {
-              itemId: findItem.id,
-              warehouseId: findWarehouse.id,
-              currentValue: stock.quantity,
-              reserved: stock.inWayToClient,
-              promised: stock.inWayFromClient,
-              marketplaceId: findMarketplace.id
-            });
-            await queryRunner.manager.save(Stocks, createStock);
-          }
-          await queryRunner.commitTransaction();
-        } catch (error) {
-          await queryRunner.rollbackTransaction();
-          this.logger.error(error);
-          this.logger.error('Не смог скачать остатки WB');
-        }
-      }
-    } finally {
-      await queryRunner.release();
-    }
-  }
-
   @Cron('0 */18 * * * *')
   async getWbStocksV2() {
     const apiToken = this.configService.get<string>('wbToken');
@@ -298,6 +224,13 @@ export class StocksService {
         if (!findItem) {
           continue;
         }
+        const findMarketplaceItem = await queryRunner.manager
+          .createQueryBuilder(MarketplaceItems, 'mpItems')
+          .where('mpItems.marketplaceId = :marketplaceId', { marketplaceId: findMarketplace.id })
+          .andWhere('mpItems.marketplaceIdentifier = :marketplaceIdentifier', {
+            marketplaceIdentifier: String(stock.nmId)
+          })
+          .getOne();
         const findStock = await queryRunner.manager
           .createQueryBuilder(Stocks, 'stocks')
           .where("DATE(created_at) = DATE('now')")
@@ -321,7 +254,8 @@ export class StocksService {
             currentValue: stock.quantity,
             reserved: stock.inWayToClient,
             promised: stock.inWayFromClient,
-            marketplaceId: findMarketplace.id
+            marketplaceId: findMarketplace.id,
+            marketplaceItemId: findMarketplaceItem?.id ?? 0
           });
           await queryRunner.manager.save(Stocks, createStock);
         }
@@ -405,7 +339,6 @@ export class StocksService {
           continue;
         }
       }
-
       for (const warehouse of resultStocks) {
         const findWarehouse = findOwnWarehouses.find(
           el => el.marketplaceInternalNumber === warehouse.warehouseId
@@ -418,6 +351,13 @@ export class StocksService {
           if (!findItem) {
             continue;
           }
+          const findMarketplaceItem = await queryRunner.manager
+            .createQueryBuilder(MarketplaceItems, 'mpItems')
+            .where('mpItems.marketplaceId = :marketplaceId', { marketplaceId: findMarketplace.id })
+            .andWhere('mpItems.barcode = :barcode', {
+              barcode: String(warehouse.sku)
+            })
+            .getOne();
           const findStock = await queryRunner.manager
             .createQueryBuilder(Stocks, 'stocks')
             .where("DATE(created_at) = DATE('now')")
@@ -437,7 +377,8 @@ export class StocksService {
               itemId: findItem.id,
               warehouseId: findWarehouse!.id,
               currentValue: warehouse.amount,
-              marketplaceId: findMarketplace.id
+              marketplaceId: findMarketplace.id,
+              marketplaceItemId: findMarketplaceItem?.id ?? 0
             });
             await queryRunner.manager.save(Stocks, createStock);
           }
@@ -456,15 +397,6 @@ export class StocksService {
     const ozonToken = await this.configService.get('ozonToken');
     const clientId = await this.configService.get('ozonClientId');
     const findMarketplace = await this.infoService.findMarketplace({ title: 'Озон' });
-    await this.getOzonStocks(clientId, ozonToken, findMarketplace.id);
-    return;
-  }
-
-  @Cron('0 */26 * * * *')
-  async getOzonStocksSecond() {
-    const ozonToken = await this.configService.get('ozonSecondToken');
-    const clientId = await this.configService.get('ozonSecondClientId');
-    const findMarketplace = await this.infoService.findMarketplace({ title: 'Ozon Second' });
     await this.getOzonStocks(clientId, ozonToken, findMarketplace.id);
     return;
   }
@@ -534,6 +466,7 @@ export class StocksService {
       reserved: number;
       promised: number;
       marketplaceId: number;
+      marketplaceItemId: number;
     }[] = [];
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
@@ -556,6 +489,14 @@ export class StocksService {
           if (!findItem) {
             continue;
           }
+          const findMarketplaceItem = await queryRunner.manager
+            .createQueryBuilder(MarketplaceItems, 'mpItems')
+            .leftJoinAndSelect('mpItems.item', 'item')
+            .where('mpItems.marketplaceId = :marketplaceId', { marketplaceId: findMarketplace.id })
+            .andWhere('item.article = :article', {
+              article: item.supplierArticle
+            })
+            .getOne();
           //Карантин
           let quarantine = 0;
           //Годный
@@ -607,7 +548,8 @@ export class StocksService {
             currentValue: available,
             reserved: reserved,
             promised: quarantine,
-            marketplaceId: findMarketplace.id
+            marketplaceId: findMarketplace.id,
+            marketplaceItemId: findMarketplaceItem?.id ?? 0
           });
         }
       }
@@ -635,7 +577,8 @@ export class StocksService {
             currentValue: item.currentValue,
             reserved: item.reserved,
             promised: item.promised,
-            marketplaceId: findMarketplace.id
+            marketplaceId: findMarketplace.id,
+            marketplaceItemId: item.marketplaceItemId
           });
           await queryRunner.manager.save(Stocks, createStock);
         }
@@ -702,6 +645,13 @@ export class StocksService {
           await queryRunner.commitTransaction();
           continue;
         }
+        const findMarketplaceItem = await queryRunner.manager
+          .createQueryBuilder(MarketplaceItems, 'mpItems')
+          .where('mpItems.marketplaceId = :marketplaceId', { marketplaceId })
+          .andWhere('mpItems.sku = :sku', {
+            sku: stock.sku
+          })
+          .getOne();
         const findStock = await queryRunner.manager
           .createQueryBuilder(Stocks, 'stocks')
           .where("DATE(created_at) = DATE('now')")
@@ -725,7 +675,8 @@ export class StocksService {
             currentValue: stock.current,
             reserved: stock.reserved,
             promised: stock.promised,
-            marketplaceId
+            marketplaceId,
+            marketplaceItemId: findMarketplaceItem?.id ?? 0
           });
           await queryRunner.manager.save(Stocks, createStock);
         }

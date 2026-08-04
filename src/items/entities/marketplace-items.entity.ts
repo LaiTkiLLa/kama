@@ -4,11 +4,14 @@ import {
   Entity,
   JoinColumn,
   ManyToOne,
+  OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn
 } from 'typeorm';
 import { Marketplaces } from '../../info/entities/marketplaces.entity';
 import { Items } from './items.entity';
+import { Stocks } from '../../stocks/entities/stocks.entity';
+import { OrdersV2 } from '../../orders/entities/orders_v2.entity';
 
 @Entity({
   name: 'marketplace_items'
@@ -81,9 +84,9 @@ export class MarketplaceItems {
   })
   item: Items;
 
-  // @OneToMany(() => Stocks, stocks => stocks.marketplaceItem)
-  // stocks: Stocks[];
-  //
-  // @OneToMany(() => OrdersV2, orders => orders.marketplaceItem)
-  // orders: OrdersV2[];
+  @OneToMany(() => Stocks, stocks => stocks.marketplaceItem)
+  stocks: Stocks[];
+
+  @OneToMany(() => OrdersV2, orders => orders.marketplaceItem)
+  orders: OrdersV2[];
 }

@@ -93,6 +93,9 @@ export class OrdersV2 {
   @Column({ type: 'int', name: 'marketplace_id', nullable: false })
   marketplaceId: number;
 
+  @Column({ type: 'int', name: 'marketplace_item_id', nullable: true })
+  marketplaceItemId: number;
+
   //Указано в 0 часом поясе, для Москвы нужно +3 часа
   @Column({ type: 'timestamptz', name: 'marketplace_created_at', nullable: true })
   marketplaceCreatedAt: Date;
@@ -119,11 +122,11 @@ export class OrdersV2 {
   })
   item: Items;
 
-  // @ManyToOne(() => MarketplaceItems, marketplaceItem => marketplaceItem.orders)
-  // @JoinColumn({
-  //   name: 'item_id'
-  // })
-  // marketplaceItem: MarketplaceItems;
+  @ManyToOne(() => MarketplaceItems, marketplaceItem => marketplaceItem.orders)
+  @JoinColumn({
+    name: 'marketplace_item_id'
+  })
+  marketplaceItem: MarketplaceItems;
 
   @ManyToOne(() => Warehouses, warehouse => warehouse.orders)
   @JoinColumn({

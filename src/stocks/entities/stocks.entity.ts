@@ -42,6 +42,9 @@ export class Stocks {
   @Column({ type: 'int', nullable: false, default: 0 })
   promised: number;
 
+  @Column({ type: 'int', name: 'marketplace_item_id', nullable: true })
+  marketplaceItemId: number;
+
   @CreateDateColumn({
     type: 'timestamp',
     nullable: false,
@@ -76,9 +79,9 @@ export class Stocks {
   })
   marketplace: Marketplaces;
 
-  // @ManyToOne(() => MarketplaceItems, marketplaceItem => marketplaceItem.stocks)
-  // @JoinColumn({
-  //   name: 'item_id'
-  // })
-  // marketplaceItem: MarketplaceItems;
+  @ManyToOne(() => MarketplaceItems, marketplaceItem => marketplaceItem.stocks)
+  @JoinColumn({
+    name: 'marketplace_item_id'
+  })
+  marketplaceItem: MarketplaceItems;
 }

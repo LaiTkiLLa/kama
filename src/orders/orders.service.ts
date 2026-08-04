@@ -18,6 +18,7 @@ import { GetDynamicOrders } from './interfaces/get-dynamic-orders.interface';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { Warehouses } from '../info/entities/warehouses.entity';
 import { OrdersV2 } from './entities/orders_v2.entity';
+import { MarketplaceItems } from '../items/entities/marketplace-items.entity';
 
 interface ItemOrdersStats {
   item_id: string;
@@ -557,6 +558,13 @@ export class OrdersService {
         if (!findItem) {
           continue;
         }
+        const findMarketplaceItem = await queryRunner.manager
+          .createQueryBuilder(MarketplaceItems, 'mpItems')
+          .where('mpItems.marketplaceId = :marketplaceId', { marketplaceId: findMarketplace.id })
+          .andWhere('mpItems.marketplaceIdentifier = :marketplaceIdentifier', {
+            marketplaceIdentifier: String(order.nmId)
+          })
+          .getOne();
         const findOrder = await queryRunner.manager.findOne(OrdersV2, {
           where: {
             marketplaceOrderIdentification: order.srid,
@@ -602,7 +610,8 @@ export class OrdersService {
             warehouseId: findWarehouse.id,
             marketplaceId: findMarketplace.id,
             //Приведение к 0 часовому поясу
-            marketplaceCreatedAt: new Date(order.date + '+03:00')
+            marketplaceCreatedAt: new Date(order.date + '+03:00'),
+            marketplaceItemId: findMarketplaceItem?.id ?? 0
           });
           await queryRunner.manager.save(OrdersV2, createOrder);
         } else {
@@ -872,6 +881,14 @@ export class OrdersService {
           if (!findItem) {
             continue;
           }
+          const findMarketplaceItem = await queryRunner.manager
+            .createQueryBuilder(MarketplaceItems, 'mpItems')
+            .leftJoinAndSelect('mpItems.item', 'item')
+            .where('mpItems.marketplaceId = :marketplaceId', { marketplaceId: findMarketplace.id })
+            .andWhere('item.article = :article', {
+              article: item.offerId
+            })
+            .getOne();
           const findOrder = await queryRunner.manager.findOne(OrdersV2, {
             where: {
               marketplaceOrderIdentification: order.orderId,
@@ -892,7 +909,8 @@ export class OrdersService {
               itemId: findItem.id,
               warehouseId: findWarehouse.id,
               marketplaceId: findMarketplace.id,
-              marketplaceCreatedAt: order.createdAt
+              marketplaceCreatedAt: order.createdAt,
+              marketplaceItemId: findMarketplaceItem?.id ?? 0
             });
             await queryRunner.manager.save(OrdersV2, createOrder);
           } else {
@@ -949,7 +967,7 @@ export class OrdersService {
     const ozonUrlOrders = 'https://api-seller.ozon.ru/v3/posting/fbo/list';
 
     const lastMonth = new Date();
-    lastMonth.setDate(lastMonth.getDate() - 40);
+    lastMonth.setDate(lastMonth.getDate() - 2);
     lastMonth.setHours(3, 0, 0, 0);
 
     const todayEvening = new Date();
@@ -1064,6 +1082,13 @@ export class OrdersService {
           if (!findItem) {
             continue;
           }
+          const findMarketplaceItem = await queryRunner.manager
+            .createQueryBuilder(MarketplaceItems, 'mpItems')
+            .where('mpItems.marketplaceId = :marketplaceId', { marketplaceId })
+            .andWhere('mpItems.sku = :sku', {
+              sku: String(item.sku)
+            })
+            .getOne();
           const findOrder = await queryRunner.manager.findOne(OrdersV2, {
             where: {
               marketplaceOrderIdentification: String(order.orderId),
@@ -1092,7 +1117,8 @@ export class OrdersService {
               itemId: findItem.id,
               warehouseId: findWarehouse.id,
               marketplaceId,
-              marketplaceCreatedAt: order.createdAt
+              marketplaceCreatedAt: order.createdAt,
+              marketplaceItemId: findMarketplaceItem?.id ?? 0
             });
             await queryRunner.manager.save(OrdersV2, createOrder);
           } else {
