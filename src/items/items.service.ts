@@ -295,6 +295,9 @@ export class ItemsService {
             );
           }
         }
+        console.log('article', item.article);
+        console.log('findItems', findItems.map(el => el.id));
+        console.log('classification', item.classification);
         await queryRunner.manager.update(
           Items,
           { id: In(findItems.map(el => el.id)) },
