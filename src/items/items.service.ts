@@ -381,152 +381,152 @@ export class ItemsService {
     }
   }
 
-  async getItemStopsList(getItemsStopListDto: GetItemsStopListDto) {
-    const queryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
-    try {
-      const weekAgo = new Date(new Date().setDate(new Date().getDate() - 7));
-      const queryBuilder = queryRunner.manager
-        .createQueryBuilder(Items, 'items')
-        .select([
-          'items.id AS "itemId"',
-          'items.article AS article',
-          'items.imageUrl AS "imageUrl"',
-          'items.title AS title',
-          'items.color AS color',
-          'items.barcode AS barcode',
-          'items.marketplaceIdentifier AS "marketplaceIdentifier"',
-          'items.sku AS sku',
+  // async getItemStopsList(getItemsStopListDto: GetItemsStopListDto) {
+  //   const queryRunner = this.dataSource.createQueryRunner();
+  //   await queryRunner.connect();
+  //   try {
+  //     const weekAgo = new Date(new Date().setDate(new Date().getDate() - 7));
+  //     const queryBuilder = queryRunner.manager
+  //       .createQueryBuilder(Items, 'items')
+  //       .select([
+  //         'items.id AS "itemId"',
+  //         'items.article AS article',
+  //         'items.imageUrl AS "imageUrl"',
+  //         'items.title AS title',
+  //         'items.color AS color',
+  //         'items.barcode AS barcode',
+  //         'items.marketplaceIdentifier AS "marketplaceIdentifier"',
+  //         'items.sku AS sku',
 
-          'directions.id AS "directionId"',
-          'directions.title AS "directionTitle"',
+  //         'directions.id AS "directionId"',
+  //         'directions.title AS "directionTitle"',
 
-          'marketplace.id AS "marketplaceId"',
-          'marketplace.title AS "marketplaceTitle"',
+  //         'marketplace.id AS "marketplaceId"',
+  //         'marketplace.title AS "marketplaceTitle"',
 
-          'sendStatus.id AS "sendStatusId"',
-          'sendStatus.title AS "sendStatusTitle"'
-        ])
-        .innerJoin('items.marketplace', 'marketplace', `marketplace.title != 'Ozon Second'`)
-        .leftJoin('items.direction', 'directions')
-        .leftJoin('items.sendStatus', 'sendStatus')
-        .leftJoin(
-          qb => {
-            return (
-              qb
-                .select('stock.item_id', 'item_id')
-                .addSelect(
-                  `SUM(CASE WHEN stock.warehouse_id IN (18, 1146895, 16, 59, 95, 1146938, 1146932, 1147083, 19, 1146912, 1146906, 242582, 158, 67, 1146879, 1146902, 1146903, 1146878, 1146919, 1147137, 1147160, 1146898, 1147058) THEN 0 ELSE stock.current_value END)`,
-                  'stocks_sum'
-                )
-                // .addSelect('SUM(stock.current_value)', 'stocks_sum')
-                .from('stocks', 'stock')
-                .where('stock.created_at >= CURRENT_DATE')
-                .andWhere("stock.created_at < CURRENT_DATE + INTERVAL '1 day'")
-                .groupBy('stock.item_id')
-            );
-          },
-          'stocks_summary',
-          'stocks_summary.item_id = items.id'
-        )
-        .leftJoin(
-          qb => {
-            return qb
-              .select('ord.item_id', 'item_id')
-              .addSelect('SUM(ord.quantity)', 'orders_sum')
-              .from('orders', 'ord')
-              .where(`ord.created_at >= :weekAgo`, { weekAgo })
-              .groupBy('ord.item_id');
-          },
-          'orders_summary',
-          'orders_summary.item_id = items.id'
-        )
+  //         'sendStatus.id AS "sendStatusId"',
+  //         'sendStatus.title AS "sendStatusTitle"'
+  //       ])
+  //       .innerJoin('items.marketplace', 'marketplace', `marketplace.title != 'Ozon Second'`)
+  //       .leftJoin('items.direction', 'directions')
+  //       .leftJoin('items.sendStatus', 'sendStatus')
+  //       .leftJoin(
+  //         qb => {
+  //           return (
+  //             qb
+  //               .select('stock.item_id', 'item_id')
+  //               .addSelect(
+  //                 `SUM(CASE WHEN stock.warehouse_id IN (18, 1146895, 16, 59, 95, 1146938, 1146932, 1147083, 19, 1146912, 1146906, 242582, 158, 67, 1146879, 1146902, 1146903, 1146878, 1146919, 1147137, 1147160, 1146898, 1147058) THEN 0 ELSE stock.current_value END)`,
+  //                 'stocks_sum'
+  //               )
+  //               // .addSelect('SUM(stock.current_value)', 'stocks_sum')
+  //               .from('stocks', 'stock')
+  //               .where('stock.created_at >= CURRENT_DATE')
+  //               .andWhere("stock.created_at < CURRENT_DATE + INTERVAL '1 day'")
+  //               .groupBy('stock.item_id')
+  //           );
+  //         },
+  //         'stocks_summary',
+  //         'stocks_summary.item_id = items.id'
+  //       )
+  //       .leftJoin(
+  //         qb => {
+  //           return qb
+  //             .select('ord.item_id', 'item_id')
+  //             .addSelect('SUM(ord.quantity)', 'orders_sum')
+  //             .from('orders', 'ord')
+  //             .where(`ord.created_at >= :weekAgo`, { weekAgo })
+  //             .groupBy('ord.item_id');
+  //         },
+  //         'orders_summary',
+  //         'orders_summary.item_id = items.id'
+  //       )
 
-        .addSelect([
-          'COALESCE(stocks_summary.stocks_sum, 0) AS "stocksSum"',
-          'COALESCE(orders_summary.orders_sum, 0) AS "ordersSum"'
-        ]);
-      if (getItemsStopListDto.marketplaceTitle) {
-        queryBuilder.andWhere('marketplace.title = :marketplaceTitle', {
-          marketplaceTitle: getItemsStopListDto.marketplaceTitle
-        });
-      }
-      if (getItemsStopListDto.withActiveStatus) {
-        queryBuilder.andWhere('sendStatus.title IN (:...activeStatuses)', {
-          activeStatuses: ['Новинка', 'Bestseller']
-        });
-      }
-      const result: GetStopListFromDb[] = await queryBuilder
-        .andWhere('items.createdForCalculation = :createdForCalculation', { createdForCalculation: false })
-        .andWhere('items.isArchive = :isArchive', { isArchive: false })
-        .getRawMany();
+  //       .addSelect([
+  //         'COALESCE(stocks_summary.stocks_sum, 0) AS "stocksSum"',
+  //         'COALESCE(orders_summary.orders_sum, 0) AS "ordersSum"'
+  //       ]);
+  //     if (getItemsStopListDto.marketplaceTitle) {
+  //       queryBuilder.andWhere('marketplace.title = :marketplaceTitle', {
+  //         marketplaceTitle: getItemsStopListDto.marketplaceTitle
+  //       });
+  //     }
+  //     if (getItemsStopListDto.withActiveStatus) {
+  //       queryBuilder.andWhere('sendStatus.title IN (:...activeStatuses)', {
+  //         activeStatuses: ['Новинка', 'Bestseller']
+  //       });
+  //     }
+  //     const result: GetStopListFromDb[] = await queryBuilder
+  //       .andWhere('items.createdForCalculation = :createdForCalculation', { createdForCalculation: false })
+  //       .andWhere('items.isArchive = :isArchive', { isArchive: false })
+  //       .getRawMany();
 
-      const mappedItems: StopListResponse[] = [];
-      for (const item of result) {
-        const findArticle = mappedItems.find(el => el.article === item.article);
-        // const raw = result.raw[index];
-        const wbBarcode = item.marketplaceTitle === 'WB' ? item.barcode : undefined;
-        const wbIdentifier = item.marketplaceTitle === 'WB' ? item.marketplaceIdentifier : undefined;
-        const ozonIdentifier = item.marketplaceTitle === 'Озон' ? item.sku : undefined;
-        if (findArticle) {
-          if (wbBarcode) {
-            findArticle.wbBarcode = wbBarcode;
-          }
-          if (wbIdentifier) {
-            findArticle.wbIdentifier = wbIdentifier;
-          }
-          if (ozonIdentifier) {
-            findArticle.ozonIdentifier = ozonIdentifier;
-          }
-          findArticle.marketplace.push({
-            id: item.marketplaceId,
-            title: item.marketplaceTitle,
-            itemId: item.itemId,
-            orders: Number(item.ordersSum),
-            stocks: Number(item.stocksSum),
-            sendStatus: {
-              id: item.sendStatusId,
-              title: item.sendStatusTitle
-            }
-          });
-        } else {
-          mappedItems.push({
-            article: item.article,
-            image: item.imageUrl,
-            title: item.title,
-            color: item.color,
-            wbBarcode: wbBarcode ? wbBarcode : null,
-            wbIdentifier: wbIdentifier ? wbIdentifier : null,
-            ozonIdentifier: ozonIdentifier ? ozonIdentifier : null,
-            marketplace: [
-              {
-                id: item.marketplaceId,
-                title: item.marketplaceTitle,
-                itemId: item.itemId,
-                orders: Number(item.ordersSum),
-                stocks: Number(item.stocksSum),
-                sendStatus: {
-                  id: item.sendStatusId,
-                  title: item.sendStatusTitle
-                }
-              }
-            ],
-            direction: {
-              id: item.directionId,
-              title: item.directionTitle
-            }
-          });
-        }
-      }
-      return mappedItems;
-    } catch (error) {
-      this.logger.error(error);
-      this.logger.error('Не смог получить список стоп листа');
-      throw error;
-    } finally {
-      await queryRunner.release();
-    }
-  }
+  //     const mappedItems: StopListResponse[] = [];
+  //     for (const item of result) {
+  //       const findArticle = mappedItems.find(el => el.article === item.article);
+  //       // const raw = result.raw[index];
+  //       const wbBarcode = item.marketplaceTitle === 'WB' ? item.barcode : undefined;
+  //       const wbIdentifier = item.marketplaceTitle === 'WB' ? item.marketplaceIdentifier : undefined;
+  //       const ozonIdentifier = item.marketplaceTitle === 'Озон' ? item.sku : undefined;
+  //       if (findArticle) {
+  //         if (wbBarcode) {
+  //           findArticle.wbBarcode = wbBarcode;
+  //         }
+  //         if (wbIdentifier) {
+  //           findArticle.wbIdentifier = wbIdentifier;
+  //         }
+  //         if (ozonIdentifier) {
+  //           findArticle.ozonIdentifier = ozonIdentifier;
+  //         }
+  //         findArticle.marketplace.push({
+  //           id: item.marketplaceId,
+  //           title: item.marketplaceTitle,
+  //           itemId: item.itemId,
+  //           orders: Number(item.ordersSum),
+  //           stocks: Number(item.stocksSum),
+  //           sendStatus: {
+  //             id: item.sendStatusId,
+  //             title: item.sendStatusTitle
+  //           }
+  //         });
+  //       } else {
+  //         mappedItems.push({
+  //           article: item.article,
+  //           image: item.imageUrl,
+  //           title: item.title,
+  //           color: item.color,
+  //           wbBarcode: wbBarcode ? wbBarcode : null,
+  //           wbIdentifier: wbIdentifier ? wbIdentifier : null,
+  //           ozonIdentifier: ozonIdentifier ? ozonIdentifier : null,
+  //           marketplace: [
+  //             {
+  //               id: item.marketplaceId,
+  //               title: item.marketplaceTitle,
+  //               itemId: item.itemId,
+  //               orders: Number(item.ordersSum),
+  //               stocks: Number(item.stocksSum),
+  //               sendStatus: {
+  //                 id: item.sendStatusId,
+  //                 title: item.sendStatusTitle
+  //               }
+  //             }
+  //           ],
+  //           direction: {
+  //             id: item.directionId,
+  //             title: item.directionTitle
+  //           }
+  //         });
+  //       }
+  //     }
+  //     return mappedItems;
+  //   } catch (error) {
+  //     this.logger.error(error);
+  //     this.logger.error('Не смог получить список стоп листа');
+  //     throw error;
+  //   } finally {
+  //     await queryRunner.release();
+  //   }
+  // }
 
   async getItemStopsListV2(getItemsStopListDto: GetItemsStopListDto) {
     const queryRunner = this.dataSource.createQueryRunner();

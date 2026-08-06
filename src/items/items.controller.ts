@@ -45,13 +45,13 @@ export class ItemsController {
     return this.itemsService.updateItemInfo(id, updateItemInfoDto);
   }
 
-  @Get('stop-list')
-  async getItemsStopList(
-    @Headers('api-key') apiKey: string,
-    @Query() getItemsStopListDto: GetItemsStopListDto
-  ) {
-    return this.itemsService.getItemStopsList(getItemsStopListDto);
-  }
+  // @Get('stop-list')
+  // async getItemsStopList(
+  //   @Headers('api-key') apiKey: string,
+  //   @Query() getItemsStopListDto: GetItemsStopListDto
+  // ) {
+  //   return this.itemsService.getItemStopsList(getItemsStopListDto);
+  // }
 
   @Get('v2/stop-list')
   async getItemsStopListV2(
