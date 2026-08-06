@@ -1,0 +1,46 @@
+---
+description: Architectural constraints for Kama (Items/MP migration, compatibility, AI safety)
+alwaysApply: true
+---
+
+# Kama — Architecture Rules
+
+## Knowledge discipline
+
+- Read `docs/AI_CONTEXT.md` before non-trivial work — it holds accepted product decisions and forbidden reversions.
+- Do not invent architecture or business rules. Prefer code and migrations over assumptions.
+- If information is missing or ambiguous: investigate the repository first; label FACT / ASSUMPTION / NEEDS VERIFICATION / UNKNOWN.
+- Do not change business logic without understanding why it exists (read callers, crons, and related docs).
+- UI is Google Sheets + GAS only — no frontend in this repo; keep API changes GAS-compatible.
+- Target direction: marketplace-independent data on `items`; marketplace-specific on `marketplace_items` (including `category`, `imageUrl`, `send_status_id`).
+- Archive listings via `marketplace_items.deleted_at`, not `items.isArchive` (target model).
+
+## Workflow
+
+- Order of work: investigate repository → read relevant `docs/` → Implementation Plan → only then propose or apply changes.
+- Architectural or cutover changes require an Implementation Plan before coding.
+- Do not perform destructive operations (drop/truncate/remove legacy without replacement, force cutover) without explicit user confirmation.
+
+## Items ↔ MarketplaceItems
+
+- Target direction: marketplace-independent data belongs on `items`; marketplace-specific data belongs on `marketplace_items` (including `category`, `imageUrl`, `send_status_id` per product decision).
+- Listing archive: use `marketplace_items.deleted_at`; do not rely on `items.isArchive` in new logic.
+- Current runtime is a **transition state** (often 1:1 item↔marketplace_item, dual-write, dual keys). Do not treat 1 item : N marketplace_items as fully implemented.
+- Do not break dual-write to `items` and `marketplace_items` while sync/API still depend on both.
+- Do not remove legacy columns/tables (`item_id`, `marketplace_id` on stocks/orders, MP fields on `items`, `orders`) without a migration plan and cutover.
+- Updating `marketplace_items` by `itemId` alone is unsafe for future 1:N — include marketplace identity when changing this pattern.
+- Avoid `marketplaceItemId ?? 0`; missing marketplace item is an error condition to handle explicitly.
+
+## Compatibility and data integrity
+
+- Prefer backward compatibility for existing cron behavior unless the user explicitly requests a breaking change.
+- Stop-list read: only `GET /api/items/v2/stop-list` is active; do not re-enable v1 without a plan.
+- Stocks API: v1 (`/stocks/current`) and v2 still coexist.
+- Active order sync writes `orders_v2`. Do not revive writes to legacy `orders` without an explicit plan. Be aware autostatus may still read `orders`.
+- Schema changes go only through TypeORM migrations (`synchronize: false`). Never enable synchronize to “fix” schema.
+- Do not commit secrets or hardcode marketplace tokens/API keys.
+
+## Scope
+
+- Change only what the task requires. Do not drive-by refactor unrelated modules.
+- When touching the Items/MP migration, update `docs/roadmap/items-marketplace-items-migration.md` after the step.
