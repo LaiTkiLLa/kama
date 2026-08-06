@@ -424,104 +424,6 @@ export class OrdersService {
     return result;
   }
 
-  // @Cron('0 */23 * * * *')
-  // async getOrdersWb() {
-  //   const tenDaysAgo = new Date(new Date().setDate(new Date().getDate() - 10));
-  //   const apiToken = this.configService.get<string>('wbToken');
-  //   const urlOrders = 'https://statistics-api.wildberries.ru/api/v1/supplier/orders';
-  //   const { data }: { data: GetOrdersWb[] } = await axios.get(urlOrders, {
-  //     params: {
-  //       dateFrom: tenDaysAgo,
-  //       flag: 0
-  //     },
-  //     headers: {
-  //       Authorization: apiToken
-  //     }
-  //   });
-  //   const findMarketplace = await this.infoService.findMarketplace({ title: 'WB' });
-  //   for (const order of data) {
-  //     const queryRunner = this.dataSource.createQueryRunner();
-  //     await queryRunner.connect();
-  //     await queryRunner.startTransaction();
-  //     try {
-  //       const findItem = await this.itemsService.findItem(
-  //         { marketplaceIdentifier: String(order.nmId) },
-  //         queryRunner
-  //       );
-  //       const findWarehouse = await this.infoService.findOrCreateWarehouses(
-  //         { title: order.warehouseName },
-  //         queryRunner
-  //       );
-  //       if (!findItem) {
-  //         await queryRunner.commitTransaction();
-  //         continue;
-  //       }
-  //       const orderDate = new Date(`${order.date}Z`);
-  //       const findOrder = await queryRunner.manager.findOne(Orders, {
-  //         where: {
-  //           marketplaceOrderIdentification: order.srid,
-  //           createdAt: orderDate,
-  //           itemId: findItem.id
-  //         }
-  //       });
-  //       if (!findOrder) {
-  //         const countItemOrder = await queryRunner.manager.count(Orders, {
-  //           where: {
-  //             itemId: findItem.id
-  //           }
-  //         });
-  //         if (!countItemOrder) {
-  //           await queryRunner.manager.update(
-  //             Items,
-  //             {
-  //               id: findItem.id
-  //             },
-  //             {
-  //               wbCreatedAt: orderDate,
-  //               classification: 'Новинка / A',
-  //               virality: 'виральный предположительно'
-  //             }
-  //           );
-  //         }
-  //         const createOrder = queryRunner.manager.create(Orders, {
-  //           quantity: 1,
-  //           sum: order.finishedPrice,
-  //           marketplaceOrderIdentification: order.srid,
-  //           isCanceled: order.isCancel,
-  //           itemId: findItem.id,
-  //           totalPrice: order.totalPrice,
-  //           spp: order.spp,
-  //           priceWithDisc: order.priceWithDisc,
-  //           warehouseId: findWarehouse.id,
-  //           createdAt: orderDate,
-  //           marketplaceId: findMarketplace.id
-  //         });
-  //         await queryRunner.manager.save(Orders, createOrder);
-  //       } else {
-  //         await queryRunner.manager.update(
-  //           Orders,
-  //           { id: findOrder.id },
-  //           {
-  //             isCanceled: order.isCancel,
-  //             sum: order.finishedPrice,
-  //             totalPrice: order.totalPrice,
-  //             spp: order.spp,
-  //             priceWithDisc: order.priceWithDisc
-  //           }
-  //         );
-  //       }
-  //       await queryRunner.commitTransaction();
-  //     } catch (error) {
-  //       await queryRunner.rollbackTransaction();
-  //       this.logger.error(error);
-  //       this.logger.error('Не смог сказать заказы WB');
-  //     } finally {
-  //       await queryRunner.release();
-  //     }
-  //   }
-  //   return;
-  // }
-
   @Cron('0 45 * * * *')
   async getOrdersWbV2() {
     const tenDaysAgo = new Date(new Date().setDate(new Date().getDate() - 43));
@@ -551,37 +453,41 @@ export class OrdersService {
         if (!findWarehouse) {
           continue;
         }
-        const findItem = await this.itemsService.findItem(
-          { marketplaceIdentifier: String(order.nmId), marketplaceId: findMarketplace.id },
-          queryRunner
-        );
-        if (!findItem) {
-          continue;
-        }
+        // const findItem = await this.itemsService.findItem(
+        //   { marketplaceIdentifier: String(order.nmId), marketplaceId: findMarketplace.id },
+        //   queryRunner
+        // );
+        // if (!findItem) {
+        //   continue;
+        // }
         const findMarketplaceItem = await queryRunner.manager
           .createQueryBuilder(MarketplaceItems, 'mpItems')
+          .leftJoinAndSelect('mpItems.item', 'item')
           .where('mpItems.marketplaceId = :marketplaceId', { marketplaceId: findMarketplace.id })
           .andWhere('mpItems.marketplaceIdentifier = :marketplaceIdentifier', {
             marketplaceIdentifier: String(order.nmId)
           })
           .getOne();
+        if (!findMarketplaceItem) {
+          continue;
+        }
         const findOrder = await queryRunner.manager.findOne(OrdersV2, {
           where: {
             marketplaceOrderIdentification: order.srid,
-            itemId: findItem.id
+            marketplaceItemId: findMarketplaceItem.id
           }
         });
         if (!findOrder) {
           const countItemOrder = await queryRunner.manager.count(OrdersV2, {
             where: {
-              itemId: findItem.id
+              itemId: findMarketplaceItem.itemId
             }
           });
-          if (!countItemOrder && !findItem.wbCreatedAt) {
+          if (!countItemOrder && !findMarketplaceItem.item.wbCreatedAt) {
             await queryRunner.manager.update(
               Items,
               {
-                id: findItem.id
+                id: findMarketplaceItem.itemId
               },
               {
                 wbCreatedAt: new Date(order.date + '+03:00'),
@@ -606,12 +512,12 @@ export class OrdersService {
             clusterTo: order.oblastOkrugName,
             cancelReasonId: order.isCancel ? 999 : undefined,
             city: order.regionName,
-            itemId: findItem.id,
+            itemId: findMarketplaceItem.itemId,
             warehouseId: findWarehouse.id,
             marketplaceId: findMarketplace.id,
             //Приведение к 0 часовому поясу
             marketplaceCreatedAt: new Date(order.date + '+03:00'),
-            marketplaceItemId: findMarketplaceItem?.id ?? 0
+            marketplaceItemId: findMarketplaceItem.id
           });
           await queryRunner.manager.save(OrdersV2, createOrder);
         } else {
@@ -646,149 +552,6 @@ export class OrdersService {
     }
     return;
   }
-
-  // @Cron('0 */21 * * * *')
-  // async getOrdersYandex() {
-  //   const monthAgo = new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split('T')[0];
-  //   const finalEndDate = new Date().toISOString().split('T')[0];
-  //   const apiToken = await this.configService.get('yandexToken');
-  //   const companyId = await this.configService.get('yandexCLientId');
-  //   let urlOrders = `https://api.partner.market.yandex.ru/campaigns/${companyId}/stats/orders`;
-  //
-  //   let hasMoreData = true;
-  //   let pageToken;
-  //
-  //   const ordersData: YandexOrderInfo[] = [];
-  //
-  //   const rejectedStatuses = [
-  //     'CANCELLED_BEFORE_PROCESSING',
-  //     'CANCELLED_IN_DELIVERY',
-  //     'CANCELLED_IN_PROCESSING',
-  //     'RETURNED'
-  //   ];
-  //
-  //   while (hasMoreData) {
-  //     const { data }: { data: GetOrdersYandex } = await axios.post(
-  //       urlOrders,
-  //       {
-  //         dateFrom: monthAgo,
-  //         dateTo: finalEndDate,
-  //         hasCis: false
-  //       },
-  //       {
-  //         headers: {
-  //           'Api-Key': apiToken
-  //         }
-  //       }
-  //     );
-  //     for (const order of data.result.orders) {
-  //       order.items.forEach(item => {
-  //         const findRejectedStatus = rejectedStatuses.find(el => el === order.status);
-  //         const price = item.prices.find(price => price.type === 'BUYER');
-  //         ordersData.push({
-  //           orderId: String(order.id),
-  //           marketSku: item.marketSku,
-  //           shopSku: item.shopSku,
-  //           count: !item?.details?.length ? item.count : 0,
-  //           orderDate: order.creationDate,
-  //           warehouseId: String(item.warehouse.id),
-  //           orderSum: price ? price.total : 0,
-  //           isCancel: findRejectedStatus ? true : false
-  //         });
-  //       });
-  //     }
-  //     if (data.result.paging.nextPageToken) {
-  //       hasMoreData = true;
-  //       pageToken = data.result.paging.nextPageToken;
-  //       urlOrders = `https://api.partner.market.yandex.ru/campaigns/${companyId}/stats/orders?page_token=${pageToken}`;
-  //     } else {
-  //       hasMoreData = false;
-  //     }
-  //   }
-  //   const findMarketplace = await this.infoService.findMarketplace({ title: 'Yandex' });
-  //   for (const order of ordersData) {
-  //     const queryRunner = this.dataSource.createQueryRunner();
-  //     await queryRunner.connect();
-  //     await queryRunner.startTransaction();
-  //     try {
-  //       const findItem = await this.itemsService.findItem(
-  //         { marketplaceIdentifier: String(order.marketSku) },
-  //         queryRunner
-  //       );
-  //       if (!findItem) {
-  //         await queryRunner.commitTransaction();
-  //         continue;
-  //       }
-  //       const findWarehouse = await queryRunner.manager.findOne(Warehouses, {
-  //         where: { marketplaceInternalNumber: order.warehouseId }
-  //       });
-  //       if (!findWarehouse) {
-  //         await queryRunner.commitTransaction();
-  //         continue;
-  //       }
-  //
-  //       const orderDate = new Date(`${order.orderDate}Z`);
-  //       const findOrder = await queryRunner.manager.findOne(Orders, {
-  //         where: {
-  //           marketplaceOrderIdentification: order.orderId,
-  //           createdAt: orderDate,
-  //           itemId: findItem.id
-  //         }
-  //       });
-  //       if (!findOrder) {
-  //         const countItemOrder = await queryRunner.manager.count(Orders, {
-  //           where: {
-  //             itemId: findItem.id
-  //           }
-  //         });
-  //         if (!countItemOrder) {
-  //           await queryRunner.manager.update(
-  //             Items,
-  //             {
-  //               id: findItem.id
-  //             },
-  //             {
-  //               wbCreatedAt: orderDate,
-  //               classification: 'Новинка / A',
-  //               virality: 'виральный предположительно'
-  //             }
-  //           );
-  //         }
-  //         const createOrder = queryRunner.manager.create(Orders, {
-  //           quantity: order.count,
-  //           sum: order.orderSum,
-  //           marketplaceOrderIdentification: String(order.orderId),
-  //           isCanceled: order.isCancel,
-  //           itemId: findItem.id,
-  //           totalPrice: order.orderSum,
-  //           warehouseId: findWarehouse.id,
-  //           createdAt: orderDate,
-  //           marketplaceId: findMarketplace.id
-  //         });
-  //         await queryRunner.manager.save(Orders, createOrder);
-  //       } else {
-  //         await queryRunner.manager.update(
-  //           Orders,
-  //           { id: findOrder.id },
-  //           {
-  //             quantity: order.count,
-  //             sum: order.orderSum,
-  //             isCanceled: order.isCancel,
-  //             totalPrice: order.orderSum
-  //           }
-  //         );
-  //       }
-  //       await queryRunner.commitTransaction();
-  //     } catch (error) {
-  //       await queryRunner.rollbackTransaction();
-  //       this.logger.error(error);
-  //       this.logger.error('Не смог добавить заказы Yandex');
-  //     } finally {
-  //       await queryRunner.release();
-  //     }
-  //   }
-  //   return;
-  // }
 
   @Cron('0 */21 * * * *')
   async getOrdersYandexV2() {
@@ -872,15 +635,15 @@ export class OrdersService {
           continue;
         }
         for (const item of order.products) {
-          const findItem = await queryRunner.manager.findOne(Items, {
-            where: {
-              marketplaceId: findMarketplace.id,
-              article: item.offerId
-            }
-          });
-          if (!findItem) {
-            continue;
-          }
+          // const findItem = await queryRunner.manager.findOne(Items, {
+          //   where: {
+          //     marketplaceId: findMarketplace.id,
+          //     article: item.offerId
+          //   }
+          // });
+          // if (!findItem) {
+          //   continue;
+          // }
           const findMarketplaceItem = await queryRunner.manager
             .createQueryBuilder(MarketplaceItems, 'mpItems')
             .leftJoinAndSelect('mpItems.item', 'item')
@@ -889,12 +652,15 @@ export class OrdersService {
               article: item.offerId
             })
             .getOne();
+          if (!findMarketplaceItem) {
+            continue;
+          }
           const findOrder = await queryRunner.manager.findOne(OrdersV2, {
             where: {
               marketplaceOrderIdentification: order.orderId,
               marketplaceCreatedAt: order.createdAt,
               marketplaceOrderNumber: item.id,
-              itemId: findItem.id
+              marketplaceItemId: findMarketplaceItem.id
             }
           });
           if (!findOrder) {
@@ -906,11 +672,11 @@ export class OrdersService {
               price: item.price,
               payout: item.price,
               cancelReasonId: order.cancelRequested ? 999 : undefined,
-              itemId: findItem.id,
+              itemId: findMarketplaceItem.itemId,
               warehouseId: findWarehouse.id,
               marketplaceId: findMarketplace.id,
               marketplaceCreatedAt: order.createdAt,
-              marketplaceItemId: findMarketplaceItem?.id ?? 0
+              marketplaceItemId: findMarketplaceItem.id
             });
             await queryRunner.manager.save(OrdersV2, createOrder);
           } else {
@@ -1073,15 +839,15 @@ export class OrdersService {
           continue;
         }
         for (const item of order.products) {
-          const findItem = await queryRunner.manager.findOne(Items, {
-            where: {
-              marketplaceId,
-              sku: String(item.sku)
-            }
-          });
-          if (!findItem) {
-            continue;
-          }
+          // const findItem = await queryRunner.manager.findOne(Items, {
+          //   where: {
+          //     marketplaceId,
+          //     sku: String(item.sku)
+          //   }
+          // });
+          // if (!findItem) {
+          //   continue;
+          // }
           const findMarketplaceItem = await queryRunner.manager
             .createQueryBuilder(MarketplaceItems, 'mpItems')
             .where('mpItems.marketplaceId = :marketplaceId', { marketplaceId })
@@ -1089,11 +855,14 @@ export class OrdersService {
               sku: String(item.sku)
             })
             .getOne();
+          if (!findMarketplaceItem) {
+            continue;
+          }
           const findOrder = await queryRunner.manager.findOne(OrdersV2, {
             where: {
               marketplaceOrderIdentification: String(order.orderId),
               marketplaceOrderPostingNumber: String(order.postingNumber),
-              itemId: findItem.id
+              marketplaceItemId: findMarketplaceItem.id
             }
           });
           if (!findOrder) {
@@ -1114,11 +883,11 @@ export class OrdersService {
               clusterTo: item.clusterTo,
               cancelReasonId: order.cancelReasonId,
               city: order.city,
-              itemId: findItem.id,
+              itemId: findMarketplaceItem.itemId,
               warehouseId: findWarehouse.id,
               marketplaceId,
               marketplaceCreatedAt: order.createdAt,
-              marketplaceItemId: findMarketplaceItem?.id ?? 0
+              marketplaceItemId: findMarketplaceItem.id
             });
             await queryRunner.manager.save(OrdersV2, createOrder);
           } else {

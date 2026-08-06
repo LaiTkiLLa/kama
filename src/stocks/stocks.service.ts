@@ -13,7 +13,6 @@ import { GetCurrentStocks } from './interfaces/get-current-stocks.interface';
 import { GetYandexStocks, ItemTypes } from './interfaces/yandex-stocks.interface';
 import { GetStocksByDateDto } from './dto/get-stocks-by-date.dto';
 import { GetStocksByDate } from './interfaces/get-stocks-by-date.interface';
-import { Items } from '../items/entities/items.entity';
 import { Warehouses } from '../info/entities/warehouses.entity';
 import { Marketplaces } from '../info/entities/marketplaces.entity';
 import { MarketplaceItems } from '../items/entities/marketplace-items.entity';
@@ -217,13 +216,13 @@ export class StocksService {
         if (!findWarehouse) {
           continue;
         }
-        const findItem = await this.itemsService.findItem(
-          { marketplaceIdentifier: String(stock.nmId), marketplaceId: findMarketplace.id },
-          queryRunner
-        );
-        if (!findItem) {
-          continue;
-        }
+        // const findItem = await this.itemsService.findItem(
+        //   { marketplaceIdentifier: String(stock.nmId), marketplaceId: findMarketplace.id },
+        //   queryRunner
+        // );
+        // if (!findItem) {
+        //   continue;
+        // }
         const findMarketplaceItem = await queryRunner.manager
           .createQueryBuilder(MarketplaceItems, 'mpItems')
           .where('mpItems.marketplaceId = :marketplaceId', { marketplaceId: findMarketplace.id })
@@ -231,11 +230,16 @@ export class StocksService {
             marketplaceIdentifier: String(stock.nmId)
           })
           .getOne();
+        if (!findMarketplaceItem) {
+          continue;
+        }
         const findStock = await queryRunner.manager
           .createQueryBuilder(Stocks, 'stocks')
           .where("DATE(created_at) = DATE('now')")
-          .andWhere('item_id = :itemId', { itemId: findItem.id })
-          .andWhere('warehouse_id = :warehouseId', { warehouseId: findWarehouse.id })
+          .andWhere('stocks.marketplaceItemId = :marketplaceItemId', {
+            marketplaceItemId: findMarketplaceItem.id
+          })
+          .andWhere('stocks.warehouseId = :warehouseId', { warehouseId: findWarehouse.id })
           .getOne();
         if (findStock) {
           await queryRunner.manager.update(
@@ -249,13 +253,13 @@ export class StocksService {
           );
         } else {
           const createStock = queryRunner.manager.create(Stocks, {
-            itemId: findItem.id,
+            itemId: findMarketplaceItem.itemId,
             warehouseId: findWarehouse.id,
             currentValue: stock.quantity,
             reserved: stock.inWayToClient,
             promised: stock.inWayFromClient,
             marketplaceId: findMarketplace.id,
-            marketplaceItemId: findMarketplaceItem?.id ?? 0
+            marketplaceItemId: findMarketplaceItem.id
           });
           await queryRunner.manager.save(Stocks, createStock);
         }
@@ -287,9 +291,9 @@ export class StocksService {
       if (!findOwnWarehouses.length) {
         return;
       }
-      const findWbItems = await queryRunner.manager.find(Items, {
+      const findWbItems = await queryRunner.manager.find(MarketplaceItems, {
         where: {
-          isArchive: false,
+          deletedAt: IsNull(),
           chrtId: Not(IsNull()),
           marketplaceId: findMarketplace.id
         }
@@ -343,14 +347,17 @@ export class StocksService {
         const findWarehouse = findOwnWarehouses.find(
           el => el.marketplaceInternalNumber === warehouse.warehouseId
         );
+        if (!findWarehouse) {
+          continue;
+        }
         try {
-          const findItem = await this.itemsService.findItem(
-            { barcode: String(warehouse.sku), marketplaceId: findMarketplace.id },
-            queryRunner
-          );
-          if (!findItem) {
-            continue;
-          }
+          // const findItem = await this.itemsService.findItem(
+          //   { barcode: String(warehouse.sku), marketplaceId: findMarketplace.id },
+          //   queryRunner
+          // );
+          // if (!findItem) {
+          //   continue;
+          // }
           const findMarketplaceItem = await queryRunner.manager
             .createQueryBuilder(MarketplaceItems, 'mpItems')
             .where('mpItems.marketplaceId = :marketplaceId', { marketplaceId: findMarketplace.id })
@@ -358,11 +365,16 @@ export class StocksService {
               barcode: String(warehouse.sku)
             })
             .getOne();
+          if (!findMarketplaceItem) {
+            continue;
+          }
           const findStock = await queryRunner.manager
             .createQueryBuilder(Stocks, 'stocks')
             .where("DATE(created_at) = DATE('now')")
-            .andWhere('item_id = :itemId', { itemId: findItem.id })
-            .andWhere('warehouse_id = :warehouseId', { warehouseId: findWarehouse!.id })
+            .andWhere('stocks.marketplaceItemId = :marketplaceItemId', {
+              marketplaceItemId: findMarketplaceItem.id
+            })
+            .andWhere('stocks.warehouseId = :warehouseId', { warehouseId: findWarehouse.id })
             .getOne();
           if (findStock) {
             await queryRunner.manager.update(
@@ -374,11 +386,11 @@ export class StocksService {
             );
           } else {
             const createStock = queryRunner.manager.create(Stocks, {
-              itemId: findItem.id,
-              warehouseId: findWarehouse!.id,
+              itemId: findMarketplaceItem.itemId,
+              warehouseId: findWarehouse.id,
               currentValue: warehouse.amount,
               marketplaceId: findMarketplace.id,
-              marketplaceItemId: findMarketplaceItem?.id ?? 0
+              marketplaceItemId: findMarketplaceItem.id
             });
             await queryRunner.manager.save(Stocks, createStock);
           }
@@ -482,13 +494,13 @@ export class StocksService {
           continue;
         }
         for (const item of stock.items) {
-          const findItem = await this.itemsService.findItem(
-            { article: item.supplierArticle, marketplaceId: findMarketplace.id },
-            queryRunner
-          );
-          if (!findItem) {
-            continue;
-          }
+          // const findItem = await this.itemsService.findItem(
+          //   { article: item.supplierArticle, marketplaceId: findMarketplace.id },
+          //   queryRunner
+          // );
+          // if (!findItem) {
+          //   continue;
+          // }
           const findMarketplaceItem = await queryRunner.manager
             .createQueryBuilder(MarketplaceItems, 'mpItems')
             .leftJoinAndSelect('mpItems.item', 'item')
@@ -497,6 +509,9 @@ export class StocksService {
               article: item.supplierArticle
             })
             .getOne();
+          if (!findMarketplaceItem) {
+            continue;
+          }
           //Карантин
           let quarantine = 0;
           //Годный
@@ -543,13 +558,13 @@ export class StocksService {
             reserved = fit - available;
           }
           result.push({
-            itemId: findItem.id,
+            itemId: findMarketplaceItem.itemId,
             warehouseId: findWarehouse.id,
             currentValue: available,
             reserved: reserved,
             promised: quarantine,
             marketplaceId: findMarketplace.id,
-            marketplaceItemId: findMarketplaceItem?.id ?? 0
+            marketplaceItemId: findMarketplaceItem.id
           });
         }
       }
@@ -557,8 +572,10 @@ export class StocksService {
         const findStock = await queryRunner.manager
           .createQueryBuilder(Stocks, 'stocks')
           .where("DATE(created_at) = DATE('now')")
-          .andWhere('item_id = :itemId', { itemId: item.itemId })
-          .andWhere('warehouse_id = :warehouseId', { warehouseId: item.warehouseId })
+          .andWhere('stocks.marketplaceItemId = :marketplaceItemId', {
+            marketplaceItemId: findMarketplaceItem.id
+          })
+          .andWhere('stocks.warehouseId = :warehouseId', { warehouseId: item.warehouseId })
           .getOne();
         if (findStock) {
           await queryRunner.manager.update(
@@ -640,11 +657,11 @@ export class StocksService {
           { title: stock.warehouse },
           queryRunner
         );
-        const findItem = await this.itemsService.findItem({ sku: stock.sku, marketplaceId }, queryRunner);
-        if (!findItem) {
-          await queryRunner.commitTransaction();
-          continue;
-        }
+        // const findItem = await this.itemsService.findItem({ sku: stock.sku, marketplaceId }, queryRunner);
+        // if (!findItem) {
+        //   await queryRunner.commitTransaction();
+        //   continue;
+        // }
         const findMarketplaceItem = await queryRunner.manager
           .createQueryBuilder(MarketplaceItems, 'mpItems')
           .where('mpItems.marketplaceId = :marketplaceId', { marketplaceId })
@@ -652,11 +669,17 @@ export class StocksService {
             sku: stock.sku
           })
           .getOne();
+        if (!findMarketplaceItem) {
+          await queryRunner.commitTransaction();
+          continue;
+        }
         const findStock = await queryRunner.manager
           .createQueryBuilder(Stocks, 'stocks')
           .where("DATE(created_at) = DATE('now')")
-          .andWhere('item_id = :itemId', { itemId: findItem.id })
-          .andWhere('warehouse_id = :warehouseId', { warehouseId: findWarehouse.id })
+          .andWhere('stocks.marketplaceItemId = :marketplaceItemId', {
+            marketplaceItemId: findMarketplaceItem.id
+          })
+          .andWhere('stocks.warehouseId = :warehouseId', { warehouseId: findWarehouse.id })
           .getOne();
         if (findStock) {
           await queryRunner.manager.update(
@@ -670,13 +693,13 @@ export class StocksService {
           );
         } else {
           const createStock = queryRunner.manager.create(Stocks, {
-            itemId: findItem.id,
+            itemId: findMarketplaceItem.itemId,
             warehouseId: findWarehouse.id,
             currentValue: stock.current,
             reserved: stock.reserved,
             promised: stock.promised,
             marketplaceId,
-            marketplaceItemId: findMarketplaceItem?.id ?? 0
+            marketplaceItemId: findMarketplaceItem.id
           });
           await queryRunner.manager.save(Stocks, createStock);
         }

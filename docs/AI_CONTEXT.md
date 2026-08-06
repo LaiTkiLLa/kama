@@ -14,7 +14,7 @@
 | AI Agent | В начале любой нетривиальной задачи — **до** правок |
 | Разработчик | После продуктового/архитектурного решения — зафиксировать здесь |
 
-Связанные документы: [`PROJECT_CONTEXT.md`](PROJECT_CONTEXT.md) (обзор), [`domain/items-and-marketplace-items.md`](domain/items-and-marketplace-items.md) (модель), [`roadmap/items-marketplace-items-migration.md`](roadmap/items-marketplace-items-migration.md) (этапы).
+Связанные документы: [`PROJECT_CONTEXT.md`](PROJECT_CONTEXT.md), [`domain/items-and-marketplace-items.md`](domain/items-and-marketplace-items.md), [`roadmap/items-marketplace-items-migration.md`](roadmap/items-marketplace-items-migration.md).
 
 ---
 
@@ -22,65 +22,59 @@
 
 ### MarketplaceItems — модель данных
 
-**Решение:** перейти на `items` (товар) + `marketplace_items` (listing на МП).  
-**Статус:** принято, в процессе миграции.
+**Решение:** `items` (товар) + `marketplace_items` (listing). Возврат к `item == listing` **запрещён**.
 
-**Нельзя:** возвращаться к модели «одна строка `items` = один listing маркетплейса» (`item == marketplace listing`).
+**Целевые поля `items`:** marketplace-independent (без `sendStatusId`, `category`, `imageUrl`, `color` как MP-полей).  
+`title` остаётся на `items` **и** копируется на `marketplace_items` (listing title) — dual на переходном этапе.
 
-**Почему:** нарушается нормализация; дублирование MP-полей; сложно связать stocks/orders с listing’ом.
+**Целевые поля / перенос на `marketplace_items`:**  
+`category`, `title`, `color`, `imageUrl`, `send_status_id` (+ уже: identifier, barcode, sku, dimensions, volume, chrt, …).  
+Цены и `wbCreatedAt` — **пока не трогаем**. Колонки на `items` **не удаляем**, пока dual-write не закрыт.
 
-**Целевой split полей `items` (DECISION, 2026-08-06, обновлено 2026-08-06):**  
-На `items` остаются только marketplace-independent поля:
-
-`id`, `article`, `articleOld`, `ownCategory`, `title`, `consolidation`, `payment`, `assembling`, `fullfillmentAcceptance`, `marketplaceAcceptance`, `production`, `buffer`, `daysDeliveryToRussia`, `directionId`, `classification`, `multiplicity`, `boxNumber`, `dimensionsFact`, `dimensionsMasterBox`, `volume`, `costInYuan`, `costInYuanWhite`, `costInRub`, `codeTNVED`, `replenishmentPeriod`, `remainingBalance`, `volumePerUnit`, `weightPerUnit`, `transportRateUsd`, `dutyPercentage`, `density`, `tariffWeight`, `costCalculationType`, `calculationType`, `seasonalityForExport`, `seasonalityForOrder`, `virality`, `supplierMinimumOrder`, `createdForCalculation`, `ownImagesUrl`, `downloadCalculationMethod`
-
-**Целевые поля `marketplace_items` (DECISION, дополнение 2026-08-06):**  
-Помимо уже существующих MP-полей — **`category`**, **`imageUrl`**, **`send_status_id`**.  
-Все **новые** marketplace-specific поля — только здесь.
-
-**Архив listing’а (DECISION):** `isArchive` на `items` **не нужен в целевой модели**. Использовать **`marketplace_items.deleted_at`**. Не возвращаться к `isArchive` как основному механизму.
-
-**FACT (текущий код):** `send_status_id`, `imageUrl`, `category`, `isArchive` ещё на `items`; v2 stop-list читает `sendStatus` с `item`, фильтрует по `mpItems.deletedAt IS NULL`.
-
-Детали: [`domain/items-and-marketplace-items.md`](domain/items-and-marketplace-items.md).
+**Архив listing’а:** `marketplace_items.deleted_at` (не `isArchive`).
 
 ---
 
 ### Stop-list API
 
-**FACT (2026-08-06):** `GET /api/items/stop-list` (v1) **отключён** — route и `getItemStopsList` закомментированы.
-
-**FACT:** единственный read-endpoint стоп-листа — `GET /api/items/v2/stop-list` (`getItemStopsListV2`).
-
-**FACT:** `PATCH /api/items/stop-list` по-прежнему активен; пишет `items.send_status_id` (legacy до переноса на mp item).
+**FACT:** read только `GET /api/items/v2/stop-list`.  
+**FACT:** `GET /api/items/stop-list` (v1) отключён.  
+**FACT:** `PATCH /api/items/stop-list` и autostatus всё ещё пишут / читают `items.send_status_id` и (autostatus) legacy `orders`.
 
 ---
 
-### Google Sheets — единственный UI
+### Google Sheets
 
-**Решение:** UI продукта — **Google Sheets + Google Apps Script**. Frontend в этом репозитории **не создавать**.
-
-**Почему:** операционный контур уже живёт в Sheets; команда работает через GAS → HTTP API.
-
-**Следствие:** новые API и изменения контрактов — **совместимы с GAS**. GAS должен использовать v2 stop-list read.
+**FACT:** единственный UI. Frontend в репо не создавать. API — GAS-compatible.
 
 ---
 
-### Следующий шаг миграции
-
-**Решение:** завершить миграцию Items ↔ MarketplaceItems целиком. **Current Sprint = Milestone 4 (StopList).**
-
----
-
-## Что считается завершённым
+## Что считается завершённым (FACT, 2026-08-06)
 
 | Область | Статус |
 |---------|--------|
-| Milestone 1: `marketplace_items` + dual-write | ✔ |
-| Milestone 2: stocks → `marketplace_item_id` + v2 read | ✔ *(legacy keys до cutover)* |
-| Milestone 3: orders → `orders_v2` | ✔ |
-| Stop-list **read** v1 retired | ✔ *(закомментирован)* |
-| Milestone 4–6 (остальное) | □ |
+| M1: таблица + dual-write identity | ✔ |
+| M2: stocks → lookup/uniqueness по `marketplace_item_id` | ✔ *(WB/Ozon/Yandex create; Yandex findStock — см. Known issues)* |
+| M3: orders_v2 find/create по `marketplace_item_id` | ✔ |
+| Stop-list read v1 retired | ✔ |
+| Schema: колонки `category/title/color/image_url/send_status_id` на entity `MarketplaceItems` | ✔ |
+| Migrations copy + verify (`1786013498713`, `1786013498714`) | ✔ написаны; прогон на env — **NEEDS VERIFICATION** |
+| Directory `marketplacesInfo` читает category/barcode/image/color/itemTitle с mp items | ✔ |
+| Dual-write **новых** полей в card sync (WB/Ozon/Yandex create/update `MarketplaceItems`) | □ **ещё нет** — sync пишет identity/dimensions; category/title/color/imageUrl — в `items` |
+| `send_status` write path / autostatus на mp item | □ |
+| Stop-list v2 read image/title/color/sendStatus | □ всё ещё с `item`, не с `mpItems` |
+| Удаление колонок с `items` | □ не начинать |
+
+---
+
+## Known issues (код, не чинить без задачи)
+
+| Issue | Где | Суть |
+|-------|-----|------|
+| Yandex stocks findStock | `stocks.service.ts` `getYandexStocks` | В цикле по `result` в lookup уходит `findMarketplaceItem.id` (переменная **внешнего** цикла), а не `item.marketplaceItemId` — upsert может бить не ту строку |
+| Card sync dual-write gap | `items.service.ts` create/update `MarketplaceItems` | Нет `category`/`title`/`color`/`imageUrl` на mp item; после NOT NULL create может падать / Directory читает stale |
+| Stop-list v2 selects | `getItemStopsListV2` | `imageUrl`/`title`/`color`/`sendStatus` с `item`, хотя колонки уже на entity mp item |
+| `marketplaceItemId ?? 0` | stocks/orders sync | Убран в активных путях; не возвращать |
 
 ---
 
@@ -88,10 +82,9 @@
 
 | Элемент | Примечание |
 |---------|------------|
-| `low_days_stocks` | Entity без wiring — не опираться |
-| Ozon Second | Cron закомментированы |
-| `getItemStopsList` (v1) | Закомментирован; не восстанавливать без плана |
-| Parallel `orders` + `orders_v2` | Autostatus читает `orders` — debt, M4 |
+| `low_days_stocks` | без wiring |
+| Ozon Second | cron закомментированы |
+| `getItemsList` / `getItemStopsList` v1 | закомментированы |
 
 ---
 
@@ -99,12 +92,12 @@
 
 | Идея | Почему |
 |------|--------|
-| `item == marketplace listing` | Ломает нормализацию |
-| Frontend в репо | UI = Sheets + GAS |
-| MP-поля на `items` | Только `marketplace_items` |
-| `isArchive` как целевой archive flag | Использовать `deleted_at` на mp item |
-| `send_status_id` на shared `items` | Статус отправки — per listing → `marketplace_items` |
-| `synchronize: true` | Только migrations |
+| `item == marketplace listing` | нормализация |
+| Frontend в репо | Sheets + GAS |
+| Новые MP-поля на `items` | только `marketplace_items` |
+| `isArchive` как archive flag | `deleted_at` |
+| `send_status_id` на shared item | per listing |
+| Удалять колонки с `items` до закрытия dual-write | cutover только в M6 |
 
 ---
 
@@ -112,21 +105,21 @@
 
 | Что | Почему |
 |-----|--------|
-| Dual-write `items` + `marketplace_items` | Sync/API зависят от обоих |
-| Legacy keys на `stocks` / `orders_v2` | До M6 Cutover |
-| Таблица `orders` | Autostatus ещё читает |
-| `GET /api/stocks/current` (v1) | Ещё активен; GAS может зависеть |
-| Бизнес-правила autostatus | Ручные статусы, warehouse exclusions |
+| Dual-write identity на `items` + `marketplace_items` | sync ещё зависит |
+| Legacy keys на stocks/orders_v2 | до M6 |
+| Legacy `orders` table | autostatus читает |
+| Stocks API v1 | GAS |
+| Цены / `wb_created_at` перенос | отложено продуктом |
 
 ---
 
-## История обсуждений (кратко)
+## История обсуждений
 
 | Дата | Тема | Итог |
 |------|------|------|
-| 2026-08-06 | AI-ready docs, этап 1 | База docs |
-| 2026-08-06 | UI | **FACT:** Sheets + GAS |
-| 2026-08-06 | Целевые поля `items` | Marketplace-independent список |
-| 2026-08-06 | Roadmap | Vision → Milestones |
-| 2026-08-06 | Поля MP | `category`, `imageUrl`, `send_status_id` → mp_items; `isArchive` → не нужен, `deleted_at` |
-| 2026-08-06 | Stop-list v1 | `GET stop-list` отключён; только v2 read |
+| 2026-08-06 | AI-ready docs | база |
+| 2026-08-06 | UI / поля / stop-list v1 | Sheets; split полей; v2-only read |
+| 2026-08-06 | Миграции copy+verify | color/category/image_url/title/send_status_id → mp_items, без drop |
+| 2026-08-06 | Stocks/Orders mp-centric | lookup по MarketplaceItems; `?? 0` убран; код перенесён из другой IDE |
+| 2026-08-06 | Directory | marketplacesInfo расширен полями с mp items |
+| 2026-08-06 | Re-check after IDE port | dual-write gap и Yandex findStock bug подтверждены; card sync новых полей ещё нет |

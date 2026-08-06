@@ -1,16 +1,15 @@
 # Items ↔ MarketplaceItems
 
-> Главный документ доменной модели ассортимента.  
-> Roadmap: `[../roadmap/items-marketplace-items-migration.md](../roadmap/items-marketplace-items-migration.md)`.  
-> Решения: `[../AI_CONTEXT.md](../AI_CONTEXT.md)`.
+> Главный документ доменной модели.  
+> Roadmap: [`../roadmap/items-marketplace-items-migration.md`](../roadmap/items-marketplace-items-migration.md).  
+> Решения: [`../AI_CONTEXT.md`](../AI_CONTEXT.md).
 
 ---
 
-## Зачем появилась `marketplace_items`
+## Зачем
 
-**FACT:** слой **listing’а на конкретном маркетплейсе**; stocks и orders ссылаются на `marketplace_item_id`.
-
-**DECISION:** полностью перейти на MarketplaceItems. Возврат к «item == listing» **запрещён**.
+**FACT:** listing-слой для stocks/orders через `marketplace_item_id`.  
+**DECISION:** полный переход на MarketplaceItems; возврат к `item == listing` запрещён.
 
 ---
 
@@ -18,134 +17,86 @@
 
 ```text
 Item (marketplace-independent, 1 на article)
- ├── MarketplaceItem (WB)   ← category, imageUrl, send_status_id, prices, …
+ ├── MarketplaceItem (WB)   ← category, title, color, imageUrl, send_status_id, prices…
  ├── MarketplaceItem (Ozon)
  └── MarketplaceItem (Yandex)
         ├── Stocks
         └── OrdersV2
 ```
 
-
-
 ### Поля на `items` (DECISION)
 
-Marketplace-independent:
+Marketplace-independent: `id`, `article`, `articleOld`, `ownCategory`, `title`, логистика/сроки, `directionId`, classification/virality/planning, общие габариты/объём, себестоимость/таможня, `ownImagesUrl`, `downloadCalculationMethod`, audit.
 
+**Не целевые на `items`:** `sendStatusId`, `category`, `color`, `imageUrl`, MP-identity, MP-габариты, цены — остаются до cutover как legacy dual-write.
 
-| Группа                       | Поля                                                                                                                                                                                                                                                                                                                     |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Идентичность                 | `id`, `article`, `articleOld`, `ownCategory`, `title`                                                                                                                                                                                                                                                                    |
-| Логистика / сроки            | `consolidation`, `payment`, `assembling`, `fullfillmentAcceptance`, `marketplaceAcceptance`, `production`, `buffer`, `daysDeliveryToRussia`                                                                                                                                                                              |
-| Классификация / планирование | `directionId`, `classification`, `multiplicity`, `boxNumber`, `virality`, `createdForCalculation`                                                                                                                                                                                                                        |
-| Габариты / объём (общие)     | `dimensionsFact`, `dimensionsMasterBox`, `volume`                                                                                                                                                                                                                                                                        |
-| Себестоимость / таможня      | `costInYuan`, `costInYuanWhite`, `costInRub`, `codeTNVED`, `replenishmentPeriod`, `remainingBalance`, `volumePerUnit`, `weightPerUnit`, `transportRateUsd`, `dutyPercentage`, `density`, `tariffWeight`, `costCalculationType`, `calculationType`, `seasonalityForExport`, `seasonalityForOrder`, `supplierMinimumOrder` |
-| Прочее                       | `ownImagesUrl`, `downloadCalculationMethod`                                                                                                                                                                                                                                                                              |
+### Поля на `marketplace_items`
 
+| Уже в схеме / entity (FACT) | Ещё не переносим |
+|-----------------------------|------------------|
+| identity: identifier, barcode, sku, dimensions, volume, chrt, marketplace_id, item_id, deleted_at | цены, `wb_created_at` |
+| **новое:** `category`, `title`, `color`, `image_url`, `send_status_id` | |
 
-Плюс audit: `createdAt`, `updatedAt`.
-
-**Не на** `items` **в целевой модели:** `sendStatusId` — переносится на mp item (**DECISION**).
-
-### Поля на `marketplace_items` (DECISION)
-
-Все marketplace-specific данные, включая:
-
-
-| Уже есть (FACT)                                                                                                          | Будут перенесены / добавлены (DECISION)                                       |
-| ------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------- |
-| `marketplace_identifier`, `barcode`, `sku`, `dimensions`, `volume`, `chrt_id`, `marketplace_id`, `item_id`, `deleted_at` | `category`, `imageUrl`, `send_status_id`, цены, MP-габариты, `wbCreatedAt`, … |
-
-
-
-
-### Архив listing’а (DECISION)
-
-- **Целевой механизм:** `marketplace_items.deleted_at`
-- `isArchive` **на** `items`**:** не нужен в будущем; не использовать как primary archive flag
-
-**FACT:** v2 stop-list уже фильтрует `mpItems.deletedAt IS NULL` (без `isArchive`).
+**Архив:** `deleted_at` (не `isArchive`).
 
 ---
-
-
 
 ## Текущий transition state (FACT)
 
-1. Sync создаёт отдельную строку `items` на каждый МП.
-2. `marketplace_items` ≈ 1:1 к такой строке.
-3. `stocks` / `orders_v2`: dual keys + `marketplace_item_id`.
-4. MP-поля (`send_status_id`, `imageUrl`, `category`, …) **ещё на** `items`.
-5. Stop-list read: только **v2**; v1 закомментирован.
+1. Sync карточек всё ещё создаёт **отдельную** строку `items` на МП + `marketplace_items` 1:1.
+2. **Identity dual-write** (barcode/sku/dimensions/…) — да.
+3. **Новые поля** (`category/title/color/imageUrl/sendStatusId`) — на entity + migrations; **card sync create/update `MarketplaceItems` их не заполняет** (только identity/dimensions) → dual-write gap.
+4. Stocks / Orders sync: lookup и uniqueness по `marketplace_item_id`; `item_id` всё ещё пишется (dual keys).
+5. Directory: `marketplacesInfo` читает category/barcode/image/color/itemTitle с **mp items**.
+6. Stop-list read: v2 only; image/title/color/`sendStatus` всё ещё с **`item`**.
+7. Stop-list write / autostatus: legacy `items.send_status_id` / `orders`.
 
+### Stop-list
 
+| Endpoint / код | Статус |
+|----------------|--------|
+| `GET …/stop-list` v1 | отключён |
+| `GET …/v2/stop-list` | активен (mp-centric stocks/orders_v2) |
+| `PATCH …/stop-list` | пишет `items.send_status_id` |
+| `updateItemSendStatus` | legacy `orders` + `items` |
 
-### Stop-list (FACT)
+### Stocks / Orders sync
 
-
-| Endpoint / код                  | Статус                                                                      |
-| ------------------------------- | --------------------------------------------------------------------------- |
-| `GET /api/items/stop-list` (v1) | **отключён** (закомментирован)                                              |
-| `GET /api/items/v2/stop-list`   | **активен** — mp-item centric, `orders_v2`, stocks по `marketplace_item_id` |
-| `PATCH /api/items/stop-list`    | **активен** — пишет `items.send_status_id` (legacy)                         |
-| `updateItemSendStatus` (cron)   | **legacy** — `orders`, `items.send_status_id`, stocks по `item_id`          |
-
+| Поток | Статус |
+|-------|--------|
+| WB/Ozon/Yandex stocks create | `marketplaceItemId` обязателен; без mp item — skip |
+| WB FBS list | `MarketplaceItems` + `deletedAt IS NULL` |
+| Yandex stocks **find** existing row | **bug:** в цикле `result` используется `findMarketplaceItem.id` внешнего цикла, не `item.marketplaceItemId` |
+| Orders v2 find/create | по `marketplaceItemId` |
 
 ---
-
-
 
 ## Milestones
 
-
-| #                   | Статус                                                           |
-| ------------------- | ---------------------------------------------------------------- |
-| 1. MarketplaceItems | ✔                                                                |
-| 2. Stocks           | ✔                                                                |
-| 3. Orders           | ✔                                                                |
-| 4. StopList         | **in progress** — read v1 ✔ retired; autostatus + write path — □ |
-| 5. Consolidation    | □                                                                |
-| 6. Cutover          | □                                                                |
-
-
-[roadmap](../roadmap/items-marketplace-items-migration.md)
+| # | Статус |
+|---|--------|
+| 1. MarketplaceItems | ✔ |
+| 2. Stocks | ✔ *(Yandex findStock bug)* |
+| 3. Orders | ✔ |
+| 4. StopList + listing fields | **in progress** |
+| 5. Consolidation | □ |
+| 6. Cutover | □ |
 
 ---
-
-
-
-## Legacy (ещё не снято)
-
-
-| Область            | Legacy                                                  |
-| ------------------ | ------------------------------------------------------- |
-| Autostatus         | `orders` + `items.send_status_id` + stocks по `item_id` |
-| PATCH stop-list    | `items.send_status_id`                                  |
-| v2 read sendStatus | join на `item.sendStatus` (до переноса колонки)         |
-| Stocks API v1      | `GET /api/stocks/current`                               |
-| Prices             | на `items`                                              |
-
-
----
-
-
 
 ## Glossary
 
-
-| Термин              | Значение                                           |
-| ------------------- | -------------------------------------------------- |
-| **Listing archive** | `marketplace_items.deleted_at` (не `isArchive`)    |
-| **Send status**     | Целевое место — `marketplace_items.send_status_id` |
-| **Stop-list v2**    | Единственный read API стоп-листа                   |
-
+| Термин | Значение |
+|--------|----------|
+| **Listing archive** | `marketplace_items.deleted_at` |
+| **Send status** | цель — `marketplace_items.send_status_id` |
+| **Stop-list v2** | единственный read |
+| **Dual-write gap** | новые колонки на mp items есть, sync карточек их ещё не заполняет |
 
 ---
 
-
-
 ## Правило для изменений
 
-1. `AI_CONTEXT` + этот документ + roadmap.
-2. Исследовать `src/` и migrations.
-3. Plan → изменения  → обновить roadmap и AI_CONTEXT при новом решении → обновить docs.
-
+1. `AI_CONTEXT` + этот документ + roadmap.  
+2. Исследовать `src/` и migrations.  
+3. Plan → изменения → обновить docs.

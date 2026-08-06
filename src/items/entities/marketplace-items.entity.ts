@@ -49,6 +49,21 @@ export class MarketplaceItems {
   @Column({ type: 'int', nullable: false, name: 'marketplace_id' })
   marketplaceId: number;
 
+  @Column({ type: 'varchar', nullable: false })
+  category: string;
+
+  @Column({ type: 'varchar', nullable: false })
+  title: string;
+
+  @Column({ type: 'varchar', nullable: true })
+  color: string;
+
+  @Column({ type: 'varchar', nullable: true, name: 'image_url' })
+  imageUrl: string | null;
+
+  @Column({ type: 'int', name: 'send_status_id', nullable: true })
+  sendStatusId: number;
+
   @CreateDateColumn({
     type: 'timestamptz',
     nullable: false,

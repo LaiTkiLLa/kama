@@ -91,11 +91,11 @@ src/info (statuses)
 ### Остатки
 
 ```text
-PROJECT_CONTEXT + domain (transition dual keys)
+AI_CONTEXT + domain (mp-item centric sync; dual keys)
         ↓
 src/stocks/**
         ↓
-проверить v1 vs v2 и exclusion warehouses в коде
+v1 vs v2 API; exclusion warehouses; Yandex findStock bug (см. AI_CONTEXT)
 ```
 
 

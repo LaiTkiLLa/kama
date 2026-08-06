@@ -29,7 +29,8 @@ alwaysApply: true
 - Do not break dual-write to `items` and `marketplace_items` while sync/API still depend on both.
 - Do not remove legacy columns/tables (`item_id`, `marketplace_id` on stocks/orders, MP fields on `items`, `orders`) without a migration plan and cutover.
 - Updating `marketplace_items` by `itemId` alone is unsafe for future 1:N — include marketplace identity when changing this pattern.
-- Avoid `marketplaceItemId ?? 0`; missing marketplace item is an error condition to handle explicitly.
+- Avoid `marketplaceItemId ?? 0`; missing marketplace item → skip / error, never invent id `0`.
+- After adding NOT NULL columns on `marketplace_items`, card sync must dual-write them on create/update (see `docs/AI_CONTEXT.md` dual-write gap).
 
 ## Compatibility and data integrity
 
