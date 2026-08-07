@@ -564,7 +564,7 @@ export class ItemsService {
               qb
                 .select('stock.marketplace_item_id', 'marketplace_item_id')
                 .addSelect(
-                  `SUM(CASE WHEN stock.warehouse_id IN (18, 1146895, 16, 59, 95, 1146938, 1146932, 1147083, 19, 1146912, 1146906, 242582, 158, 67, 1146879, 1146902, 1146903, 1146878, 1146919, 1147137, 1147160, 1146898, 1147058, 21) THEN 0 ELSE stock.current_value END)`,
+                  `SUM(CASE WHEN stock.warehouse_id IN (18, 1146895, 16, 59, 95, 1146938, 1146932, 1147083, 19, 1146912, 1146906, 242582, 158, 67, 1146879, 1146902, 1146903, 1146878, 1146919, 1147137, 1147160, 1146898, 1147058, 211146887, 1146888, 1146889, 383378) THEN 0 ELSE stock.current_value END)`,
                   'stocks_sum'
                 )
                 // .addSelect('SUM(stock.current_value)', 'stocks_sum')
