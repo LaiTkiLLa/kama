@@ -8,15 +8,8 @@ import { Items } from './entities/items.entity';
 import { WbItem, WbItems, WbItemsPrices, WbTrashedItems } from './interfaces/wb-items.interface';
 import { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
 import { YandexItems, YandexItemsResult } from './interfaces/yandex-items.interface';
-import { GetItemsListDto } from './dto/get-items-list.dto';
-import { Marketplaces } from '../info/entities/marketplaces.entity';
 import { UpdateItemInfoDto } from './dto/update-item-info.dto';
-import {
-  GetStopListFromDb,
-  GetStopListFromDbV2,
-  StopListCronResult,
-  StopListResponse
-} from './interfaces/stop-list.interface';
+import { GetStopListFromDbV2, StopListCronResult, StopListResponse } from './interfaces/stop-list.interface';
 import { GetItemsStopListDto } from './dto/get-items-stop-list.dto';
 import { UpdateStopListItems } from './dto/update-status-stop-list.dto';
 import { StatusesTypes } from '../info/enum/statuses.enum';
@@ -82,36 +75,36 @@ export class ItemsService {
     }
   }
 
-  async getItemsList(getItemsListDto: GetItemsListDto): Promise<{ id: number; identifier: string }[]> {
-    let marketplace: Marketplaces;
-    if (getItemsListDto.marketplaceTitle === 'Ozon') {
-      marketplace = await this.infoService.findMarketplace({ title: 'Озон' });
-    } else {
-      marketplace = await this.infoService.findMarketplace({ title: 'WB' });
-    }
-    const queryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
-    try {
-      let items: Items[];
-      if (getItemsListDto.itemsId) {
-        items = await queryRunner.manager.find(Items, {
-          where: { id: In(getItemsListDto.itemsId), marketplaceId: marketplace.id }
-        });
-      } else {
-        items = await queryRunner.manager.find(Items, { where: { marketplaceId: marketplace.id } });
-      }
-      if (getItemsListDto.marketplaceTitle === 'Ozon') {
-        return items.map(item => ({ id: item.id, identifier: item.sku }));
-      }
-      return items.map(item => ({ id: item.id, identifier: item.marketplaceIdentifier }));
-    } catch (error) {
-      this.logger.error(error);
-      this.logger.error('Не смог получить список товаров');
-      throw error;
-    } finally {
-      await queryRunner.release();
-    }
-  }
+  // async getItemsList(getItemsListDto: GetItemsListDto): Promise<{ id: number; identifier: string }[]> {
+  //   let marketplace: Marketplaces;
+  //   if (getItemsListDto.marketplaceTitle === 'Ozon') {
+  //     marketplace = await this.infoService.findMarketplace({ title: 'Озон' });
+  //   } else {
+  //     marketplace = await this.infoService.findMarketplace({ title: 'WB' });
+  //   }
+  //   const queryRunner = this.dataSource.createQueryRunner();
+  //   await queryRunner.connect();
+  //   try {
+  //     let items: Items[];
+  //     if (getItemsListDto.itemsId) {
+  //       items = await queryRunner.manager.find(Items, {
+  //         where: { id: In(getItemsListDto.itemsId), marketplaceId: marketplace.id }
+  //       });
+  //     } else {
+  //       items = await queryRunner.manager.find(Items, { where: { marketplaceId: marketplace.id } });
+  //     }
+  //     if (getItemsListDto.marketplaceTitle === 'Ozon') {
+  //       return items.map(item => ({ id: item.id, identifier: item.sku }));
+  //     }
+  //     return items.map(item => ({ id: item.id, identifier: item.marketplaceIdentifier }));
+  //   } catch (error) {
+  //     this.logger.error(error);
+  //     this.logger.error('Не смог получить список товаров');
+  //     throw error;
+  //   } finally {
+  //     await queryRunner.release();
+  //   }
+  // }
 
   async getItemsDirectoryList(getDirectoryListDto: GetDirectoryListDto) {
     const queryRunner = this.dataSource.createQueryRunner();
@@ -237,7 +230,12 @@ export class ItemsService {
               dimensions: el.dimensions,
               volume: Number(el.volume).toFixed(2),
               sku: el.sku,
-              marketplaceIdentifier: el.marketplaceIdentifier
+              marketplaceIdentifier: el.marketplaceIdentifier,
+              category: el.category,
+              barcode: el.barcode,
+              image: el.imageUrl,
+              color: el.color,
+              itemTitle: el.title
             }))
           );
         }
