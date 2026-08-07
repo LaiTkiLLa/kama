@@ -24,5 +24,8 @@ export const configuration = () => ({
   apiKey: process.env.apiKey,
   yandexToken: process.env.yandexToken,
   yandexClientId: process.env.yandexCLientId,
-  yandexBusinessId: process.env.yandexBusinessId
+  yandexBusinessId: process.env.yandexBusinessId,
+  yandexTamovToken: process.env.yandexTamovToken,
+  yandexTamovCLientId: process.env.yandexTamovCLientId,
+  yandexTamovBusinessId: process.env.yandexTamovBusinessId
 });

@@ -50,14 +50,14 @@ export class MarketplaceItems {
   @Column({ type: 'int', nullable: false, name: 'marketplace_id' })
   marketplaceId: number;
 
-  @Column({ type: 'varchar', nullable: false })
-  category: string;
-
-  @Column({ type: 'varchar', nullable: false })
-  title: string;
+  @Column({ type: 'varchar', nullable: true })
+  category: string | null;
 
   @Column({ type: 'varchar', nullable: true })
-  color: string;
+  title: string | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  color: string | null;
 
   @Column({ type: 'varchar', nullable: true, name: 'image_url' })
   imageUrl: string | null;

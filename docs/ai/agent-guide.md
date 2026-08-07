@@ -87,7 +87,7 @@ src/info (statuses)
 
 **FACT:** `GET /api/items/stop-list` (v1) отключён. Read только `GET /api/items/v2/stop-list`.  
 **FACT:** `sendStatus` в v2 уже с `mpItems`; image/title/color ещё с `item`.  
-**FACT:** card sync пишет listing-поля в `items`, в `MarketplaceItems` — только identity/dimensions.
+**FACT:** card sync **create** пишет listing-поля в `items` и `MarketplaceItems`; **update** mp — только identity/dimensions.
 
 
 

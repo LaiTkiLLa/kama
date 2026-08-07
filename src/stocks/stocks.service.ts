@@ -415,10 +415,26 @@ export class StocksService {
   }
 
   @Cron('0 */22 * * * *')
-  async getYandexStocks() {
-    const yandexToken = await this.configService.get('yandexToken');
-    const clientId = await this.configService.get('yandexClientId');
+  async getYandexStocksFirst() {
+    const clientId = this.configService.get<string>('yandexClientId');
+    const apiKey = this.configService.get<string>('yandexToken');
+    if (!clientId) return;
+    if (!apiKey) return;
+    await this.getYandexStocks(clientId, apiKey, 'Yandex');
+    return;
+  }
 
+  @Cron('0 */23 * * * *')
+  async getYandexStocksSecond() {
+    const clientId = this.configService.get<string>('yandexTamovCLientId');
+    const apiKey = this.configService.get<string>('yandexTamovToken');
+    if (!clientId) return;
+    if (!apiKey) return;
+    await this.getYandexStocks(clientId, apiKey, 'Yandex Tamov');
+    return;
+  }
+
+  async getYandexStocks(clientId: string, apiKey: string, mpTitle: string) {
     let hasMoreData = true;
     const stocks: {
       warehouseId: number;
@@ -442,7 +458,7 @@ export class StocksService {
         },
         {
           headers: {
-            'Api-Key': yandexToken
+            'Api-Key': apiKey
           }
         }
       );
@@ -471,7 +487,7 @@ export class StocksService {
       }
     }
 
-    const findMarketplace = await this.infoService.findMarketplace({ title: 'Yandex' });
+    const findMarketplace = await this.infoService.findMarketplace({ title: mpTitle });
     const result: {
       itemId: number;
       warehouseId: number;

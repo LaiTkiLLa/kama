@@ -91,6 +91,9 @@ export class OrdersService {
       } else if (getDynamicOrdersDto.marketplace === 'Yandex') {
         const ordersResult = await this.getYandexOrders(getDynamicOrdersDto.days, result);
         return await this.getOrdersV2(queryRunner, 'Yandex', ordersResult);
+      } else if (getDynamicOrdersDto.marketplace === 'Yandex Tamov') {
+        const ordersResult = await this.getYandexOrders(getDynamicOrdersDto.days, result);
+        return await this.getOrdersV2(queryRunner, 'Yandex Tamov', ordersResult);
       }
     } catch (error) {
       this.logger.error(error);
@@ -167,7 +170,7 @@ export class OrdersService {
 
   async getOrdersV2(
     queryRunner: QueryRunner,
-    marketplaceTitle: 'Озон' | 'WB' | 'Yandex',
+    marketplaceTitle: 'Озон' | 'WB' | 'Yandex' | 'Yandex Tamov',
     result: GetDynamicOrders[]
   ): Promise<GetDynamicOrders[]> {
     const ordersResult = (await queryRunner.query(
@@ -554,13 +557,30 @@ export class OrdersService {
   }
 
   @Cron('0 */21 * * * *')
-  async getOrdersYandexV2() {
+  async getOrdersYandexFirst() {
+    const businessId = this.configService.get<string>('yandexBusinessId');
+    const apiKey = this.configService.get<string>('yandexToken');
+    if (!businessId) return;
+    if (!apiKey) return;
+    await this.getOrdersYandexV2(businessId, apiKey, 'Yandex');
+    return;
+  }
+
+  @Cron('0 */22 * * * *')
+  async getOrdersYandexSecond() {
+    const businessId = this.configService.get<string>('yandexTamovBusinessId');
+    const apiKey = this.configService.get<string>('yandexTamovToken');
+    if (!businessId) return;
+    if (!apiKey) return;
+    await this.getOrdersYandexV2(businessId, apiKey, 'Yandex Tamov');
+    return;
+  }
+
+  async getOrdersYandexV2(businessId: string, apiKey: string, mpTitle: string) {
     const ordersData: YandexOrderInfoV2[] = [];
     try {
       const monthAgo = new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split('T')[0];
       const finalEndDate = new Date().toISOString().split('T')[0];
-      const apiToken = this.configService.get<string>('yandexToken');
-      const businessId = this.configService.get<string>('yandexBusinessId');
       let urlOrders = `https://api.partner.market.yandex.ru/v1/businesses/${businessId}/orders`;
 
       let hasMoreData = true;
@@ -578,7 +598,7 @@ export class OrdersService {
           },
           {
             headers: {
-              'Api-Key': apiToken
+              'Api-Key': apiKey
             }
           }
         );
@@ -619,7 +639,7 @@ export class OrdersService {
       this.logger.error('Не смог получить заказы V2 яндекса');
       return;
     }
-    const findMarketplace = await this.infoService.findMarketplace({ title: 'Yandex' });
+    const findMarketplace = await this.infoService.findMarketplace({ title: mpTitle });
     if (!findMarketplace) {
       this.logger.error('Yandex не найден среди МП. Не удалось получить заказы v2');
       return;

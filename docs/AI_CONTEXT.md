@@ -9,7 +9,7 @@
 
 ## Текущая позиция миграции (FACT, 2026-08-07)
 
-**Milestone 4b — listing fields.** M1–M4 (`send_status`) закрыты. Schema listing-полей в entity + migrations есть. Следующий код-шаг: dual-write `category`/`title`/`color`/`imageUrl` в card sync (WB/Ozon/Yandex), затем v2 stop-list читать эти поля с `mpItems`. Consolidation (M5) и Cutover (M6) не начаты.
+**Milestone 4b — listing fields.** M1–M4 (`send_status`) закрыты. Schema listing-полей есть. Card sync **create** dual-write listing fields ✔ (WB/Ozon/Yandex). **Update** mp listing fields ещё только identity/dimensions. `category`/`title` на mp снова **nullable** (`1786107580847`) — безопасный transition. Дальше: dual-write на update → v2 stop-list image/title/color с mp → Consolidation.
 
 ---
 
@@ -20,9 +20,11 @@
 - `title` на переходном этапе dual: остаётся на `items` и копируется на mp listing.
 - `send_status_id` целевое место — `marketplace_items`; dual-write на `items` до cutover.
 - Архив listing — `marketplace_items.deleted_at` (не `isArchive`).
+- На transition `marketplace_items.category` / `title` — **nullable** (не требовать NOT NULL, пока dual-write update не полный).
 - Цены / `wbCreatedAt` / drop колонок с `items` — пока не трогаем.
 - UI — Google Sheets + GAS; frontend в репо не создавать.
 - Stop-list read — только `GET /api/items/v2/stop-list`.
+- Второй кабинет Yandex — отдельная строка в `marketplaces` с title **`Yandex Tamov`** (не смешивать с `Yandex`).
 
 ---
 
@@ -34,15 +36,14 @@
 | M2 stocks sync по `marketplace_item_id` | ✔ |
 | M3 orders_v2 по `marketplace_item_id` | ✔ |
 | Stop-list v1 read retired | ✔ |
-| Entity: `category`, `title`, `color`, `imageUrl`, `sendStatusId` на `MarketplaceItems` | ✔ |
-| Migrations `1786013498713` / `1786013498714` (color/category/image_url/title) | ✔ в репо |
-| Migration `1786097301320` (send_status_id) | ✔ в репо |
-| Directory `marketplacesInfo` читает category/barcode/image/color/itemTitle с mp | ✔ |
-| PATCH stop-list: find → update by id, dual-write, без continue | ✔ |
-| Autostatus: mp root, dual-write, `orders_v2`, aggregations по `marketplace_item_id` | ✔ |
-| v2 stop-list `sendStatus` с `mpItems` | ✔ |
-| Card sync dual-write `category/title/color/imageUrl` в create/update `MarketplaceItems` | □ только identity/dimensions |
-| v2 stop-list image/title/color | □ всё ещё с `item` |
+| Entity listing fields + `sendStatusId` | ✔ |
+| Migrations `178601*` / `178609*` | ✔ в репо |
+| Migration `1786107580847` (category/title nullable) | ✔ |
+| Directory `marketplacesInfo` с mp | ✔ |
+| PATCH / autostatus / v2 `sendStatus` | ✔ |
+| Card sync **create** dual-write category/title/color/imageUrl | ✔ WB/Ozon/Yandex |
+| Card sync **update** dual-write listing fields | □ только identity/dimensions |
+| v2 stop-list image/title/color | □ с `item` |
 | Drop колонок с `items` | □ cutover |
 | Прогон migrations на всех env | □ NEEDS VERIFICATION |
 
@@ -52,10 +53,11 @@
 
 | Issue | Суть |
 |-------|------|
-| Card sync dual-write gap | create/update `MarketplaceItems` без category/title/color/imageUrl — после NOT NULL create может падать / Directory stale |
+| Card sync update gap | update `MarketplaceItems` без category/title/color/imageUrl — Directory/mp stale на существующих |
 | v2 stop-list | image/title/color с `item`, не с `mpItems` |
 | dual-write `send_status` | держать до Consolidation/Cutover |
-| Update mp by `itemId` alone | card sync update всё ещё по `{ itemId }` — ок при 1:1, риск при будущем 1:N |
+| Update mp by `itemId` alone | card sync update по `{ itemId }` — ок при 1:1, риск при 1:N |
+| Yandex Tamov gaps | warehouses / trash / stop-list PATCH / stocks DTO / dynamic orders live API |
 
 ---
 
@@ -73,3 +75,5 @@ Dual-write identity и `send_status`; legacy keys stocks/orders_v2; drop `items.
 | 2026-08-07 | Stocks/Orders mp-centric; send_status полный контур (PATCH/autostatus/v2) |
 | 2026-08-07 | Merge docs; убран `send_status_id` из `178601*` — остаётся в `178609` |
 | 2026-08-07 | Ревью: позиция = M4b; dual-write gap listing fields подтверждён кодом |
+| 2026-08-07 | Второй Yandex (`Yandex Tamov`): card/stocks/orders_v2 cron; gaps warehouses/API DTO/stop-list |
+| 2026-08-07 | Create dual-write listing fields; category/title nullable (`1786107580847`) |

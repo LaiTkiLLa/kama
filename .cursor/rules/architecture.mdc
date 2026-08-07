@@ -30,7 +30,8 @@ alwaysApply: true
 - Не удаляй legacy-колонки/таблицы (`item_id`, `marketplace_id` на stocks/orders, MP-поля на `items`, legacy `orders`) без плана миграции и cutover.
 - Обновление `marketplace_items` только по `itemId` небезопасно для будущего 1:N — при смене паттерна включай identity маркетплейса.
 - Избегай `marketplaceItemId ?? 0`; нет marketplace item → skip / error, никогда не подставляй id `0`.
-- **Текущий критичный gap (Milestone 4b):** после NOT NULL `category`/`title` на `marketplace_items` card sync (WB/Ozon/Yandex) обязан dual-писать listing-поля (`category`, `title`, `color`, `imageUrl`) при create/update. Сейчас пишет только identity/dimensions — см. `docs/AI_CONTEXT.md`.
+- `marketplace_items.category` / `title` на transition — **nullable** (миграция `1786107580847`). Не возвращай NOT NULL без полного dual-write create+update.
+- **Gap (Milestone 4b):** card sync **create** уже dual-пишет listing-поля; **update** `MarketplaceItems` всё ещё без `category`/`title`/`color`/`imageUrl` — см. `docs/AI_CONTEXT.md`.
 - Контур `send_status` (PATCH / autostatus / v2 read) уже mp-centric + dual-write на `items` — не откатывать на items-only без плана.
 
 ## Совместимость и целостность данных
@@ -46,4 +47,5 @@ alwaysApply: true
 
 - Меняй только то, что требует задача. Без drive-by рефакторинга чужих модулей.
 - При шаге миграции Items/MP обновляй `docs/roadmap/items-marketplace-items-migration.md` после шага.
-- Текущая позиция roadmap: **Milestone 4b** (listing fields) — schema ✔; dual-write card sync и v2 image/title/color с mp — ещё нет. Consolidation (M5) и Cutover (M6) не начаты.
+- Текущая позиция roadmap: **Milestone 4b** — create dual-write listing fields ✔; update dual-write и v2 image/title/color с mp — ещё нет. Consolidation (M5) и Cutover (M6) не начаты.
+- Второй кабинет Yandex — `marketplaces.title = 'Yandex Tamov'`; credentials через `yandexTamov*`. Не хардкодь title и не смешивай с `Yandex`.

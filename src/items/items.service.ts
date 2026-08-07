@@ -940,7 +940,11 @@ export class ItemsService {
             //Размеры в см, вес в кг
             dimensions: `${item.dimensions.length}/${item.dimensions.width}/${item.dimensions.height}/${item.dimensions.weightBrutto}`,
             volume: volumeWB,
-            chrtId: String(item?.sizes[0]?.chrtID)
+            chrtId: String(item?.sizes[0]?.chrtID),
+            category: item.subjectName,
+            title: item.title,
+            imageUrl: item.photos ? item.photos[0].big : null,
+            color: findColor ? findColor.value[0] : ''
           });
           await queryRunner.manager.save(MarketplaceItems, createMarketplaceItem);
           if (item?.sizes?.length) {
@@ -1241,11 +1245,28 @@ export class ItemsService {
   // }
 
   @Cron('0 */44 * * * *')
-  async getYandexItems() {
+  async getYandexItemsFirst() {
     const businessId = this.configService.get<string>('yandexBusinessId');
+    const apiKey = this.configService.get<string>('yandexToken');
+    if (!businessId) return;
+    if (!apiKey) return;
+    await this.getYandexItems(businessId, apiKey, 'Yandex');
+    return;
+  }
+
+  @Cron(CronExpression.EVERY_MINUTE)
+  async getYandexItemsSecond() {
+    const businessId = this.configService.get<string>('yandexTamovBusinessId');
+    const apiKey = this.configService.get<string>('yandexTamovToken');
+    if (!businessId) return;
+    if (!apiKey) return;
+    await this.getYandexItems(businessId, apiKey, 'Yandex Tamov');
+    return;
+  }
+
+  async getYandexItems(businessId: string, apiKey: string, mpTitle: string) {
     let pageToken;
     let hasMoreData = true;
-
     const items: YandexItemsResult[] = [];
 
     while (hasMoreData) {
@@ -1259,7 +1280,7 @@ export class ItemsService {
         {},
         {
           headers: {
-            'Api-Key': 'ACMA:1pUUUtGUjFw0frKFuYg5ymG5nEs5RKNtz5NbW9OQ:226d6e1d'
+            'Api-Key': apiKey
           }
         }
       );
@@ -1293,7 +1314,7 @@ export class ItemsService {
         hasMoreData = false;
       }
     }
-    const yandexMarketplace = await this.infoService.findMarketplace({ title: 'Yandex' });
+    const yandexMarketplace = await this.infoService.findMarketplace({ title: mpTitle });
 
     for (const item of items) {
       const queryRunner = this.dataSource.createQueryRunner();
@@ -1330,7 +1351,10 @@ export class ItemsService {
             marketplaceId: yandexMarketplace.id,
             //Размеры в см, вес в кг
             dimensions: item.dimensionsYandex,
-            volume: item.volumeYandex
+            volume: item.volumeYandex,
+            category: item.category,
+            title: item.title,
+            imageUrl: item.imageUrl
           });
           await queryRunner.manager.save(MarketplaceItems, createMarketplaceItem);
         } else {
@@ -1449,7 +1473,10 @@ export class ItemsService {
             marketplaceId,
             //Переводим размеры в см, вес в кг
             dimensions: `${Number((item.depth / 10).toFixed(2))}/${Number((item.width / 10).toFixed(2))}/${Number((item.height / 10).toFixed(2))}/${Number((item.weight / 1000).toFixed(3))}`,
-            volume: volumeOzon
+            volume: volumeOzon,
+            category,
+            title: item.name,
+            imageUrl: item.primary_image
           });
           await queryRunner.manager.save(MarketplaceItems, createMarketplaceItem);
         } else {

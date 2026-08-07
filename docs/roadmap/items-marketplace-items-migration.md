@@ -2,7 +2,7 @@
 
 > [`../domain/items-and-marketplace-items.md`](../domain/items-and-marketplace-items.md) · [`../AI_CONTEXT.md`](../AI_CONTEXT.md)
 
-Последнее обновление: 2026-08-07 (ревью кода после merge).
+Последнее обновление: 2026-08-07 (create dual-write + nullable category/title).
 
 ---
 
@@ -20,13 +20,13 @@
 |------|--------|
 | M1–M3 MarketplaceItems / Stocks / Orders | ✔ |
 | M4 StopList (`send_status`) | ✔ |
-| M4b schema (`category`/`title`/`color`/`image_url` + `send_status_id`) | ✔ entity + migrations в репо |
-| M4b card sync dual-write listing fields | □ **следующий код-шаг** |
+| M4b schema listing fields + send_status | ✔ |
+| M4b `category`/`title` nullable (`1786107580847`) | ✔ |
+| M4b card sync create dual-write listing fields | ✔ |
+| M4b card sync update dual-write listing fields | □ **следующий код-шаг** |
 | M4b v2 stop-list image/title/color с mp | □ |
 | M5 Consolidation | □ |
 | M6 Cutover | □ |
-
-**Блокер:** после прогона `178601*` create новых `marketplace_items` без `category`/`title` может падать (NOT NULL).
 
 ---
 
@@ -35,14 +35,15 @@
 | Область | Статус |
 |---------|--------|
 | Stocks / Orders sync | ✔ по `marketplace_item_id` |
-| Stop-list send_status (read/write/autostatus) | ✔ mp-centric + dual-write |
-| Entity listing fields | ✔ category/title/color/imageUrl/sendStatusId |
-| Migrations полей | ✔ `178601*` (listing) → `178609*` (send_status) |
-| Card sync dual-write listing fields | □ только identity/dimensions |
-| v2 image/title/color с mp | □ всё ещё с `item` |
+| Stop-list send_status | ✔ mp-centric + dual-write |
+| Entity listing fields | ✔; category/title nullable |
+| Migrations | ✔ `178601*` → `178609*` → `1786107580847` |
+| Card sync create listing fields | ✔ |
+| Card sync update listing fields | □ |
+| v2 image/title/color с mp | □ |
 | Drop с `items` | □ |
 
-**Фокус спринта:** прогнать migrations → dual-write category/title/color/imageUrl в card sync → v2 read этих полей с mp → Consolidation.
+**Фокус спринта:** dual-write listing fields на **update** → v2 read с mp → Consolidation.
 
 ---
 
@@ -52,19 +53,14 @@
 
 ### Milestone 4 — StopList ✔ *(send_status)*
 
-- [x] v2 read mp stocks/orders_v2
-- [x] Retire v1 read
-- [x] Entity + migrations `send_status_id`
-- [x] PATCH find → update by id (dual-write, без continue)
-- [x] Autostatus mp + dual-write + `orders_v2` + mp aggregations
-- [x] v2 read `mpItems.sendStatus`
-
 ### Milestone 4b / prep M5 — listing fields ◐
 
-- [x] Entity + migration copy `category/title/color/image_url` (`1786013498713`; без send_status)
+- [x] Entity + migration copy `category/title/color/image_url` (`1786013498713`)
 - [x] Verify migration `1786013498714`
-- [x] `send_status_id` только в `1786097301320`
-- [ ] Card sync dual-write listing fields (WB / Ozon / Yandex create + update)
+- [x] `send_status_id` в `1786097301320`
+- [x] `category`/`title` DROP NOT NULL (`1786107580847`)
+- [x] Card sync **create** dual-write listing fields (WB / Ozon / Yandex)
+- [ ] Card sync **update** dual-write listing fields
 - [ ] v2 stop-list: image/title/color с `mpItems`
 
 ### Milestone 5 — Consolidation □
@@ -77,8 +73,8 @@
 
 | # | Задача | Статус |
 |---|--------|--------|
-| 1 | Прогнать migrations (`178601*` затем `178609*`) на окружениях | □ / NEEDS VERIFICATION по env |
-| 2 | Dual-write category/title/color/imageUrl в card sync | □ |
+| 1 | Прогнать migrations (`178601*` → `178609*` → `178610*`) | □ / NEEDS VERIFICATION |
+| 2 | Dual-write listing fields на card sync **update** | □ |
 | 3 | v2 stop-list: image/title/color с mp | □ |
 
 ---
@@ -87,5 +83,4 @@
 
 | Блокер | Влияние |
 |--------|---------|
-| Card sync без NOT NULL полей | create mp item может ломаться после `178601` |
-| Directory уже читает listing с mp | без dual-write `marketplacesInfo` может быть stale / пустым для новых карточек |
+| Update mp без listing fields | существующие карточки: Directory/`marketplacesInfo` stale |

@@ -98,12 +98,13 @@ PostgreSQL
 | --------------------------- | ------------------------------------------------------ |
 | Wildberries Seller APIs     | карточки, trash, цены, склады, остатки, заказы         |
 | Ozon Seller API             | атрибуты, archive, цены, склады, остатки, FBO postings |
-| Yandex Market Partner API   | offer-mappings, склады, остатки, заказы                |
+| Yandex Market Partner API   | offer-mappings, склады, остатки, заказы (2 кабинета)   |
 | PostgreSQL                  | хранилище                                              |
 | Google Sheets / Apps Script | единственный UI (FACT)                                 |
 
 
-Часть jobs для **Ozon Second** в коде закомментирована; env для второго кабинета есть.
+**FACT:** второй кабинет Yandex в коде как marketplace title **`Yandex Tamov`** (env `yandexTamov*`); sync карточек / остатков / orders_v2 — отдельные cron’ы.  
+Часть jobs для **Ozon Second** по-прежнему закомментирована; env для второго Ozon есть.
 
 ---
 
