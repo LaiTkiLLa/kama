@@ -649,7 +649,7 @@ export class OrdersService {
     try {
       for (const order of ordersData) {
         const findWarehouse = await queryRunner.manager.findOne(Warehouses, {
-          where: { marketplaceInternalNumber: order.warehouseId }
+          where: { marketplaceInternalNumber: order.warehouseId, marketplaceId: findMarketplace.id }
         });
         if (!findWarehouse) {
           continue;

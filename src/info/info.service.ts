@@ -145,8 +145,22 @@ export class InfoService {
   }
 
   @Cron(CronExpression.EVERY_30_MINUTES)
-  async getYandexWarehouses() {
+  async getYandexWarehousesFirst() {
     const yandexToken = this.configService.get<string>('yandexToken');
+    if (!yandexToken) return;
+    await this.getYandexWarehouses(yandexToken, 'Yandex');
+    return;
+  }
+
+  @Cron(CronExpression.EVERY_30_MINUTES)
+  async getYandexWarehousesSecond() {
+    const yandexToken = this.configService.get<string>('yandexTamovToken');
+    if (!yandexToken) return;
+    await this.getYandexWarehouses(yandexToken, 'Yandex Tamov');
+    return;
+  }
+
+  async getYandexWarehouses(yandexToken: string, mpTitle: string) {
     const warehousesUrl = 'https://api.partner.market.yandex.ru/warehouses';
     const { data }: { data: GetYandexWarehouses } = await axios.get(warehousesUrl, {
       headers: {
@@ -158,16 +172,19 @@ export class InfoService {
     try {
       const findMarketplace = await queryRunner.manager.findOne(Marketplaces, {
         where: {
-          title: 'Yandex'
+          title: mpTitle
         }
       });
       if (!findMarketplace) {
-        this.logger.error('Не нашел Yandex в маркетплейсах');
+        this.logger.error(`Не нашел маркетплейс «${mpTitle}»`);
         return;
       }
       for (const warehouse of data.result.warehouses) {
         const findWarehouse = await queryRunner.manager.findOne(Warehouses, {
-          where: { marketplaceInternalNumber: String(warehouse.id) }
+          where: {
+            marketplaceInternalNumber: String(warehouse.id),
+            marketplaceId: findMarketplace.id
+          }
         });
         if (!findWarehouse) {
           const createWarehouse = queryRunner.manager.create(Warehouses, {
@@ -185,7 +202,7 @@ export class InfoService {
       }
     } catch (error) {
       this.logger.error(error);
-      this.logger.error('Не смог получить склады яндекса');
+      this.logger.error(`Не смог получить склады ${mpTitle}`);
     } finally {
       await queryRunner.release();
     }

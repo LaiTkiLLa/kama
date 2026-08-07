@@ -24,7 +24,7 @@
 - Цены / `wbCreatedAt` / drop колонок с `items` — пока не трогаем.
 - UI — Google Sheets + GAS; frontend в репо не создавать.
 - Stop-list read — только `GET /api/items/v2/stop-list`.
-- Второй кабинет Yandex — отдельная строка в `marketplaces` с title **`Yandex Tamov`** (не смешивать с `Yandex`).
+- Второй кабинет Yandex — отдельная строка в `marketplaces` с title **`Yandex Tamov`** (не смешивать с `Yandex`). Склады тоже scoped по `marketplace_id` кабинета (не общий пул «внутри одного Yandex»).
 
 ---
 
@@ -57,7 +57,7 @@
 | v2 stop-list | image/title/color с `item`, не с `mpItems` |
 | dual-write `send_status` | держать до Consolidation/Cutover |
 | Update mp by `itemId` alone | card sync update по `{ itemId }` — ок при 1:1, риск при 1:N |
-| Yandex Tamov gaps | warehouses / trash / stop-list PATCH / stocks DTO / dynamic orders live API |
+| Yandex Tamov gaps | trash / stop-list PATCH / stocks DTO / dynamic orders live API |
 
 ---
 
@@ -77,3 +77,5 @@ Dual-write identity и `send_status`; legacy keys stocks/orders_v2; drop `items.
 | 2026-08-07 | Ревью: позиция = M4b; dual-write gap listing fields подтверждён кодом |
 | 2026-08-07 | Второй Yandex (`Yandex Tamov`): card/stocks/orders_v2 cron; gaps warehouses/API DTO/stop-list |
 | 2026-08-07 | Create dual-write listing fields; category/title nullable (`1786107580847`) |
+| 2026-08-07 | Yandex Tamov warehouses sync; upsert по (marketplace_id, internal_number) |
+| 2026-08-07 | Yandex orders_v2: warehouse lookup + marketplaceId |

@@ -1254,7 +1254,7 @@ export class ItemsService {
     return;
   }
 
-  @Cron(CronExpression.EVERY_MINUTE)
+  @Cron('0 */45 * * * *')
   async getYandexItemsSecond() {
     const businessId = this.configService.get<string>('yandexTamovBusinessId');
     const apiKey = this.configService.get<string>('yandexTamovToken');
