@@ -1,6 +1,5 @@
 # Items ↔ MarketplaceItems
 
-> Главный документ доменной модели.  
 > Roadmap: [`../roadmap/items-marketplace-items-migration.md`](../roadmap/items-marketplace-items-migration.md).  
 > Решения: [`../AI_CONTEXT.md`](../AI_CONTEXT.md).
 
@@ -28,14 +27,14 @@ Item (marketplace-independent, 1 на article)
 
 Marketplace-independent: `id`, `article`, `articleOld`, `ownCategory`, `title`, логистика/сроки, `directionId`, classification/virality/planning, общие габариты/объём, себестоимость/таможня, `ownImagesUrl`, `downloadCalculationMethod`, audit.
 
-**Не целевые на `items`:** `sendStatusId`, `category`, `color`, `imageUrl`, MP-identity, MP-габариты, цены — остаются до cutover как legacy dual-write.
+**Не целевые на `items`:** `sendStatusId`, `category`, `color`, `imageUrl`, MP-identity, MP-габариты, цены — dual-write / legacy до cutover.
 
 ### Поля на `marketplace_items`
 
-| Уже в схеме / entity (FACT) | Ещё не переносим |
-|-----------------------------|------------------|
-| identity: identifier, barcode, sku, dimensions, volume, chrt, marketplace_id, item_id, deleted_at | цены, `wb_created_at` |
-| **новое:** `category`, `title`, `color`, `image_url`, `send_status_id` | |
+| Уже в entity (FACT) | Дальше |
+|---------------------|--------|
+| identity, dimensions, volume, chrt, deleted_at | цены, `wbCreatedAt` |
+| `category`, `title`, `color`, `image_url`, `send_status_id` | drop зеркал с `items` на cutover |
 
 **Архив:** `deleted_at` (не `isArchive`).
 
@@ -43,31 +42,21 @@ Marketplace-independent: `id`, `article`, `articleOld`, `ownCategory`, `title`, 
 
 ## Текущий transition state (FACT)
 
-1. Sync карточек всё ещё создаёт **отдельную** строку `items` на МП + `marketplace_items` 1:1.
-2. **Identity dual-write** (barcode/sku/dimensions/…) — да.
-3. **Новые поля** (`category/title/color/imageUrl/sendStatusId`) — на entity + migrations; **card sync create/update `MarketplaceItems` их не заполняет** (только identity/dimensions) → dual-write gap.
-4. Stocks / Orders sync: lookup и uniqueness по `marketplace_item_id`; `item_id` всё ещё пишется (dual keys).
+1. Sync создаёт отдельную строку `items` на МП + `marketplace_items` 1:1.
+2. Identity dual-write (barcode/sku/dimensions) — да.
+3. **Новые поля** на entity + migrations; **card sync create/update `MarketplaceItems` их не заполняет** (только identity/dimensions) → gap.
+4. Stocks / Orders: lookup и uniqueness по `marketplace_item_id`.
 5. Directory: `marketplacesInfo` читает category/barcode/image/color/itemTitle с **mp items**.
-6. Stop-list read: v2 only; image/title/color/`sendStatus` всё ещё с **`item`**.
-7. Stop-list write / autostatus: legacy `items.send_status_id` / `orders`.
+6. Stop-list: полный контур `send_status` на mp (+ dual-write items); v2 image/title/color пока с **`item`**.
 
-### Stop-list
+### Stop-list (FACT)
 
 | Endpoint / код | Статус |
 |----------------|--------|
 | `GET …/stop-list` v1 | отключён |
-| `GET …/v2/stop-list` | активен (mp-centric stocks/orders_v2) |
-| `PATCH …/stop-list` | пишет `items.send_status_id` |
-| `updateItemSendStatus` | legacy `orders` + `items` |
-
-### Stocks / Orders sync
-
-| Поток | Статус |
-|-------|--------|
-| WB/Ozon/Yandex stocks create | `marketplaceItemId` обязателен; без mp item — skip |
-| WB FBS list | `MarketplaceItems` + `deletedAt IS NULL` |
-| Yandex stocks **find** existing row | **bug:** в цикле `result` используется `findMarketplaceItem.id` внешнего цикла, не `item.marketplaceItemId` |
-| Orders v2 find/create | по `marketplaceItemId` |
+| `GET …/v2/stop-list` | ✔ `mpItems.sendStatus`; image/title/color с `item` |
+| `PATCH …/stop-list` | ✔ find → update by id, dual-write, без continue |
+| `updateItemSendStatus` | ✔ mp root + dual-write + mp aggregations + `orders_v2` |
 
 ---
 
@@ -76,11 +65,23 @@ Marketplace-independent: `id`, `article`, `articleOld`, `ownCategory`, `title`, 
 | # | Статус |
 |---|--------|
 | 1. MarketplaceItems | ✔ |
-| 2. Stocks | ✔ *(Yandex findStock bug)* |
+| 2. Stocks | ✔ |
 | 3. Orders | ✔ |
-| 4. StopList + listing fields | **in progress** |
+| 4. StopList (send_status) | ✔ |
+| 4b. listing fields (category/…) | schema ✔; card sync / v2 selects □ |
 | 5. Consolidation | □ |
 | 6. Cutover | □ |
+
+---
+
+## Legacy
+
+| Область | Legacy |
+|---------|--------|
+| Card sync | category/title/color/imageUrl пишутся в `items`, не в mp create/update |
+| v2 stop-list image/title/color | с `item` |
+| dual-write `send_status` на `items` | до cutover |
+| Prices | на `items` |
 
 ---
 
@@ -89,9 +90,9 @@ Marketplace-independent: `id`, `article`, `articleOld`, `ownCategory`, `title`, 
 | Термин | Значение |
 |--------|----------|
 | **Listing archive** | `marketplace_items.deleted_at` |
-| **Send status** | цель — `marketplace_items.send_status_id` |
+| **Send status** | `marketplace_items.send_status_id` (+ dual на items) |
 | **Stop-list v2** | единственный read |
-| **Dual-write gap** | новые колонки на mp items есть, sync карточек их ещё не заполняет |
+| **Dual-write gap** | колонки на mp есть, card sync их не пишет |
 
 ---
 

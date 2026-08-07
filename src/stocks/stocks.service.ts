@@ -89,7 +89,8 @@ export class StocksService {
     const findItemsWithStocks = await queryBuilder.getMany();
     const excludeWarehouses = [
       18, 1146895, 16, 59, 95, 1146938, 1146932, 1146912, 19, 1147083, 1146906, 242582, 158, 1146879, 67,
-      1146902, 1146903, 1146878, 1146919, 1147137, 1147160, 1146898, 1147058, 21
+      1146902, 1146903, 1146878, 1146919, 1147137, 1147160, 1146898, 1147058, 21, 1146887, 1146888, 1146889,
+      383378
     ];
     return findItemsWithStocks.map(mpItem => {
       const stocksResult = mpItem.stocks.reduce<{
@@ -573,7 +574,7 @@ export class StocksService {
           .createQueryBuilder(Stocks, 'stocks')
           .where("DATE(created_at) = DATE('now')")
           .andWhere('stocks.marketplaceItemId = :marketplaceItemId', {
-            marketplaceItemId: findMarketplaceItem.id
+            marketplaceItemId: item.marketplaceItemId
           })
           .andWhere('stocks.warehouseId = :warehouseId', { warehouseId: item.warehouseId })
           .getOne();

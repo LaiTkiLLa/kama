@@ -114,7 +114,8 @@ export class VerifyMarketplaceItemsMatchItems1786013498714 implements MigrationI
     /**
      * ============================================================
      * 5. Скопированные поля совпадают
-     *    color, category, image_url, title, send_status_id
+     *    color, category, image_url, title
+     *    (send_status_id проверяется в 1786097301320)
      * ============================================================
      */
     await queryRunner.query(`
@@ -129,12 +130,11 @@ export class VerifyMarketplaceItemsMatchItems1786013498714 implements MigrationI
         WHERE mi.color IS DISTINCT FROM i.color
            OR mi.category IS DISTINCT FROM i.category
            OR mi.image_url IS DISTINCT FROM i.image_url
-           OR mi.title IS DISTINCT FROM i.title
-           OR mi.send_status_id IS DISTINCT FROM i.send_status_id;
+           OR mi.title IS DISTINCT FROM i.title;
 
         IF mismatch_count > 0 THEN
           RAISE EXCEPTION
-            'Verification aborted: % marketplace_items rows mismatch items on color/category/image_url/title/send_status_id',
+            'Verification aborted: % marketplace_items rows mismatch items on color/category/image_url/title',
             mismatch_count;
         END IF;
       END $$;

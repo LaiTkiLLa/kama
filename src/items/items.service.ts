@@ -23,6 +23,7 @@ import { ItemsSizes } from './entities/items-sizes.entity';
 import { ItemsSuppliers } from './entities/items_suppliers.entity';
 import { MarketplaceItems } from './entities/marketplace-items.entity';
 import { MarketplaceInfo } from './interfaces/get-items-directory-list.interface';
+import { Statuses } from 'src/info/entities/statuses.entity';
 
 @Injectable()
 export class ItemsService {
@@ -555,14 +556,14 @@ export class ItemsService {
         .innerJoin('mpItems.item', 'item')
         .innerJoin('mpItems.marketplace', 'marketplace')
         .leftJoin('item.direction', 'directions')
-        .leftJoin('item.sendStatus', 'sendStatus')
+        .leftJoin('mpItems.sendStatus', 'sendStatus')
         .leftJoin(
           qb => {
             return (
               qb
                 .select('stock.marketplace_item_id', 'marketplace_item_id')
                 .addSelect(
-                  `SUM(CASE WHEN stock.warehouse_id IN (18, 1146895, 16, 59, 95, 1146938, 1146932, 1147083, 19, 1146912, 1146906, 242582, 158, 67, 1146879, 1146902, 1146903, 1146878, 1146919, 1147137, 1147160, 1146898, 1147058, 21) THEN 0 ELSE stock.current_value END)`,
+                  `SUM(CASE WHEN stock.warehouse_id IN (18, 1146895, 16, 59, 95, 1146938, 1146932, 1147083, 19, 1146912, 1146906, 242582, 158, 67, 1146879, 1146902, 1146903, 1146878, 1146919, 1147137, 1147160, 1146898, 1147058, 211146887, 1146888, 1146889, 383378) THEN 0 ELSE stock.current_value END)`,
                   'stocks_sum'
                 )
                 // .addSelect('SUM(stock.current_value)', 'stocks_sum')
@@ -712,45 +713,95 @@ export class ItemsService {
     await queryRunner.startTransaction();
     try {
       for (const item of items) {
-        const findItem = await this.findItem({ article: item.article }, queryRunner);
-        if (!findItem) {
-          continue;
-        }
-        let findStatusOzon;
-        let findStatusWB;
-        let findStatusYandex;
         if (item.ozonStatus) {
-          findStatusOzon = await this.infoService.findStatus(queryRunner, {
-            title: item.ozonStatus,
-            type: StatusesTypes.Отправка
+          const findItem = await queryRunner.manager.findOne(Items, {
+            where: {
+              marketplaceId: findMarketplaceOzon.id,
+              article: item.article
+            }
           });
-          await queryRunner.manager.update(
-            Items,
-            { marketplaceId: findMarketplaceOzon.id, article: item.article },
-            { sendStatusId: findStatusOzon.id }
-          );
+          if (findItem) {
+            const findStatusOzon = await queryRunner.manager.findOne(Statuses, {
+              where: {
+                title: item.ozonStatus,
+                type: StatusesTypes.Отправка
+              }
+            });
+            if (findStatusOzon) {
+              await queryRunner.manager.update(Items, findItem.id, { sendStatusId: findStatusOzon.id });
+              const findMpItem = await queryRunner.manager.findOne(MarketplaceItems, {
+                where: {
+                  marketplaceId: findMarketplaceOzon.id,
+                  itemId: findItem.id
+                }
+              });
+              if (findMpItem) {
+                await queryRunner.manager.update(MarketplaceItems, findMpItem.id, {
+                  sendStatusId: findStatusOzon.id
+                });
+              }
+            }
+          }
         }
         if (item.wbStatus) {
-          findStatusWB = await this.infoService.findStatus(queryRunner, {
-            title: item.wbStatus,
-            type: StatusesTypes.Отправка
+          const findItem = await queryRunner.manager.findOne(Items, {
+            where: {
+              marketplaceId: findMarketplaceWB.id,
+              article: item.article
+            }
           });
-          await queryRunner.manager.update(
-            Items,
-            { marketplaceId: findMarketplaceWB.id, article: item.article },
-            { sendStatusId: findStatusWB.id }
-          );
+          if (findItem) {
+            const findStatusWB = await queryRunner.manager.findOne(Statuses, {
+              where: {
+                title: item.wbStatus,
+                type: StatusesTypes.Отправка
+              }
+            });
+            if (findStatusWB) {
+              await queryRunner.manager.update(Items, findItem.id, { sendStatusId: findStatusWB.id });
+              const findMpItem = await queryRunner.manager.findOne(MarketplaceItems, {
+                where: {
+                  marketplaceId: findMarketplaceWB.id,
+                  itemId: findItem.id
+                }
+              });
+              if (findMpItem) {
+                await queryRunner.manager.update(MarketplaceItems, findMpItem.id, {
+                  sendStatusId: findStatusWB.id
+                });
+              }
+            }
+          }
         }
         if (item.yandexStatus) {
-          findStatusYandex = await this.infoService.findStatus(queryRunner, {
-            title: item.yandexStatus,
-            type: StatusesTypes.Отправка
+          const findItem = await queryRunner.manager.findOne(Items, {
+            where: {
+              marketplaceId: findMarketplaceYandex.id,
+              article: item.article
+            }
           });
-          await queryRunner.manager.update(
-            Items,
-            { marketplaceId: findMarketplaceYandex.id, article: item.article },
-            { sendStatusId: findStatusYandex.id }
-          );
+          if (findItem) {
+            const findStatusYandex = await queryRunner.manager.findOne(Statuses, {
+              where: {
+                title: item.yandexStatus,
+                type: StatusesTypes.Отправка
+              }
+            });
+            if (findStatusYandex) {
+              await queryRunner.manager.update(Items, findItem.id, { sendStatusId: findStatusYandex.id });
+              const findMpItem = await queryRunner.manager.findOne(MarketplaceItems, {
+                where: {
+                  marketplaceId: findMarketplaceYandex.id,
+                  itemId: findItem.id
+                }
+              });
+              if (findMpItem) {
+                await queryRunner.manager.update(MarketplaceItems, findMpItem.id, {
+                  sendStatusId: findStatusYandex.id
+                });
+              }
+            }
+          }
         }
       }
       await queryRunner.commitTransaction();
@@ -1444,35 +1495,57 @@ export class ItemsService {
     await queryRunner.startTransaction();
     try {
       const weekAgo = new Date(new Date().setDate(new Date().getDate() - 7));
-      const findItems = await queryRunner.manager
-        .createQueryBuilder(Items, 'items')
-        .innerJoinAndSelect('items.sendStatus', 'sendStatus', 'sendStatus.title NOT IN (:...titles)', {
+      const findMpItems = await queryRunner.manager
+        .createQueryBuilder(MarketplaceItems, 'mpItems')
+        .innerJoinAndSelect('mpItems.sendStatus', 'sendStatus', 'sendStatus.title NOT IN (:...titles)', {
           titles: ['Нельзя (ручная)', 'Можно (ручная)']
         })
+        .leftJoinAndSelect('mpItems.item', 'item')
         .addSelect(subQuery => {
           return subQuery
             .select('COALESCE(SUM(stock.currentValue), 0)', 'stocksSum')
             .from('stocks', 'stock')
-            .where('stock.item_id = items.id')
+            .where('stock.marketplace_item_id = mpItems.id')
             .andWhere('DATE(stock.createdAt) = CURRENT_DATE');
         }, 'stocksSum')
         .addSelect(subQuery => {
           return subQuery
             .select('COALESCE(SUM(ord.quantity), 0)', 'ordersSum')
-            .from('orders', 'ord')
-            .where('ord.item_id = items.id')
+            .from('orders_v2', 'ord')
+            .where('ord.marketplace_item_id = mpItems.id')
             .andWhere('ord.created_at >= DATE(:weekAgo)', { weekAgo });
         }, 'ordersSum')
         .getRawAndEntities();
+      //      const findItems = await queryRunner.manager
+      //        .createQueryBuilder(Items, 'items')
+      //        .innerJoinAndSelect('items.sendStatus', 'sendStatus', 'sendStatus.title NOT IN (:...titles)', {
+      //          titles: ['Нельзя (ручная)', 'Можно (ручная)']
+      //        })
+      //        .addSelect(subQuery => {
+      //          return subQuery
+      //            .select('COALESCE(SUM(stock.currentValue), 0)', 'stocksSum')
+      //            .from('stocks', 'stock')
+      //            .where('stock.item_id = items.id')
+      //            .andWhere('DATE(stock.createdAt) = CURRENT_DATE');
+      //        }, 'stocksSum')
+      //        .addSelect(subQuery => {
+      //          return subQuery
+      //            .select('COALESCE(SUM(ord.quantity), 0)', 'ordersSum')
+      //            .from('orders_v2', 'ord')
+      //            .where('ord.item_id = items.id')
+      //            .andWhere('ord.created_at >= DATE(:weekAgo)', { weekAgo });
+      //        }, 'ordersSum')
+      //        .getRawAndEntities();
       const mappedItems: StopListCronResult[] = [];
-      findItems.entities.forEach((item, index) => {
-        const raw = findItems.raw[index];
+      findMpItems.entities.forEach((item, index) => {
+        const raw = findMpItems.raw[index];
         mappedItems.push({
           orders: Number(raw.ordersSum),
           stocks: Number(raw.stocksSum),
-          itemId: item.id,
-          itemArticle: item.article,
-          classification: item.classification
+          itemId: item.itemId,
+          itemArticle: item.item.article,
+          classification: item.item.classification,
+          mpItemId: item.id
         });
       });
       const findSuccessStatus = await this.infoService.findStatus(queryRunner, {
@@ -1496,6 +1569,11 @@ export class ItemsService {
         const salesSpeed = Number((item.orders / 7).toFixed(2)) * 30;
         if (item.stocks - salesSpeed <= 0) {
           await queryRunner.manager.update(Items, { id: item.itemId }, { sendStatusId: findRejectStatus.id });
+          await queryRunner.manager.update(
+            MarketplaceItems,
+            { id: item.mpItemId },
+            { sendStatusId: findRejectStatus.id }
+          );
           continue;
         }
         if (item.classification === 'Бестселлер / А' && item.stocks - salesSpeed > 0) {
@@ -1504,12 +1582,27 @@ export class ItemsService {
             { id: item.itemId },
             { sendStatusId: findBestSellerStatus.id }
           );
+          await queryRunner.manager.update(
+            MarketplaceItems,
+            { id: item.mpItemId },
+            { sendStatusId: findBestSellerStatus.id }
+          );
         } else if (item.classification === 'Новинка / A' && item.stocks - salesSpeed > 0) {
           await queryRunner.manager.update(Items, { id: item.itemId }, { sendStatusId: findNewStatus.id });
+          await queryRunner.manager.update(
+            MarketplaceItems,
+            { id: item.mpItemId },
+            { sendStatusId: findNewStatus.id }
+          );
         } else if (item.classification === 'Хит продаж / А' && item.stocks - salesSpeed > 0) {
           await queryRunner.manager.update(
             Items,
             { id: item.itemId },
+            { sendStatusId: findSuccessStatus.id }
+          );
+          await queryRunner.manager.update(
+            MarketplaceItems,
+            { id: item.mpItemId },
             { sendStatusId: findSuccessStatus.id }
           );
         }

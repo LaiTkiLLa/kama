@@ -12,6 +12,7 @@ import { Marketplaces } from '../../info/entities/marketplaces.entity';
 import { Items } from './items.entity';
 import { Stocks } from '../../stocks/entities/stocks.entity';
 import { OrdersV2 } from '../../orders/entities/orders_v2.entity';
+import { Statuses } from 'src/info/entities/statuses.entity';
 
 @Entity({
   name: 'marketplace_items'
@@ -104,4 +105,10 @@ export class MarketplaceItems {
 
   @OneToMany(() => OrdersV2, orders => orders.marketplaceItem)
   orders: OrdersV2[];
+
+  @ManyToOne(() => Statuses, sendStatus => sendStatus.itemsMarketplace)
+  @JoinColumn({
+    name: 'send_status_id'
+  })
+  sendStatus: Statuses;
 }
