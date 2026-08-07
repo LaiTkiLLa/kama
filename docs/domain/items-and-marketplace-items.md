@@ -51,9 +51,10 @@ Marketplace-independent:
 Все marketplace-specific данные, включая:
 
 
-| Уже есть (FACT)                                                                                                          | Будут перенесены / добавлены (DECISION)                                       |
-| ------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------- |
-| `marketplace_identifier`, `barcode`, `sku`, `dimensions`, `volume`, `chrt_id`, `marketplace_id`, `item_id`, `deleted_at` | `category`, `imageUrl`, `send_status_id`, цены, MP-габариты, `wbCreatedAt`, … |
+| Уже есть (FACT) | В процессе / дальше |
+|-----------------|---------------------|
+| identity, dimensions, volume, chrt, deleted_at | `category`, `imageUrl`, title-on-mp, цены, `wbCreatedAt` |
+| **`send_status_id`** (entity + migration `1786097301320`) | drop с `items` — только cutover |
 
 
 
@@ -71,23 +72,19 @@ Marketplace-independent:
 
 ## Текущий transition state (FACT)
 
-1. Sync создаёт отдельную строку `items` на каждый МП.
-2. `marketplace_items` ≈ 1:1 к такой строке.
-3. `stocks` / `orders_v2`: dual keys + `marketplace_item_id`.
-4. MP-поля (`send_status_id`, `imageUrl`, `category`, …) **ещё на** `items`.
-5. Stop-list read: только **v2**; v1 закомментирован.
-
-
+1. Sync создаёт отдельную строку `items` на каждый МП + `marketplace_items` 1:1.
+2. Stocks / Orders sync: lookup/uniqueness по `marketplace_item_id` (Yandex findStock использует `item.marketplaceItemId`).
+3. `send_status_id`: полный контур на mp (entity, migration, PATCH dual-write, autostatus, v2 read `mpItems.sendStatus`); dual-write на `items` до cutover.
+4. category / imageUrl / title — ещё на `items`.
 
 ### Stop-list (FACT)
 
-
-| Endpoint / код                  | Статус                                                                      |
-| ------------------------------- | --------------------------------------------------------------------------- |
-| `GET /api/items/stop-list` (v1) | **отключён** (закомментирован)                                              |
-| `GET /api/items/v2/stop-list`   | **активен** — mp-item centric, `orders_v2`, stocks по `marketplace_item_id` |
-| `PATCH /api/items/stop-list`    | **активен** — пишет `items.send_status_id` (legacy)                         |
-| `updateItemSendStatus` (cron)   | **legacy** — `orders`, `items.send_status_id`, stocks по `item_id`          |
+| Endpoint / код | Статус |
+|----------------|--------|
+| `GET …/stop-list` v1 | отключён |
+| `GET …/v2/stop-list` | ✔ `mpItems.sendStatus` |
+| `PATCH …/stop-list` | ✔ find → update by id, dual-write, без continue |
+| `updateItemSendStatus` | ✔ mp root + dual-write + mp aggregations + `orders_v2` |
 
 
 ---
@@ -102,7 +99,7 @@ Marketplace-independent:
 | 1. MarketplaceItems | ✔                                                                |
 | 2. Stocks           | ✔                                                                |
 | 3. Orders           | ✔                                                                |
-| 4. StopList         | **in progress** — read v1 ✔ retired; autostatus + write path — □ |
+| 4. StopList | ✔ send_status track; дальше category/imageUrl/title |
 | 5. Consolidation    | □                                                                |
 | 6. Cutover          | □                                                                |
 
@@ -118,11 +115,8 @@ Marketplace-independent:
 
 | Область            | Legacy                                                  |
 | ------------------ | ------------------------------------------------------- |
-| Autostatus         | `orders` + `items.send_status_id` + stocks по `item_id` |
-| PATCH stop-list    | `items.send_status_id`                                  |
-| v2 read sendStatus | join на `item.sendStatus` (до переноса колонки)         |
-| Stocks API v1      | `GET /api/stocks/current`                               |
-| Prices             | на `items`                                              |
+| Autostatus / PATCH / v2 sendStatus | ✔ на `marketplace_items` (+ dual-write items) |
+| Prices / category / imageUrl | ещё на `items` |
 
 
 ---

@@ -67,4 +67,5 @@ export interface StopListCronResult {
   itemId: number;
   classification: string;
   itemArticle: string;
+  mpItemId: number;
 }
