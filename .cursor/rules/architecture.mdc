@@ -1,47 +1,49 @@
 ---
-description: Architectural constraints for Kama (Items/MP migration, compatibility, AI safety)
+description: Архитектурные ограничения Kama (миграция Items/MP, совместимость, безопасность для AI)
 alwaysApply: true
 ---
 
-# Kama — Architecture Rules
+# Kama — архитектурные правила
 
-## Knowledge discipline
+## Дисциплина знаний
 
-- Read `docs/AI_CONTEXT.md` before non-trivial work — it holds accepted product decisions and forbidden reversions.
-- Do not invent architecture or business rules. Prefer code and migrations over assumptions.
-- If information is missing or ambiguous: investigate the repository first; label FACT / ASSUMPTION / NEEDS VERIFICATION / UNKNOWN.
-- Do not change business logic without understanding why it exists (read callers, crons, and related docs).
-- UI is Google Sheets + GAS only — no frontend in this repo; keep API changes GAS-compatible.
-- Target direction: marketplace-independent data on `items`; marketplace-specific on `marketplace_items` (including `category`, `imageUrl`, `send_status_id`).
-- Archive listings via `marketplace_items.deleted_at`, not `items.isArchive` (target model).
+- Перед нетривиальной работой читай `docs/AI_CONTEXT.md` — там принятые решения продукта и запреты на откат.
+- Не выдумывай архитектуру и бизнес-правила. Опирайся на код и миграции, а не на предположения.
+- Если данных мало или они двусмысленны: сначала исследуй репозиторий; помечай FACT / ASSUMPTION / NEEDS VERIFICATION / UNKNOWN.
+- Не меняй бизнес-логику, не поняв зачем она есть (читай callers, cron’ы и связанные docs).
+- UI — только Google Sheets + GAS; frontend в этом репозитории не создавать. Изменения API держи совместимыми с GAS.
+- Целевое направление: marketplace-independent данные на `items`; marketplace-specific — на `marketplace_items` (включая `category`, `title`, `color`, `imageUrl`, `send_status_id`).
+- Архив listing — через `marketplace_items.deleted_at`, не через `items.isArchive` (целевая модель).
 
 ## Workflow
 
-- Order of work: investigate repository → read relevant `docs/` → Implementation Plan → only then propose or apply changes.
-- Architectural or cutover changes require an Implementation Plan before coding.
-- Do not perform destructive operations (drop/truncate/remove legacy without replacement, force cutover) without explicit user confirmation.
+- Порядок работы: исследование репозитория → чтение релевантных `docs/` → Implementation Plan → только потом предлагать или вносить изменения.
+- Архитектурные изменения и cutover требуют Implementation Plan до кода.
+- Не делай destructive операций (drop/truncate/удаление legacy без замены, force cutover) без явного подтверждения пользователя.
 
 ## Items ↔ MarketplaceItems
 
-- Target direction: marketplace-independent data belongs on `items`; marketplace-specific data belongs on `marketplace_items` (including `category`, `imageUrl`, `send_status_id` per product decision).
-- Listing archive: use `marketplace_items.deleted_at`; do not rely on `items.isArchive` in new logic.
-- Current runtime is a **transition state** (often 1:1 item↔marketplace_item, dual-write, dual keys). Do not treat 1 item : N marketplace_items as fully implemented.
-- Do not break dual-write to `items` and `marketplace_items` while sync/API still depend on both.
-- Do not remove legacy columns/tables (`item_id`, `marketplace_id` on stocks/orders, MP fields on `items`, `orders`) without a migration plan and cutover.
-- Updating `marketplace_items` by `itemId` alone is unsafe for future 1:N — include marketplace identity when changing this pattern.
-- Avoid `marketplaceItemId ?? 0`; missing marketplace item → skip / error, never invent id `0`.
-- After adding NOT NULL columns on `marketplace_items`, card sync must dual-write them on create/update (see `docs/AI_CONTEXT.md` dual-write gap).
+- Marketplace-independent — на `items`; marketplace-specific — на `marketplace_items` (включая listing-поля и `send_status_id` по продуктовому решению).
+- Архив listing: `marketplace_items.deleted_at`; в новой логике не опирайся на `items.isArchive`.
+- Текущий runtime — **transition state** (часто 1:1 item↔marketplace_item, dual-write, dual keys). Не считай модель 1 item : N marketplace_items полностью реализованной.
+- Не ломай dual-write в `items` и `marketplace_items`, пока sync/API зависят от обоих.
+- Не удаляй legacy-колонки/таблицы (`item_id`, `marketplace_id` на stocks/orders, MP-поля на `items`, legacy `orders`) без плана миграции и cutover.
+- Обновление `marketplace_items` только по `itemId` небезопасно для будущего 1:N — при смене паттерна включай identity маркетплейса.
+- Избегай `marketplaceItemId ?? 0`; нет marketplace item → skip / error, никогда не подставляй id `0`.
+- **Текущий критичный gap (Milestone 4b):** после NOT NULL `category`/`title` на `marketplace_items` card sync (WB/Ozon/Yandex) обязан dual-писать listing-поля (`category`, `title`, `color`, `imageUrl`) при create/update. Сейчас пишет только identity/dimensions — см. `docs/AI_CONTEXT.md`.
+- Контур `send_status` (PATCH / autostatus / v2 read) уже mp-centric + dual-write на `items` — не откатывать на items-only без плана.
 
-## Compatibility and data integrity
+## Совместимость и целостность данных
 
-- Prefer backward compatibility for existing cron behavior unless the user explicitly requests a breaking change.
-- Stop-list read: only `GET /api/items/v2/stop-list` is active; do not re-enable v1 without a plan.
-- Stocks API: v1 (`/stocks/current`) and v2 still coexist.
-- Active order sync writes `orders_v2`. Do not revive writes to legacy `orders` without an explicit plan. Be aware autostatus may still read `orders`.
-- Schema changes go only through TypeORM migrations (`synchronize: false`). Never enable synchronize to “fix” schema.
-- Do not commit secrets or hardcode marketplace tokens/API keys.
+- Предпочитай обратную совместимость существующего cron-поведения, пока пользователь явно не просит breaking change.
+- Stop-list read: активен только `GET /api/items/v2/stop-list`; не включай v1 read без плана.
+- Stocks API: v1 (`/stocks/current`) и v2 пока сосуществуют.
+- Активный sync заказов пишет в `orders_v2`. Не оживляй запись в legacy `orders` без явного плана. Учитывай, что часть логики ещё может читать `orders`.
+- Изменения схемы — только через TypeORM migrations (`synchronize: false`). Никогда не включай synchronize, чтобы «починить» схему.
+- Не коммить секреты и не хардкодь токены/API-ключи маркетплейсов.
 
 ## Scope
 
-- Change only what the task requires. Do not drive-by refactor unrelated modules.
-- When touching the Items/MP migration, update `docs/roadmap/items-marketplace-items-migration.md` after the step.
+- Меняй только то, что требует задача. Без drive-by рефакторинга чужих модулей.
+- При шаге миграции Items/MP обновляй `docs/roadmap/items-marketplace-items-migration.md` после шага.
+- Текущая позиция roadmap: **Milestone 4b** (listing fields) — schema ✔; dual-write card sync и v2 image/title/color с mp — ещё нет. Consolidation (M5) и Cutover (M6) не начаты.

@@ -44,7 +44,7 @@ Marketplace-independent: `id`, `article`, `articleOld`, `ownCategory`, `title`, 
 
 1. Sync создаёт отдельную строку `items` на МП + `marketplace_items` 1:1.
 2. Identity dual-write (barcode/sku/dimensions) — да.
-3. **Новые поля** на entity + migrations; **card sync create/update `MarketplaceItems` их не заполняет** (только identity/dimensions) → gap.
+3. **Listing-поля** на entity + migrations; **card sync create/update `MarketplaceItems` их не заполняет** (только identity/dimensions) → dual-write gap (M4b).
 4. Stocks / Orders: lookup и uniqueness по `marketplace_item_id`.
 5. Directory: `marketplacesInfo` читает category/barcode/image/color/itemTitle с **mp items**.
 6. Stop-list: полный контур `send_status` на mp (+ dual-write items); v2 image/title/color пока с **`item`**.
@@ -68,7 +68,7 @@ Marketplace-independent: `id`, `article`, `articleOld`, `ownCategory`, `title`, 
 | 2. Stocks | ✔ |
 | 3. Orders | ✔ |
 | 4. StopList (send_status) | ✔ |
-| 4b. listing fields (category/…) | schema ✔; card sync / v2 selects □ |
+| **4b. listing fields** | **schema ✔; card sync / v2 selects □ ← мы здесь** |
 | 5. Consolidation | □ |
 | 6. Cutover | □ |
 
@@ -79,6 +79,7 @@ Marketplace-independent: `id`, `article`, `articleOld`, `ownCategory`, `title`, 
 | Область | Legacy |
 |---------|--------|
 | Card sync | category/title/color/imageUrl пишутся в `items`, не в mp create/update |
+| Card sync update mp | по `{ itemId }` (безопасно только при 1:1) |
 | v2 stop-list image/title/color | с `item` |
 | dual-write `send_status` на `items` | до cutover |
 | Prices | на `items` |

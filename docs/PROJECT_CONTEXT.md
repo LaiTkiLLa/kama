@@ -123,11 +123,13 @@ PostgreSQL
 | `statuses`, `directions`, `suppliers`, … | справочники операционного контура                                  |
 
 
-**Критично:** модель находится в **transition state** `items` ↔ `marketplace_items`.  
+**Критично:** модель в **transition state** `items` ↔ `marketplace_items`.  
+**Текущий шаг roadmap:** Milestone **4b** (listing fields: dual-write card sync → v2 read с mp). M1–M4 ✔.  
 Источник истины:
 
 - `[domain/items-and-marketplace-items.md](domain/items-and-marketplace-items.md)`
 - `[roadmap/items-marketplace-items-migration.md](roadmap/items-marketplace-items-migration.md)`
+- `[AI_CONTEXT.md](AI_CONTEXT.md)`
 
 ---
 

@@ -69,22 +69,25 @@ Implementation Plan → явное подтверждение на destructive �
 
 `synchronize: false` — схема **только** через TypeORM migrations.
 
-### Стоп-лист / автостатусы / send_status
+### Стоп-лист / автостатусы / send_status / listing fields
 
 ```text
-AI_CONTEXT.md  (v1 read retired; send_status → mp_items)
+AI_CONTEXT.md  (v1 read retired; send_status → mp_items; M4b gap)
         ↓
 domain/items-and-marketplace-items.md
         ↓
-roadmap (Milestone 4)
+roadmap (Milestone 4 ✔; сейчас 4b — listing fields)
         ↓
 src/items/items.service.ts
-  (getItemStopsListV2, updateItemSendStatus, updateItemsStopList)
+  (getItemStopsListV2, updateItemSendStatus, updateItemsStopList,
+   getWbItems / getOzonItems / getYandexItems — card sync dual-write)
         ↓
 src/info (statuses)
 ```
 
-**FACT:** `GET /api/items/stop-list` (v1) отключён. Read только `GET /api/items/v2/stop-list`.
+**FACT:** `GET /api/items/stop-list` (v1) отключён. Read только `GET /api/items/v2/stop-list`.  
+**FACT:** `sendStatus` в v2 уже с `mpItems`; image/title/color ещё с `item`.  
+**FACT:** card sync пишет listing-поля в `items`, в `MarketplaceItems` — только identity/dimensions.
 
 
 
@@ -95,7 +98,7 @@ AI_CONTEXT + domain (mp-item centric sync; dual keys)
         ↓
 src/stocks/**
         ↓
-v1 vs v2 API; exclusion warehouses; Yandex findStock bug (см. AI_CONTEXT)
+v1 vs v2 API; exclusion warehouses
 ```
 
 
