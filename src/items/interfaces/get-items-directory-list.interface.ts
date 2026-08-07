@@ -6,7 +6,7 @@ export type MarketplaceInfo = {
   marketplaceIdentifier: string | null;
   image: string | null;
   barcode: string;
-  color: string;
-  category: string;
-  itemTitle: string;
+  color: string | null;
+  category: string | null;
+  itemTitle: string | null;
 };
