@@ -38,13 +38,7 @@ export class ItemsService {
       const findWbMp = await this.infoService.findMarketplace({ title: 'WB' });
       const createItem = queryRunner.manager.create(Items, {
         createdForCalculation: true,
-        // marketplaceId: findWbMp.id,
         article: 'тестовый артикул'
-        // category: 'тестовая категория',
-        // title: 'тестовое название',
-        // barcode: 'тестовый баркод',
-        // sku: 'тестовый ску',
-        // marketplaceIdentifier: 'тестовый идентификатор'
       });
       await queryRunner.manager.save(Items, createItem);
       await queryRunner.manager.update(
@@ -296,108 +290,6 @@ export class ItemsService {
       await queryRunner.release();
     }
   }
-
-  // async updateArrayDirectoryItemsInfo(updateArrayDirectoryItemsInfoDto: UpdateArrayDirectoryItemsInfoDto) {
-  //   const queryRunner = this.dataSource.createQueryRunner();
-  //   await queryRunner.connect();
-  //   try {
-  //     for (const item of updateArrayDirectoryItemsInfoDto.items) {
-  //       const findItems = await queryRunner.manager.find(Items, {
-  //         where: {
-  //           article: item.article
-  //         }
-  //       });
-  //       if (!findItems.length) {
-  //         throw new NotFoundException('Артикул не найден');
-  //       }
-  //       if (item.supplier) {
-  //         const findSupplier = await queryRunner.manager.findOne(Suppliers, {
-  //           where: {
-  //             title: item.supplier
-  //           }
-  //         });
-  //         if (!findSupplier) {
-  //           throw new NotFoundException('Поставщик не найден');
-  //         }
-  //         const itemsId = findItems.map(el => el.id);
-  //         const findItemsSupplier = await queryRunner.manager.find(ItemsSuppliers, {
-  //           where: {
-  //             itemId: In(itemsId)
-  //           }
-  //         });
-  //         if (findItemsSupplier.length) {
-  //           await queryRunner.manager.update(
-  //             ItemsSuppliers,
-  //             { itemId: In(itemsId) },
-  //             { supplierId: findSupplier.id }
-  //           );
-  //         } else {
-  //           await queryRunner.manager.insert(
-  //             ItemsSuppliers,
-  //             itemsId.map(itemId => ({
-  //               supplierId: findSupplier.id,
-  //               itemId
-  //             }))
-  //           );
-  //         }
-  //       }
-  //       await queryRunner.manager.update(
-  //         Items,
-  //         { id: In(findItems.map(el => el.id)) },
-  //         {
-  //           ownCategory: item.ownCategory,
-  //           classification: item.classification,
-  //           multiplicity: item.multiplicity,
-  //           boxNumber: item.boxNumber,
-  //           dimensionsFact: item.dimensionsFact,
-  //           volume: item.volume,
-  //           articleOld: item.articleOld,
-  //           costInYuan: item.costInYuan,
-  //           costInRub: item.costInRub,
-  //           replenishmentPeriod: item.replenishmentPeriod,
-  //           remainingBalance: item.remainingBalance,
-  //           ownImagesUrl: item.ownImagesUrl,
-  //           volumePerUnit: item.volumePerUnit,
-  //           weightPerUnit: item.weightPerUnit,
-  //           transportRateUsd: item.transportRateUsd,
-  //           dutyPercentage: item.dutyPercentage,
-  //           // density: item.density,
-  //           tariffWeight: item.tariffWeight,
-  //           title: findItems[0].createdForCalculation ? item.title : undefined,
-  //           volumeWB: findItems[0].createdForCalculation ? item.volumeWB : undefined,
-  //           volumeOzon: findItems[0].createdForCalculation ? item.volumeOzon : undefined,
-  //           category: findItems[0].createdForCalculation ? item.category : undefined,
-  //           costInYuanWhite: item.costInYuanWhite,
-  //           codeTNVED: item.codeTNVED,
-  //           dimensionsMasterBox: item.dimensionsMasterBox,
-  //           // volumeMasterBox: item.volumeMasterBox,
-  //           consolidation: item.consolidation,
-  //           payment: item.payment,
-  //           assembling: item.assembling,
-  //           fullfillmentAcceptance: item.fullfillmentAcceptance,
-  //           marketplaceAcceptance: item.marketplaceAcceptance,
-  //           production: item.production,
-  //           buffer: item.buffer,
-  //           daysDeliveryToRussia: item.daysDeliveryToRussia,
-  //           supplierMinimumOrder: item.supplierMinimumOrder,
-  //           // seasonalityForExport: item.seasonalityForExport,
-  //           // seasonalityForOrder: item.seasonalityForOrder,
-  //           virality: item.virality,
-  //           costCalculationType: item.costCalculationType,
-  //           calculationType: item.calculationType,
-  //           downloadCalculationMethod: item.downloadCalculationMethod
-  //         }
-  //       );
-  //     }
-  //     return { success: true };
-  //   } catch (error) {
-  //     this.logger.error(error);
-  //     this.logger.error('Не смог обновить справочник товаров');
-  //     throw error;
-  //   } finally {
-  //     await queryRunner.release();
-  //   }
-  // }
 
   async getItemStopsListV2(getItemsStopListDto: GetItemsStopListDto) {
     const queryRunner = this.dataSource.createQueryRunner();
@@ -992,15 +884,15 @@ export class ItemsService {
     return;
   }
 
-  // @Cron('0 */46 * * * *')
-  // async getOzonItemsSecond() {
-  //   const ozonToken = this.configService.get<string>('ozonSecondToken');
-  //   const clientId = this.configService.get<string>('ozonSecondClientId');
-  //   if (!ozonToken || !clientId) return;
-  //   const ozonMarketplace = await this.infoService.findMarketplace({ title: 'Ozon Second' });
-  //   await this.getOzonItems(ozonToken, clientId, ozonMarketplace.id);
-  //   return;
-  // }
+  @Cron('0 */46 * * * *')
+  async getOzonItemsSecond() {
+    const ozonToken = this.configService.get<string>('ozonTamovToken');
+    const clientId = this.configService.get<string>('ozonTamovClientId');
+    if (!ozonToken || !clientId) return;
+    const ozonMarketplace = await this.infoService.findMarketplace({ title: 'Ozon Tamov' });
+    await this.getOzonItems(ozonToken, clientId, ozonMarketplace.id);
+    return;
+  }
 
   @Cron('0 */44 * * * *')
   async getYandexItemsFirst() {
