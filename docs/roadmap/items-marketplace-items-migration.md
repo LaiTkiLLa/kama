@@ -23,7 +23,7 @@
 | M4b listing fields (create + update + v2 read) | ✔ |
 | M4b prices на mp + drop с items | ✔ migration `1786522800000` |
 | M5 code: entity cleanup, find-by-article, directory/stop-list mp | ✔ |
-| M5 migration: схлопывание + drop legacy columns/tables | □ `1786526400000` NEEDS VERIFICATION |
+| M5 migration: схлопывание + drop legacy columns/tables | □ `1786526400000` NEEDS VERIFICATION (fix: stocks merge CTE) |
 | M6 Cutover (crons, isArchive, cleanup) | □ |
 
 ---
@@ -44,6 +44,8 @@
 | Legacy `orders` / `directions` drop | □ в `1786526400000` |
 
 **Фокус спринта:** прогнать `1786526400000` → price crons на mp → убрать `isArchive` filter → Yandex Tamov (позже).
+
+Changelog M5: [`../migrations/m5-consolidation-changelog.md`](../migrations/m5-consolidation-changelog.md).
 
 ---
 

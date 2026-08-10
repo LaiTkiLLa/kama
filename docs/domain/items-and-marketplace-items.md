@@ -1,7 +1,8 @@
 # Items ↔ MarketplaceItems
 
 > Roadmap: [`../roadmap/items-marketplace-items-migration.md`](../roadmap/items-marketplace-items-migration.md).  
-> Решения: [`../AI_CONTEXT.md`](../AI_CONTEXT.md).
+> Решения: [`../AI_CONTEXT.md`](../AI_CONTEXT.md).  
+> Changelog M5: [`../migrations/m5-consolidation-changelog.md`](../migrations/m5-consolidation-changelog.md).
 
 ---
 
@@ -50,7 +51,8 @@ Marketplace-independent: `id`, `article`, `articleOld`, `ownCategory`, classific
 3. **Directory:** один item на article в ответе; `marketplacesInfo[]` с mp-полями + prices.
 4. **Stop-list v2:** read image/title/color/sendStatus с mp; PATCH/autostatus mp-only.
 5. **Prices:** в БД на mp (`1786522800000`); crons закомментированы — переписать на mp.
-6. **DB transition:** до прогона `1786526400000` в prod может оставаться несколько `items` на article и legacy columns в schema.
+6. **DB transition:** после `1786526400000` — 1 item на article; `stocks`/`orders_v2` без `item_id`.
+7. **Stocks/Orders entity:** только `marketplace_item_id` (не `item_id`).
 
 ### Stop-list
 
@@ -92,7 +94,7 @@ Marketplace-independent: `id`, `article`, `articleOld`, `ownCategory`, classific
 | `items_sizes` | sync закомментирован |
 | Yandex trash | закомментирован; архив через mp `deleted_at` |
 | Stocks API v1 | controller закомментирован |
-| `stocks.item_id` / `orders_v2.item_id` | denorm keys, пока нужны |
+| `stocks.item_id` / `orders_v2.item_id` | **drop в `1786526400000`**; runtime только `marketplace_item_id` |
 
 ---
 
