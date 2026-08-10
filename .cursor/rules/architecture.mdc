@@ -13,7 +13,7 @@ alwaysApply: true
 - Не меняй бизнес-логику, не поняв зачем она есть (читай callers, cron’ы и связанные docs).
 - UI — только Google Sheets + GAS; frontend в этом репозитории не создавать. Изменения API держи совместимыми с GAS.
 - Целевое направление: marketplace-independent на `items`; marketplace-specific — на `marketplace_items` (listing, prices, `send_status_id`, archive).
-- Архив listing — `marketplace_items.deleted_at`; `items.isArchive` — legacy (directory filter), убрать на M6.
+- Архив listing — `marketplace_items.deleted_at`; product hide — `items.isArchive` (**оставляем**; не путать уровни). Optional rename → `isDeleted` позже.
 
 ## Workflow
 
@@ -24,21 +24,21 @@ alwaysApply: true
 ## Items ↔ MarketplaceItems
 
 - Marketplace-independent — на `items`; marketplace-specific — на `marketplace_items` (listing, prices, `send_status_id`).
-- Архив listing: `marketplace_items.deleted_at`; не опирайся на `items.isArchive` в новой логике.
+- Архив listing: `marketplace_items.deleted_at`. Product hide: `items.isArchive` (directory). Не подменять одно другим.
 - После M5: **1 item на article** (+ отдельные `created_for_calculation`). Card sync create — find-or-create item by article.
-- Не удаляй `marketplace_id` на `stocks`/`orders_v2` без плана; `item_id` drop только через migration `1786526400000`.
-- MP-колонки на `items` drop только через migration `1786526400000` (consolidation).
+- Не удаляй `marketplace_id` на `stocks`/`orders_v2` без плана. `item_id` на stocks/orders_v2 и MP-колонки на `items` уже drop через `1786526400000` (prod).
 - Обновление `marketplace_items` — по `mpItem.id`, не по одному `itemId` без identity маркетплейса.
 - Избегай `marketplaceItemId ?? 0`.
 - `marketplace_items.category` / `title` — **nullable** (`1786107580847`).
 - Контур `send_status` — mp-only (PATCH / autostatus / v2 read). Dual-write на `items` **снят**.
+- Prices на mp; crons WB/Ozon обновляют `MarketplaceItems` (`deletedAt IS NULL`); `discount` — проценты.
 
 ## Совместимость и целостность данных
 
 - Предпочитай обратную совместимость существующего cron-поведения, пока пользователь явно не просит breaking change.
 - Stop-list read: активен только `GET /api/items/v2/stop-list`; не включай v1 read без плана.
 - Stocks API: v1 (`/stocks/current`) закомментирован в controller; v2 — активный.
-- Активный sync заказов пишет в `orders_v2`. Legacy таблица `orders` drop в `1786526400000`.
+- Активный sync заказов пишет в `orders_v2`. Legacy `orders` / `directions` drop на prod.
 - Изменения схемы — только через TypeORM migrations (`synchronize: false`). Никогда не включай synchronize, чтобы «починить» схему.
 - Не коммить секреты и не хардкодь токены/API-ключи маркетплейсов.
 
@@ -46,5 +46,5 @@ alwaysApply: true
 
 - Меняй только то, что требует задача. Без drive-by рефакторинга чужих модулей.
 - При шаге миграции Items/MP обновляй `docs/roadmap/items-marketplace-items-migration.md` после шага.
-- Текущая позиция roadmap: **Milestone 5 — Consolidation**. M4b ✔. Migration `1786526400000` — схлопывание + drop legacy. M6 — cutover (crons, isArchive).
+- Текущая позиция roadmap: **Milestone 6 — Cutover**. M5 ✔ prod. `isArchive` оставляем. Next: `items_sizes` / Tamov / stocks v1.
 - Второй кабинет Yandex — `marketplaces.title = 'Yandex Tamov'`; credentials через `yandexTamov*`. Не хардкодь title и не смешивай с `Yandex`.

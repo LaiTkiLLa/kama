@@ -29,9 +29,9 @@ Item (marketplace-independent, 1 на article)
 
 Marketplace-independent: `id`, `article`, `articleOld`, `ownCategory`, classification/virality/planning, логистика/сроки, себестоимость/таможня, общие габариты/объём (`dimensionsFact`, `dimensionsMasterBox`, `volume`, …), `ownImagesUrl`, `downloadCalculationMethod`, `wbCreatedAt`, audit.
 
-**Не на `items` (drop в `1786526400000`):** `category`, `title`, `barcode`, `sku`, `color`, `image_url`, `marketplace_identifier`, `marketplace_id`, MP-габариты/объёмы, `chrt_id`, `send_status_id`, `direction_id`, цены.
+**Drop с `items` (M5, prod):** MP listing/identity/габариты/цены/`send_status_id`/`direction_id`.
 
-**Legacy (ещё в entity, cutover позже):** `isArchive` — directory filter; целевой архив — `marketplace_items.deleted_at`.
+**Legacy / product hide:** `isArchive` — **оставляем** (DECISION): скрытие товара в directory, даже если все mp listings удалены. Optional rename → `isDeleted` позже. Listing archive — только `marketplace_items.deleted_at`.
 
 ### Поля на `marketplace_items`
 
@@ -39,35 +39,36 @@ Marketplace-independent: `id`, `article`, `articleOld`, `ownCategory`, classific
 |--------|------|
 | Identity | `marketplace_identifier`, `barcode`, `sku`, `marketplace_id`, `item_id` |
 | Listing | `category`, `title`, `color`, `image_url` (nullable) |
-| Prices | `price`, `discount`, `price_with_discount` |
+| Prices | `price`, `discount` (**%**), `price_with_discount` |
 | Ops | `send_status_id`, `dimensions`, `volume`, `chrt_id`, `deleted_at` |
+
+**Prices sync (FACT):** WB cron пишет `price` / `discount` / `priceWithDiscount` (`discountedPrice`). Ozon — `price` / `priceWithDiscount` (`marketing_seller_price`) / `discount` = % от разницы price − marketing. Только `deletedAt IS NULL`.
 
 ---
 
 ## Текущий runtime (FACT, 2026-08-10)
 
-1. **Entity/code:** `items` без MP-полей; все listing/price/status на mp.
-2. **Card sync:** create/update пишет listing fields на mp; create ищет item по `article` (find-or-create).
-3. **Directory:** один item на article в ответе; `marketplacesInfo[]` с mp-полями + prices.
-4. **Stop-list v2:** read image/title/color/sendStatus с mp; PATCH/autostatus mp-only.
-5. **Prices:** в БД на mp (`1786522800000`); crons закомментированы — переписать на mp.
-6. **DB transition:** после `1786526400000` — 1 item на article; `stocks`/`orders_v2` без `item_id`.
-7. **Stocks/Orders entity:** только `marketplace_item_id` (не `item_id`).
+1. **Entity/code:** `items` без MP-полей; listing/price/status на mp.
+2. **Card sync:** find-or-create item by `article`; listing на mp по `{ id }`.
+3. **Directory:** `marketplacesInfo[]` с mp + prices; filter `items.isArchive = false` + join `mp.deletedAt IS NULL` (два уровня).
+4. **Stop-list / stocks:** listing archive через `mpItems.deletedAt IS NULL`.
+5. **Prices:** schema + hourly crons на mp (prod).
+6. **DB:** 1 item на article; `stocks`/`orders_v2` без `item_id`.
 
 ### Stop-list
 
 | Endpoint / код | Статус |
 |----------------|--------|
-| `GET …/v2/stop-list` | ✔ mp: image/title/color/sendStatus |
-| `PATCH …/stop-list` | ✔ mp-only, find by article + mp title |
-| `updateItemSendStatus` | ✔ mp root, `deletedAt IS NULL` |
+| `GET …/v2/stop-list` | ✔ mp |
+| `PATCH …/stop-list` | ✔ mp-only |
+| `updateItemSendStatus` | ✔ mp root |
 
 ### Directory
 
 | Endpoint | Статус |
 |----------|--------|
-| `GET …/directory/list` | ✔ `marketplacesInfo` с mp |
-| `PATCH …/directory/info` | ✔ V2 → items (business) + mp (listing/calculation) |
+| `GET …/directory/list` | ✔ mp prices; `isArchive` (product) + `deleted_at` (listing) |
+| `PATCH …/directory/info` | ✔ V2 |
 
 ---
 
@@ -75,26 +76,21 @@ Marketplace-independent: `id`, `article`, `articleOld`, `ownCategory`, classific
 
 | # | Статус |
 |---|--------|
-| 1. MarketplaceItems | ✔ |
-| 2. Stocks | ✔ |
-| 3. Orders | ✔ |
-| 4. StopList | ✔ |
-| 4b. listing + prices | ✔ |
-| **5. Consolidation** | **◐ migration в репо** |
-| 6. Cutover | □ |
+| 1–4b | ✔ |
+| **5. Consolidation** | **✔ prod** |
+| **6. Cutover** | **□ next** |
 
 ---
 
-## Legacy (что ещё убрать)
+## Legacy (M6)
 
-| Область | Legacy |
+| Область | Статус |
 |---------|--------|
-| `items.isArchive` filter | directory; заменить на mp `deleted_at` |
-| Price crons | закомментированы, писали в items |
-| `items_sizes` | sync закомментирован |
-| Yandex trash | закомментирован; архив через mp `deleted_at` |
+| `items.isArchive` | **оставляем** — product hide; не путать с mp `deleted_at` |
+| `items_sizes` | sync закомментирован; redesign — next |
+| Yandex trash | закомментирован; архив listing через mp `deleted_at` |
 | Stocks API v1 | controller закомментирован |
-| `stocks.item_id` / `orders_v2.item_id` | **drop в `1786526400000`**; runtime только `marketplace_item_id` |
+| Price pagination | API limit 1000 без cursor |
 
 ---
 
@@ -103,8 +99,9 @@ Marketplace-independent: `id`, `article`, `articleOld`, `ownCategory`, classific
 | Термин | Значение |
 |--------|----------|
 | **Listing archive** | `marketplace_items.deleted_at` |
+| **Product hide** | `items.isArchive` (optional rename `isDeleted`) |
 | **Send status** | `marketplace_items.send_status_id` |
-| **Consolidation** | 1 article → 1 item; repoint mp/stocks/orders |
+| **Consolidation** | 1 article → 1 item; repoint mp/stocks/orders (M5 ✔) |
 | **Calculation item** | `created_for_calculation = true`, отдельные строки |
 
 ---

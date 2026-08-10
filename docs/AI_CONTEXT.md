@@ -9,24 +9,26 @@
 
 ## Текущая позиция миграции (FACT, 2026-08-10)
 
-**Milestone 5 — Consolidation (в работе).** M1–M4 и M4b закрыты в коде. Цены перенесены на `marketplace_items` (`1786522800000` ✔ на dev). Схлопывание items + drop legacy MP-колонок — миграция `1786526400000` в репо, прогон на всех env — NEEDS VERIFICATION.
+**Milestone 6 — Cutover (в работе).** M1–M5 закрыты на prod. Price crons → mp.  
+**DECISION:** `items.isArchive` **оставляем** (product-level hide). Listing archive = `marketplace_items.deleted_at`. Next: `items_sizes`.
 
 ---
 
 ## Принятые решения
 
 - `items` + `marketplace_items`; возврат к `item == listing` **запрещён**.
-- **1 item на article** (кроме `created_for_calculation = true`) — целевая модель после M5.
-- Marketplace-specific на `marketplace_items`: identity, dimensions, volume, `category`, `title`, `color`, `imageUrl`, `price`, `discount`, `priceWithDiscount`, `send_status_id`, `deleted_at`.
-- Marketplace-independent на `items`: article, логистика/себестоимость/classification, `wbCreatedAt`, `ownImagesUrl`, `isArchive` (legacy, см. gap).
-- `send_status_id` — только `marketplace_items` (dual-write на `items` **снят**).
-- Архив listing — `marketplace_items.deleted_at` (целевая модель); `items.isArchive` — legacy, ещё в directory filter.
-- `directions` — **удалены** из кода; таблица drop в `1786526400000`.
-- Legacy `orders` — **удалены** из кода; таблица drop в `1786526400000`.
-- `change_prices_histories` — **удалены** (drop в `1786522800000`).
+- **1 item на article** (кроме `created_for_calculation = true`).
+- Marketplace-specific на `marketplace_items`: identity, listing, prices (`discount` = %), `send_status_id`, `deleted_at`.
+- Marketplace-independent на `items`: article, логистика/себестоимость/classification, `wbCreatedAt`, `ownImagesUrl`, **`isArchive`**.
+- **Два уровня скрытия (DECISION, 2026-08-10):**
+  - `marketplace_items.deleted_at` — архив **listing** (карточка снята с МП).
+  - `items.isArchive` — скрытие **товара** в directory (нужен, даже если все listings удалены; иначе «голый» item останется в списке). Optional rename → `isDeleted` позже.
+- `send_status_id` — только `marketplace_items`.
+- `stocks` / `orders_v2` — только `marketplace_item_id`.
+- `directions`, legacy `orders`, `change_prices_histories` — удалены.
 - UI — Google Sheets + GAS; frontend в репо не создавать.
 - Stop-list read — только `GET /api/items/v2/stop-list`.
-- Второй кабинet Yandex — `marketplaces.title = 'Yandex Tamov'`; gaps по stop-list PATCH / card sync — **отложено**.
+- Yandex Tamov — gaps отложены.
 
 ---
 
@@ -34,33 +36,21 @@
 
 | Область | Статус |
 |---------|--------|
-| M1 marketplace_items + identity | ✔ |
-| M2 stocks sync по `marketplace_item_id` (без `item_id`) | ✔ entity + crons |
-| M3 orders_v2 по `marketplace_item_id` (без `item_id`) | ✔ entity + crons + dynamic orders SQL |
-| M4 send_status mp-centric (read/PATCH/autostatus) | ✔ |
-| M4b listing fields schema + nullable category/title | ✔ |
-| Card sync create/update listing fields на mp | ✔ WB/Ozon/Yandex |
-| Directory read `marketplacesInfo` + prices с mp | ✔ |
-| PATCH directory/info → mp (V2) | ✔ |
-| v2 stop-list image/title/color с mp | ✔ |
-| Card sync create: find item by article | ✔ WB/Ozon/Yandex |
-| Migration prices → mp (`1786522800000`) | ✔ dev / NEEDS VERIFICATION all env |
-| Entity `items` без MP-полей и цен | ✔ |
-| Legacy entity `orders`, `directions`, `change_prices_histories` | ✔ удалены из кода |
+| M1–M5 (schema + consolidation prod + price crons) | ✔ |
+| Dual archive model documented (`isArchive` + `deleted_at`) | ✔ DECISION |
 
 ---
 
-## В работе / следующие шаги
+## В работе / следующие шаги (M6)
 
 | Область | Статус |
 |---------|--------|
-| Migration consolidation (`1786526400000`) | □ в репо; прогон NEEDS VERIFICATION |
-| Price crons (WB/Ozon) → `MarketplaceItems` | □ закомментированы |
-| `items.isArchive` → filter по `mpItems.deletedAt` | □ |
-| `items_sizes` sync | □ закомментирован, будет переделан |
+| `items_sizes` sync redesign (связь с mp) | □ **next** |
 | Yandex Tamov: stop-list PATCH, trash sync | □ отложено |
-| Stocks API v1 (`/stocks/current`) | □ закомментирован в controller |
-| Drop `wb_created_at` с items (optional) | □ не решено |
+| Stocks API v1 | □ решение TBD |
+| Price crons pagination >1000 | □ optional |
+| Cleanup orphan DTO / мёртвые поля stop-list | □ |
+| Rename `isArchive` → `isDeleted` | □ optional later |
 
 ---
 
@@ -68,19 +58,17 @@
 
 | Issue | Суть |
 |-------|------|
-| Consolidation not run everywhere | entity уже без MP-колонок; без `1786526400000` на env — рассинхрон schema/runtime |
-| Price crons off | цены не обновляются из API WB/Ozon до переписывания на mp |
-| `items.isArchive` | directory filter ещё на items, не на mp archive |
-| Card sync find by article | без `created_for_calculation = false` filter — риск при совпадении с test item |
-| Yandex Tamov gaps | trash / stop-list PATCH / часть API |
-| Orphan DTO | `get-change-price-history.dto.ts` без endpoint |
-| stop-list.interface | мёртвые поля `directionId`/`directionTitle` |
+| Price API limit 1000 | без cursor/offset хвост не обновляется |
+| Card sync find by article | без `created_for_calculation = false` — риск test item |
+| Yandex Tamov gaps | trash / stop-list PATCH |
+| Orphan DTO | `get-change-price-history.dto.ts` |
+| stop-list.interface | мёртвые `directionId` / `directionTitle` |
 
 ---
 
 ## Не менять без плана
 
-Drop `marketplace_id` на `stocks`/`orders_v2` без плана; force cutover без миграции; включение stocks API v1 без плана GAS; секреты в репо.
+Drop `marketplace_id` на `stocks`/`orders_v2`; force cutover без миграции; включение stocks API v1 без плана GAS; секреты в репо; drop/rename `items.isArchive` без явного решения.
 
 ---
 
@@ -89,6 +77,5 @@ Drop `marketplace_id` на `stocks`/`orders_v2` без плана; force cutover
 | Дата | Итог |
 |------|------|
 | 2026-08-06 | AI-ready docs; Sheets; field split; stop-list v1 off |
-| 2026-08-07 | M1–M4; send_status mp-centric; create dual-write listing |
-| 2026-08-07 | Yandex Tamov card/stocks/orders_v2 |
-| 2026-08-10 | Prices → mp; entity cleanup; consolidation migration (`1786526400000`); drop `item_id` на stocks/orders_v2; stocks merge CTE fix |
+| 2026-08-07 | M1–M4; send_status mp-centric; Yandex Tamov card/stocks/orders |
+| 2026-08-10 | M5 prod; price crons → mp; `isArchive` оставляем (product-level); старт M6 → sizes |

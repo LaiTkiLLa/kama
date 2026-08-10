@@ -10,8 +10,8 @@ Milestone 5 завершает переход с модели «1 `items` row = 
 
 | Миграция | Назначение | Статус |
 |----------|------------|--------|
-| `1786522800000-move-prices-to-marketplace-items` | Цены на mp; drop `change_prices_histories` и price-колонок с `items` | ✔ dev |
-| `1786526400000-consolidate-items-and-drop-legacy` | Схлопывание items по article; dedup mp; drop legacy tables/columns | □ NEEDS VERIFICATION |
+| `1786522800000-move-prices-to-marketplace-items` | Цены на mp; drop `change_prices_histories` и price-колонок с `items` | ✔ prod |
+| `1786526400000-consolidate-items-and-drop-legacy` | Схлопывание items по article; dedup mp; drop legacy tables/columns | ✔ prod |
 
 ---
 
@@ -77,7 +77,7 @@ Milestone 5 завершает переход с модели «1 `items` row = 
 
 ### `items`
 
-Удалены MP-поля и цены из entity. Остаются business/logistics поля + legacy `isArchive` (cutover M6).
+Удалены MP-поля и цены из entity. Остаются business/logistics поля + `isArchive` (product hide, оставляем).
 
 ### `marketplace_items`
 
@@ -107,6 +107,7 @@ Milestone 5 завершает переход с модели «1 `items` row = 
 - Stop-list v2: image/title/color/sendStatus с mp.
 - Card sync WB/Ozon/Yandex: find-or-create item by `article`; listing update по `{ id: mpItem.id }`.
 - `updateItemSendStatus`: mp-only, `deletedAt IS NULL`.
+- Price crons WB/Ozon → `MarketplaceItems` (hourly, `deletedAt IS NULL`; discount в %; WB `priceWithDiscount`).
 
 ### `GetDynamicOrders`
 
@@ -118,11 +119,11 @@ Milestone 5 завершает переход с модели «1 `items` row = 
 
 | Область | Статус |
 |---------|--------|
-| Price crons WB/Ozon | закомментированы; переписать на `MarketplaceItems` |
-| Directory filter `isArchive` | заменить на `mpItems.deletedAt` |
-| `items_sizes` sync | закомментирован |
+| Directory / `items.isArchive` | **оставляем** (product hide); listing = `deleted_at` |
+| `items_sizes` sync | закомментирован — next |
 | Yandex Tamov gaps | stop-list PATCH, trash sync |
 | Stocks API v1 | закомментирован в controller |
+| Price crons pagination | optional, limit 1000 |
 
 ---
 

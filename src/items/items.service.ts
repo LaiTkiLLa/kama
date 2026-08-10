@@ -1,11 +1,11 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { DataSource, IsNull } from 'typeorm';
+import { DataSource, In, IsNull } from 'typeorm';
 import axios from 'axios';
 import { InfoService } from '../info/info.service';
 import { ConfigService } from '@nestjs/config';
 import { Items } from './entities/items.entity';
-import { WbItem, WbItems, WbTrashedItems } from './interfaces/wb-items.interface';
+import { WbItem, WbItems, WbItemsPrices, WbTrashedItems } from './interfaces/wb-items.interface';
 import { YandexItems, YandexItemsResult } from './interfaces/yandex-items.interface';
 import { GetStopListFromDbV2, StopListCronResult, StopListResponse } from './interfaces/stop-list.interface';
 import { GetItemsStopListDto } from './dto/get-items-stop-list.dto';
@@ -13,7 +13,7 @@ import { UpdateStopListItems } from './dto/update-status-stop-list.dto';
 import { StatusesTypes } from '../info/enum/statuses.enum';
 import { UpdateArrayDirectoryItemsInfoDto } from './dto/update-directory-item-info.dto';
 import { Suppliers } from '../info/entities/suppliers.entity';
-import { OzonCategoryData, OzonItemsInfo } from './interfaces/ozon-items-info.interface';
+import { OzonCategoryData, OzonItemsInfo, OzonItemsPrices } from './interfaces/ozon-items-info.interface';
 import { GetDirectoryListDto } from './dto/get-directory-list.dto';
 import { ItemsSuppliers } from './entities/items_suppliers.entity';
 import { MarketplaceItems } from './entities/marketplace-items.entity';
@@ -1291,26 +1291,6 @@ export class ItemsService {
         }, 'ordersSum')
         .where('mpItems.deletedAt IS NULL')
         .getRawAndEntities();
-      //      const findItems = await queryRunner.manager
-      //        .createQueryBuilder(Items, 'items')
-      //        .innerJoinAndSelect('items.sendStatus', 'sendStatus', 'sendStatus.title NOT IN (:...titles)', {
-      //          titles: ['Нельзя (ручная)', 'Можно (ручная)']
-      //        })
-      //        .addSelect(subQuery => {
-      //          return subQuery
-      //            .select('COALESCE(SUM(stock.currentValue), 0)', 'stocksSum')
-      //            .from('stocks', 'stock')
-      //            .where('stock.item_id = items.id')
-      //            .andWhere('DATE(stock.createdAt) = CURRENT_DATE');
-      //        }, 'stocksSum')
-      //        .addSelect(subQuery => {
-      //          return subQuery
-      //            .select('COALESCE(SUM(ord.quantity), 0)', 'ordersSum')
-      //            .from('orders_v2', 'ord')
-      //            .where('ord.item_id = items.id')
-      //            .andWhere('ord.created_at >= DATE(:weekAgo)', { weekAgo });
-      //        }, 'ordersSum')
-      //        .getRawAndEntities();
       const mappedItems: StopListCronResult[] = [];
       findMpItems.entities.forEach((item, index) => {
         const raw = findMpItems.raw[index];
@@ -1430,160 +1410,128 @@ export class ItemsService {
     }
   }
 
-  // @Cron(CronExpression.EVERY_HOUR)
-  // async updateWbItemsPrices() {
-  //   let getItems: WbItemsPrices = {
-  //     data: {
-  //       listGoods: []
-  //     }
-  //   };
-  //   try {
-  //     const apiToken = this.configService.get<string>('wbToken');
-  //     const wbUrl =
-  //       'https://discounts-prices-api.wildberries.ru/api/v2/list/goods/filter?limit=1000&offset=0';
-  //     const getItemsFromWb = await axios.get<WbItemsPrices>(wbUrl, {
-  //       headers: {
-  //         Authorization: apiToken
-  //       }
-  //     });
-  //     getItems = getItemsFromWb.data;
-  //   } catch (error) {
-  //     this.logger.error(error);
-  //     this.logger.error('Не смог получить цены товаров WB');
-  //   }
-  //   if (!getItems.data.listGoods.length) {
-  //     return;
-  //   }
-  //   const manager = this.dataSource.manager;
-  //   try {
-  //     const itemsId = getItems.data.listGoods.map(el => String(el.nmID));
-  //     const findItems = await manager.find(Items, {
-  //       where: {
-  //         marketplaceIdentifier: In(itemsId)
-  //       }
-  //     });
-  //     for (const item of getItems.data.listGoods) {
-  //       const findItem = findItems.find(el => el.marketplaceIdentifier === String(item.nmID));
-  //       if (findItem) {
-  //         await manager.update(
-  //           Items,
-  //           { id: findItem.id },
-  //           { discountWb: item.discount, priceWb: item?.sizes?.[0]?.price ?? null }
-  //         );
-  //         if (item.discount !== findItem.discountWb && item.discount < 64) {
-  //           const findHistory = await manager
-  //             .createQueryBuilder(ChangePricesHistories, 'cph')
-  //             .where('cph.itemId = :itemId', { itemId: findItem.id })
-  //             .andWhere('DATE(cph.createdAt) = DATE(now())')
-  //             .getOne();
-  //           if (findHistory) {
-  //             await manager.update(
-  //               ChangePricesHistories,
-  //               {
-  //                 id: findHistory.id
-  //               },
-  //               {
-  //                 oldDiscount: findItem.discountWb,
-  //                 oldPrice: findItem.priceWb,
-  //                 newDiscount: item.discount,
-  //                 newPrice: item?.sizes?.[0]?.price ?? null
-  //               }
-  //             );
-  //           } else {
-  //             const createHistory = manager.create(ChangePricesHistories, {
-  //               oldDiscount: findItem.discountWb,
-  //               oldPrice: findItem.priceWb,
-  //               newDiscount: item.discount,
-  //               newPrice: item?.sizes?.[0]?.price ?? null,
-  //               itemId: findItem.id
-  //             });
-  //             await manager.save(ChangePricesHistories, createHistory);
-  //           }
-  //         }
-  //       }
-  //     }
-  //   } catch (error) {
-  //     this.logger.error(error);
-  //     this.logger.error('Не смог проставить цену товарам WB');
-  //   }
-  // }
+  @Cron(CronExpression.EVERY_HOUR)
+  async updateWbItemsPrices() {
+    let getItems: WbItemsPrices = {
+      data: {
+        listGoods: []
+      }
+    };
+    try {
+      const apiToken = this.configService.get<string>('wbToken');
+      const wbUrl =
+        'https://discounts-prices-api.wildberries.ru/api/v2/list/goods/filter?limit=1000&offset=0';
+      const getItemsFromWb = await axios.get<WbItemsPrices>(wbUrl, {
+        headers: {
+          Authorization: apiToken
+        }
+      });
+      getItems = getItemsFromWb.data;
+    } catch (error) {
+      this.logger.error(error);
+      this.logger.error('Не смог получить цены товаров WB');
+    }
+    if (!getItems.data.listGoods.length) {
+      return;
+    }
+    const manager = this.dataSource.manager;
+    try {
+      const itemsId = getItems.data.listGoods.map(el => String(el.nmID));
+      const findMarketplace = await this.infoService.findMarketplace({ title: 'WB' });
+      const findMpItems = await manager.find(MarketplaceItems, {
+        where: {
+          marketplaceIdentifier: In(itemsId),
+          marketplaceId: findMarketplace.id,
+          deletedAt: IsNull()
+        }
+      });
+      for (const item of getItems.data.listGoods) {
+        const findItem = findMpItems.find(el => el.marketplaceIdentifier === String(item.nmID));
+        if (findItem) {
+          await manager.update(
+            MarketplaceItems,
+            { id: findItem.id },
+            {
+              discount: item.discount,
+              price: item?.sizes?.[0]?.price ?? null,
+              priceWithDiscount: item?.sizes?.[0]?.discountedPrice ?? null
+            }
+          );
+        }
+      }
+    } catch (error) {
+      this.logger.error(error);
+      this.logger.error('Не смог проставить цену товарам WB');
+    }
+  }
 
-  // @Cron(CronExpression.EVERY_HOUR)
-  // async updateOzonItemsPrices() {
-  //   let getItems: OzonItemsPrices = {
-  //     items: []
-  //   };
-  //   const ozonToken = this.configService.get<string>('ozonToken');
-  //   const clientId = this.configService.get<string>('ozonClientId');
-  //   const headers = {
-  //     'Client-Id': clientId,
-  //     'Api-Key': ozonToken
-  //   };
-  //   const ozonPricesUrl = 'https://api-seller.ozon.ru/v5/product/info/prices';
-  //   try {
-  //     const { data: ozonPrices }: { data: OzonItemsPrices } = await axios.post(
-  //       ozonPricesUrl,
-  //       {
-  //         limit: 1000,
-  //         filter: {
-  //           visibility: 'ALL'
-  //         }
-  //       },
-  //       { headers }
-  //     );
-  //     getItems = ozonPrices;
-  //   } catch (error) {
-  //     this.logger.error(error);
-  //     this.logger.error('Не смог получить цены товаров Ozon');
-  //   }
+  @Cron(CronExpression.EVERY_HOUR)
+  async updateOzonItemsPrices() {
+    let getItems: OzonItemsPrices = {
+      items: []
+    };
+    const ozonToken = this.configService.get<string>('ozonToken');
+    const clientId = this.configService.get<string>('ozonClientId');
+    const headers = {
+      'Client-Id': clientId,
+      'Api-Key': ozonToken
+    };
+    const ozonPricesUrl = 'https://api-seller.ozon.ru/v5/product/info/prices';
+    try {
+      const { data: ozonPrices }: { data: OzonItemsPrices } = await axios.post(
+        ozonPricesUrl,
+        {
+          limit: 1000,
+          filter: {
+            visibility: 'ALL'
+          }
+        },
+        { headers }
+      );
+      getItems = ozonPrices;
+    } catch (error) {
+      this.logger.error(error);
+      this.logger.error('Не смог получить цены товаров Ozon');
+    }
 
-  //   const manager = this.dataSource.manager;
-  //   try {
-  //     const itemsId = getItems.items.map(el => String(el.product_id));
-  //     const findItems = await manager.find(Items, {
-  //       where: {
-  //         marketplaceIdentifier: In(itemsId)
-  //       }
-  //     });
-  //     for (const item of getItems.items) {
-  //       const findItem = findItems.find(el => el.marketplaceIdentifier === String(item.product_id));
-  //       if (findItem) {
-  //         await manager.update(
-  //           Items,
-  //           { id: findItem.id },
-  //           { priceOzon: item.price.price, priceWithDiscountOzon: item.price.marketing_seller_price }
-  //         );
-  //         if (item.price.price > findItem.priceOzon) {
-  //           const findHistory = await manager
-  //             .createQueryBuilder(ChangePricesHistories, 'cph')
-  //             .where('cph.itemId = :itemId', { itemId: findItem.id })
-  //             .andWhere('DATE(cph.createdAt) = DATE(now())')
-  //             .getOne();
-  //           if (findHistory) {
-  //             await manager.update(
-  //               ChangePricesHistories,
-  //               {
-  //                 id: findHistory.id
-  //               },
-  //               {
-  //                 oldPrice: findItem.priceOzon,
-  //                 newPrice: item.price.price
-  //               }
-  //             );
-  //           } else {
-  //             const createHistory = manager.create(ChangePricesHistories, {
-  //               oldPrice: findItem.priceOzon,
-  //               newPrice: item.price.price,
-  //               itemId: findItem.id
-  //             });
-  //             await manager.save(ChangePricesHistories, createHistory);
-  //           }
-  //         }
-  //       }
-  //     }
-  //   } catch (error) {
-  //     this.logger.error(error);
-  //     this.logger.error('Не смог проставить цену товарам Ozon');
-  //   }
-  // }
+    const manager = this.dataSource.manager;
+    try {
+      const itemsId = getItems.items.map(el => String(el.product_id));
+      if (!itemsId.length) {
+        return;
+      }
+      const findMarketplace = await this.infoService.findMarketplace({ title: 'Озон' });
+      const findItems = await manager.find(MarketplaceItems, {
+        where: {
+          marketplaceIdentifier: In(itemsId),
+          marketplaceId: findMarketplace.id,
+          deletedAt: IsNull()
+        }
+      });
+      for (const item of getItems.items) {
+        const findItem = findItems.find(el => el.marketplaceIdentifier === String(item.product_id));
+        if (findItem) {
+          await manager.update(
+            MarketplaceItems,
+            { id: findItem.id },
+            {
+              price: item.price.price,
+              priceWithDiscount: item.price.marketing_seller_price,
+              discount: item.price.price
+                ? Number(
+                    (
+                      ((item.price.price - item.price.marketing_seller_price) / item.price.price) *
+                      100
+                    ).toFixed(2)
+                  )
+                : 0
+            }
+          );
+        }
+      }
+    } catch (error) {
+      this.logger.error(error);
+      this.logger.error('Не смог проставить цену товарам Ozon');
+    }
+  }
 }

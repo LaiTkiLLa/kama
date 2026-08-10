@@ -11,8 +11,6 @@ import { GetWbOwnWarehousesStocks, GetWbStocksV2 } from './interfaces/wb-stocks.
 import { GetCurrentStocksDto } from './dto/get-current-stocks.dto';
 import { GetCurrentStocks } from './interfaces/get-current-stocks.interface';
 import { GetYandexStocks, ItemTypes } from './interfaces/yandex-stocks.interface';
-import { GetStocksByDateDto } from './dto/get-stocks-by-date.dto';
-import { GetStocksByDate } from './interfaces/get-stocks-by-date.interface';
 import { Warehouses } from '../info/entities/warehouses.entity';
 import { Marketplaces } from '../info/entities/marketplaces.entity';
 import { MarketplaceItems } from '../items/entities/marketplace-items.entity';
@@ -218,13 +216,6 @@ export class StocksService {
         if (!findWarehouse) {
           continue;
         }
-        // const findItem = await this.itemsService.findItem(
-        //   { marketplaceIdentifier: String(stock.nmId), marketplaceId: findMarketplace.id },
-        //   queryRunner
-        // );
-        // if (!findItem) {
-        //   continue;
-        // }
         const findMarketplaceItem = await queryRunner.manager
           .createQueryBuilder(MarketplaceItems, 'mpItems')
           .where('mpItems.marketplaceId = :marketplaceId', { marketplaceId: findMarketplace.id })
@@ -274,7 +265,10 @@ export class StocksService {
 
   @Cron('0 */28 * * * *')
   async getWbOwnWarehousesStocks() {
-    const apiToken = await this.configService.get('wbToken');
+    const apiToken = this.configService.get<string>('wbToken');
+    if (!apiToken) {
+      return;
+    }
     const urlStocks = 'https://marketplace-api.wildberries.ru/api/v3/stocks';
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
@@ -352,13 +346,6 @@ export class StocksService {
           continue;
         }
         try {
-          // const findItem = await this.itemsService.findItem(
-          //   { barcode: String(warehouse.sku), marketplaceId: findMarketplace.id },
-          //   queryRunner
-          // );
-          // if (!findItem) {
-          //   continue;
-          // }
           const findMarketplaceItem = await queryRunner.manager
             .createQueryBuilder(MarketplaceItems, 'mpItems')
             .where('mpItems.marketplaceId = :marketplaceId', { marketplaceId: findMarketplace.id })
@@ -406,8 +393,10 @@ export class StocksService {
 
   @Cron('0 */25 * * * *')
   async getOzonStocksFirst() {
-    const ozonToken = await this.configService.get('ozonToken');
-    const clientId = await this.configService.get('ozonClientId');
+    const ozonToken = this.configService.get<string>('ozonToken');
+    const clientId = this.configService.get<string>('ozonClientId');
+    if (!ozonToken) return;
+    if (!clientId) return;
     const findMarketplace = await this.infoService.findMarketplace({ title: 'Озон' });
     await this.getOzonStocks(clientId, ozonToken, findMarketplace.id);
     return;
@@ -509,13 +498,6 @@ export class StocksService {
           continue;
         }
         for (const item of stock.items) {
-          // const findItem = await this.itemsService.findItem(
-          //   { article: item.supplierArticle, marketplaceId: findMarketplace.id },
-          //   queryRunner
-          // );
-          // if (!findItem) {
-          //   continue;
-          // }
           const findMarketplaceItem = await queryRunner.manager
             .createQueryBuilder(MarketplaceItems, 'mpItems')
             .leftJoinAndSelect('mpItems.item', 'item')
@@ -670,11 +652,6 @@ export class StocksService {
           { title: stock.warehouse },
           queryRunner
         );
-        // const findItem = await this.itemsService.findItem({ sku: stock.sku, marketplaceId }, queryRunner);
-        // if (!findItem) {
-        //   await queryRunner.commitTransaction();
-        //   continue;
-        // }
         const findMarketplaceItem = await queryRunner.manager
           .createQueryBuilder(MarketplaceItems, 'mpItems')
           .where('mpItems.marketplaceId = :marketplaceId', { marketplaceId })
