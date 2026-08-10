@@ -372,7 +372,8 @@ export class ConsolidateItemsAndDropLegacy1786526400000 implements MigrationInte
     }
   }
 
-  public async down(queryRunner: QueryRunner): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  public down(queryRunner: QueryRunner): Promise<void> {
     throw new Error(
       'ConsolidateItemsAndDropLegacy1786526400000 is irreversible: items merge and legacy drops cannot be rolled back safely.'
     );
