@@ -13,14 +13,14 @@ export class AddSendStatusIdToMarketplaceItems1786097301320 implements Migration
      * 1. Колонка marketplace_items.send_status_id
      * ============================================================
      */
-    // await queryRunner.addColumn(
-    //   'marketplace_items',
-    //   new TableColumn({
-    //     name: 'send_status_id',
-    //     type: 'integer',
-    //     isNullable: true
-    //   })
-    // );
+    await queryRunner.addColumn(
+      'marketplace_items',
+      new TableColumn({
+        name: 'send_status_id',
+        type: 'integer',
+        isNullable: true
+      })
+    );
 
     /**
      * ============================================================
@@ -28,14 +28,14 @@ export class AddSendStatusIdToMarketplaceItems1786097301320 implements Migration
      *    (текущая модель: 1 items ≈ 1 marketplace_items)
      * ============================================================
      */
-    // await queryRunner.query(`
-    //   UPDATE marketplace_items mi
-    //   SET
-    //     send_status_id = i.send_status_id,
-    //     updated_at = now()
-    //   FROM items i
-    //   WHERE mi.item_id = i.id
-    // `);
+    await queryRunner.query(`
+      UPDATE marketplace_items mi
+      SET
+        send_status_id = i.send_status_id,
+        updated_at = now()
+      FROM items i
+      WHERE mi.item_id = i.id
+    `);
 
     /**
      * ============================================================
@@ -96,24 +96,24 @@ export class AddSendStatusIdToMarketplaceItems1786097301320 implements Migration
      *    (NULL-safe через IS DISTINCT FROM)
      * ============================================================
      */
-    // await queryRunner.query(`
-    //   DO $$
-    //   DECLARE
-    //     mismatch_count integer;
-    //   BEGIN
-    //     SELECT COUNT(*)
-    //     INTO mismatch_count
-    //     FROM marketplace_items mi
-    //     INNER JOIN items i ON i.id = mi.item_id
-    //     WHERE mi.send_status_id IS DISTINCT FROM i.send_status_id;
+    await queryRunner.query(`
+      DO $$
+      DECLARE
+        mismatch_count integer;
+      BEGIN
+        SELECT COUNT(*)
+        INTO mismatch_count
+        FROM marketplace_items mi
+        INNER JOIN items i ON i.id = mi.item_id
+        WHERE mi.send_status_id IS DISTINCT FROM i.send_status_id;
 
-    //     IF mismatch_count > 0 THEN
-    //       RAISE EXCEPTION
-    //         'Migration aborted: % marketplace_items.send_status_id mismatch items.send_status_id',
-    //         mismatch_count;
-    //     END IF;
-    //   END $$;
-    // `);
+        IF mismatch_count > 0 THEN
+          RAISE EXCEPTION
+            'Migration aborted: % marketplace_items.send_status_id mismatch items.send_status_id',
+            mismatch_count;
+        END IF;
+      END $$;
+    `);
 
     /**
      * ============================================================
@@ -144,67 +144,67 @@ export class AddSendStatusIdToMarketplaceItems1786097301320 implements Migration
      * 7. Проверка: нет битых FK на statuses
      * ============================================================
      */
-    // await queryRunner.query(`
-    //   DO $$
-    //   DECLARE
-    //     invalid_count integer;
-    //   BEGIN
-    //     SELECT COUNT(*)
-    //     INTO invalid_count
-    //     FROM marketplace_items mi
-    //     WHERE mi.send_status_id IS NOT NULL
-    //       AND NOT EXISTS (
-    //         SELECT 1 FROM statuses s WHERE s.id = mi.send_status_id
-    //       );
+    await queryRunner.query(`
+      DO $$
+      DECLARE
+        invalid_count integer;
+      BEGIN
+        SELECT COUNT(*)
+        INTO invalid_count
+        FROM marketplace_items mi
+        WHERE mi.send_status_id IS NOT NULL
+          AND NOT EXISTS (
+            SELECT 1 FROM statuses s WHERE s.id = mi.send_status_id
+          );
 
-    //     IF invalid_count > 0 THEN
-    //       RAISE EXCEPTION
-    //         'Migration aborted: % marketplace_items have send_status_id not present in statuses',
-    //         invalid_count;
-    //     END IF;
-    //   END $$;
-    // `);
+        IF invalid_count > 0 THEN
+          RAISE EXCEPTION
+            'Migration aborted: % marketplace_items have send_status_id not present in statuses',
+            invalid_count;
+        END IF;
+      END $$;
+    `);
 
     /**
      * ============================================================
      * 8. FK + index
      * ============================================================
      */
-    // await queryRunner.createForeignKey(
-    //   'marketplace_items',
-    //   new TableForeignKey({
-    //     name: 'FK_marketplace_items_send_status',
-    //     columnNames: ['send_status_id'],
-    //     referencedTableName: 'statuses',
-    //     referencedColumnNames: ['id'],
-    //     onDelete: 'CASCADE',
-    //     onUpdate: 'CASCADE'
-    //   })
-    // );
+    await queryRunner.createForeignKey(
+      'marketplace_items',
+      new TableForeignKey({
+        name: 'FK_marketplace_items_send_status',
+        columnNames: ['send_status_id'],
+        referencedTableName: 'statuses',
+        referencedColumnNames: ['id'],
+        onDelete: 'CASCADE',
+        onUpdate: 'CASCADE'
+      })
+    );
 
-    // await queryRunner.createIndex(
-    //   'marketplace_items',
-    //   new TableIndex({
-    //     name: 'IDX_marketplace_items_send_status_id',
-    //     columnNames: ['send_status_id']
-    //   })
-    // );
+    await queryRunner.createIndex(
+      'marketplace_items',
+      new TableIndex({
+        name: 'IDX_marketplace_items_send_status_id',
+        columnNames: ['send_status_id']
+      })
+    );
 
-    // await queryRunner.query(`
-    //   DO $$
-    //   DECLARE
-    //     total_mp bigint;
-    //     with_status bigint;
-    //   BEGIN
-    //     SELECT COUNT(*) INTO total_mp FROM marketplace_items;
-    //     SELECT COUNT(*) INTO with_status FROM marketplace_items WHERE send_status_id IS NOT NULL;
+    await queryRunner.query(`
+      DO $$
+      DECLARE
+        total_mp bigint;
+        with_status bigint;
+      BEGIN
+        SELECT COUNT(*) INTO total_mp FROM marketplace_items;
+        SELECT COUNT(*) INTO with_status FROM marketplace_items WHERE send_status_id IS NOT NULL;
 
-    //     RAISE NOTICE
-    //       'send_status_id migration OK: marketplace_items=% with_status=%',
-    //       total_mp,
-    //       with_status;
-    //   END $$;
-    // `);
+        RAISE NOTICE
+          'send_status_id migration OK: marketplace_items=% with_status=%',
+          total_mp,
+          with_status;
+      END $$;
+    `);
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
