@@ -7,7 +7,6 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 import { GetYandexWarehouses } from './interfaces/yandex-warehouses.interface';
-import { Directions } from './entities/directions.entity';
 import { Statuses } from './entities/statuses.entity';
 import { GetStatusesListDto } from './dto/get-statuses-list.dto';
 import { GetWbOwnWarehouses, GetWbWarehouses } from './interfaces/wb-warehouses.interface';
@@ -134,14 +133,6 @@ export class InfoService {
     } finally {
       await queryRunner.release();
     }
-  }
-
-  async findDirection(queryRunner: QueryRunner, where: FindOptionsWhere<Directions>) {
-    const findDirection = await queryRunner.manager.findOne(Directions, { where });
-    if (!findDirection) {
-      throw new NotFoundException('Направление не найдено');
-    }
-    return findDirection;
   }
 
   @Cron(CronExpression.EVERY_30_MINUTES)

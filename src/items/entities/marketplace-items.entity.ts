@@ -62,6 +62,18 @@ export class MarketplaceItems {
   @Column({ type: 'varchar', nullable: true, name: 'image_url' })
   imageUrl: string | null;
 
+  //Цена товара
+  @Column({ type: 'float', nullable: true })
+  price: number;
+
+  //% скидки товара
+  @Column({ type: 'float', nullable: true })
+  discount: number;
+
+  //Цена товара по акции
+  @Column({ type: 'float', nullable: true, name: 'price_with_discount' })
+  priceWithDiscount: number;
+
   @Column({ type: 'int', name: 'send_status_id', nullable: true })
   sendStatusId: number;
 

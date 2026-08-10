@@ -6,7 +6,6 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn
 } from 'typeorm';
-import { Items } from '../../items/entities/items.entity';
 import { StatusesTypes } from '../enum/statuses.enum';
 import { MarketplaceItems } from 'src/items/entities/marketplace-items.entity';
 
@@ -46,9 +45,6 @@ export class Statuses {
     default: new Date()
   })
   updatedAt: Date;
-
-  @OneToMany(() => Items, items => items.sendStatus)
-  items: Items[];
 
   @OneToMany(() => MarketplaceItems, itemsMarketplace => itemsMarketplace.sendStatus)
   itemsMarketplace: MarketplaceItems[];

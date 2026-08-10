@@ -55,10 +55,6 @@ export interface StopListResponse {
       title: string;
     };
   }[];
-  direction: {
-    id: number;
-    title: string;
-  };
 }
 
 export interface StopListCronResult {

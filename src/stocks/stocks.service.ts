@@ -28,39 +28,39 @@ export class StocksService {
 
   private logger: Logger = new Logger(StocksService.name);
 
-  async getCurrentStocks(getCurrentStocksDto: GetCurrentStocksDto): Promise<GetCurrentStocks[]> {
-    const today = new Date();
-    const findStocks = await this.dataSource.manager
-      .createQueryBuilder(Stocks, 'stocks')
-      .leftJoinAndSelect('stocks.marketplace', 'marketplace')
-      .leftJoinAndSelect('stocks.item', 'item')
-      .leftJoinAndSelect('item.itemsSuppliers', 'itemsSuppliers')
-      .leftJoinAndSelect('itemsSuppliers.supplier', 'supplier')
-      .where('marketplace.title = :marketplace', { marketplace: getCurrentStocksDto.marketplace })
-      .andWhere('item.isArchive = :isArchive', { isArchive: false })
-      .andWhere('Date(stocks.createdAt) = Date(:today)', { today })
-      .getMany();
-    return findStocks.reduce((acc: GetCurrentStocks[], stock) => {
-      const findItem = acc.find(item => stock.itemId === item.id);
-      if (findItem) {
-        findItem.quantityFull += stock.currentValue;
-        findItem.inWayToClient += stock.reserved;
-        findItem.inWayFromClient += stock.promised;
-      } else {
-        acc.push({
-          id: stock.item.id,
-          nmId: Number(stock.item.marketplaceIdentifier),
-          supplierArticle: stock.item.article,
-          barcode: Number(stock.item.barcode),
-          inWayToClient: stock.reserved,
-          inWayFromClient: stock.promised,
-          quantityFull: stock.currentValue,
-          sku: stock.item.sku
-        });
-      }
-      return acc;
-    }, []);
-  }
+  // async getCurrentStocks(getCurrentStocksDto: GetCurrentStocksDto): Promise<GetCurrentStocks[]> {
+  //   const today = new Date();
+  //   const findStocks = await this.dataSource.manager
+  //     .createQueryBuilder(Stocks, 'stocks')
+  //     .leftJoinAndSelect('stocks.marketplace', 'marketplace')
+  //     .leftJoinAndSelect('stocks.item', 'item')
+  //     .leftJoinAndSelect('item.itemsSuppliers', 'itemsSuppliers')
+  //     .leftJoinAndSelect('itemsSuppliers.supplier', 'supplier')
+  //     .where('marketplace.title = :marketplace', { marketplace: getCurrentStocksDto.marketplace })
+  //     .andWhere('item.isArchive = :isArchive', { isArchive: false })
+  //     .andWhere('Date(stocks.createdAt) = Date(:today)', { today })
+  //     .getMany();
+  //   return findStocks.reduce((acc: GetCurrentStocks[], stock) => {
+  //     const findItem = acc.find(item => stock.itemId === item.id);
+  //     if (findItem) {
+  //       findItem.quantityFull += stock.currentValue;
+  //       findItem.inWayToClient += stock.reserved;
+  //       findItem.inWayFromClient += stock.promised;
+  //     } else {
+  //       acc.push({
+  //         id: stock.item.id,
+  //         nmId: Number(stock.item.marketplaceIdentifier),
+  //         supplierArticle: stock.item.article,
+  //         barcode: Number(stock.item.barcode),
+  //         inWayToClient: stock.reserved,
+  //         inWayFromClient: stock.promised,
+  //         quantityFull: stock.currentValue,
+  //         sku: stock.item.sku
+  //       });
+  //     }
+  //     return acc;
+  //   }, []);
+  // }
 
   async getStocks(getCurrentStocksDto: GetCurrentStocksDto, queryRunner: QueryRunner) {
     const queryBuilder = queryRunner.manager
@@ -150,39 +150,40 @@ export class StocksService {
     }
   }
 
-  async getStocksByDate(getStocksByDateDto: GetStocksByDateDto): Promise<GetStocksByDate[]> {
-    const queryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
-    try {
-      return queryRunner.manager
-        .createQueryBuilder(Stocks, 'stocks')
-        .select([
-          'stocks.item_id AS "itemId"',
-          'stocks.marketplace_id AS "marketplaceId"',
-          'SUM(stocks.current_value) AS "currentValue"',
-          'SUM(stocks.reserved) AS "reserved"',
-          'SUM(stocks.promised) AS "promised"',
-          'DATE(stocks.created_at) as "date"',
-          'item.article AS "article"',
-          'marketplace.title as "marketplaceTitle"'
-        ])
-        .leftJoin('stocks.item', 'item')
-        .leftJoin('stocks.marketplace', 'marketplace')
-        .where('DATE(stocks.created_at) IN (:...date)', { date: getStocksByDateDto.date })
-        .groupBy('stocks.item_id')
-        .addGroupBy('stocks.marketplace_id')
-        .addGroupBy('DATE(stocks.created_at)')
-        .addGroupBy('item.article')
-        .addGroupBy('marketplace.title')
-        .getRawMany();
-    } catch (error) {
-      this.logger.error(error);
-      this.logger.error('Не смог получить список остатков на дату');
-      throw error;
-    } finally {
-      await queryRunner.release();
-    }
-  }
+  // async getStocksByDate(getStocksByDateDto: GetStocksByDateDto): Promise<GetStocksByDate[]> {
+  //   const queryRunner = this.dataSource.createQueryRunner();
+  //   await queryRunner.connect();
+  //   try {
+  //     return queryRunner.manager
+  //       .createQueryBuilder(Stocks, 'stocks')
+  //       .select([
+  //         'stocks.item_id AS "itemId"',
+  //         'stocks.marketplace_id AS "marketplaceId"',
+  //         'SUM(stocks.current_value) AS "currentValue"',
+  //         'SUM(stocks.reserved) AS "reserved"',
+  //         'SUM(stocks.promised) AS "promised"',
+  //         'DATE(stocks.created_at) as "date"',
+  //         'item.article AS "article"',
+  //         'marketplace.title as "marketplaceTitle"'
+  //       ])
+  //       .leftJoin('stocks.marketplaceItem', 'marketplaceItem')
+  //       .leftJoin('marketplaceItem.item', 'item')
+  //       .leftJoin('stocks.marketplace', 'marketplace')
+  //       .where('DATE(stocks.created_at) IN (:...date)', { date: getStocksByDateDto.date })
+  //       .groupBy('stocks.item_id')
+  //       .addGroupBy('stocks.marketplace_id')
+  //       .addGroupBy('DATE(stocks.created_at)')
+  //       .addGroupBy('item.article')
+  //       .addGroupBy('marketplace.title')
+  //       .getRawMany();
+  //   } catch (error) {
+  //     this.logger.error(error);
+  //     this.logger.error('Не смог получить список остатков на дату');
+  //     throw error;
+  //   } finally {
+  //     await queryRunner.release();
+  //   }
+  // }
 
   @Cron('0 */18 * * * *')
   async getWbStocksV2() {

@@ -9,4 +9,7 @@ export type MarketplaceInfo = {
   color: string | null;
   category: string | null;
   itemTitle: string | null;
+  price: number | null;
+  discount: number | null;
+  priceWithDiscount: number | null;
 };

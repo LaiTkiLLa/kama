@@ -6,11 +6,10 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn
 } from 'typeorm';
-import { Items } from '../../items/entities/items.entity';
 import { Stocks } from '../../stocks/entities/stocks.entity';
-import { Orders } from '../../orders/entities/orders.entity';
 import { Warehouses } from './warehouses.entity';
 import { MarketplaceItems } from '../../items/entities/marketplace-items.entity';
+import { OrdersV2 } from 'src/orders/entities/orders_v2.entity';
 
 @Entity({
   name: 'marketplaces'
@@ -43,17 +42,14 @@ export class Marketplaces {
   })
   updatedAt: Date;
 
-  @OneToMany(() => Items, items => items.marketplace)
-  items: Items[];
-
   @OneToMany(() => MarketplaceItems, items => items.marketplace)
   marketplaceItems: MarketplaceItems[];
 
   @OneToMany(() => Stocks, stocks => stocks.marketplace)
   stocks: Stocks[];
 
-  @OneToMany(() => Orders, orders => orders.marketplace)
-  orders: Orders[];
+  @OneToMany(() => OrdersV2, orders => orders.marketplace)
+  orders: OrdersV2[];
 
   @OneToMany(() => Warehouses, warehouses => warehouses.marketplace)
   warehouses: Warehouses[];
