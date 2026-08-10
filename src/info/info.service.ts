@@ -24,16 +24,6 @@ export class InfoService {
 
   private logger: Logger = new Logger(InfoService.name);
 
-  async findOrCreateWarehouses(where: FindOptionsWhere<Warehouses>, queryRunner: QueryRunner) {
-    let findWarehouse = await queryRunner.manager.findOne(Warehouses, { where });
-    if (!findWarehouse) {
-      const createData = { title: where.title } as { title: string };
-      const createWarehouse = queryRunner.manager.create(Warehouses, createData);
-      findWarehouse = await queryRunner.manager.save(Warehouses, createWarehouse);
-    }
-    return findWarehouse;
-  }
-
   async findMarketplace(where: FindOptionsWhere<Marketplaces>): Promise<Marketplaces> {
     const findMarketplace = await this.marketplacesRepository.findOne({
       where
@@ -290,11 +280,26 @@ export class InfoService {
   }
 
   @Cron(CronExpression.EVERY_DAY_AT_1AM)
-  async getOzonWarehouses() {
+  async getOzonWarehousesFirst() {
+    const ozonToken = this.configService.get<string>('ozonToken');
+    const clientId = this.configService.get<string>('ozonClientId');
+    if (!ozonToken || !clientId) return;
+    await this.getOzonWarehouses(clientId, ozonToken, 'Озон');
+    return;
+  }
+
+  @Cron(CronExpression.EVERY_30_MINUTES)
+  async getOzonWarehousesSecond() {
+    const ozonToken = this.configService.get<string>('ozonTamovToken');
+    const clientId = this.configService.get<string>('ozonTamovClientId');
+    if (!ozonToken || !clientId) return;
+    await this.getOzonWarehouses(clientId, ozonToken, 'Ozon Tamov');
+    return;
+  }
+
+  async getOzonWarehouses(clientId: string, ozonToken: string, mpTitle: string) {
     let data: OzonWarehouses;
     try {
-      const ozonToken = this.configService.get<string>('ozonToken');
-      const clientId = this.configService.get<string>('ozonClientId');
       const warehousesUrl = 'https://api-seller.ozon.ru/v1/warehouse/ozon/list';
       const response = await axios.post<OzonWarehouses>(
         warehousesUrl,
@@ -332,16 +337,19 @@ export class InfoService {
     try {
       const findMarketplace = await queryRunner.manager.findOne(Marketplaces, {
         where: {
-          title: 'Озон'
+          title: mpTitle
         }
       });
       if (!findMarketplace) {
-        this.logger.error('Не нашел Озон в маркетплейсах');
+        this.logger.error(`Не нашел ${mpTitle} в маркетплейсах`);
         return;
       }
       for (const warehouse of data.warehouses) {
         const findWarehouse = await queryRunner.manager.findOne(Warehouses, {
-          where: { marketplaceInternalNumber: String(warehouse.warehouse_id) }
+          where: {
+            marketplaceInternalNumber: String(warehouse.warehouse_id),
+            marketplaceId: findMarketplace.id
+          }
         });
         if (!findWarehouse) {
           const createWarehouse = queryRunner.manager.create(Warehouses, {
@@ -366,7 +374,7 @@ export class InfoService {
       }
     } catch (error) {
       this.logger.error(error);
-      this.logger.error('Не смог получить склады FBO Ozon');
+      this.logger.error(`Не смог получить склады FBO ${mpTitle}`);
     } finally {
       await queryRunner.release();
     }

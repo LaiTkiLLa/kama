@@ -17,10 +17,11 @@
 
 ```text
 Item (marketplace-independent, 1 на article)
- ├── MarketplaceItem (WB)   ← identity, listing, prices, send_status
- ├── MarketplaceItem (Ozon)
+ ├── MarketplaceItem (WB)
+ ├── MarketplaceItem (Озон)
+ ├── MarketplaceItem (Ozon Tamov)   ← отдельный marketplaces.title; env ozonTamov*
  ├── MarketplaceItem (Yandex)
- └── MarketplaceItem (Yandex Tamov)   ← отдельный marketplaces.title
+ └── MarketplaceItem (Yandex Tamov)   ← отдельный marketplaces.title; env yandexTamov*
         ├── Stocks
         └── OrdersV2
 ```
@@ -52,8 +53,10 @@ Marketplace-independent: `id`, `article`, `articleOld`, `ownCategory`, classific
 2. **Card sync:** find-or-create item by `article`; listing на mp по `{ id }`.
 3. **Directory:** `marketplacesInfo[]` с mp + prices; filter `items.isArchive = false` + join `mp.deletedAt IS NULL` (два уровня).
 4. **Stop-list / stocks:** listing archive через `mpItems.deletedAt IS NULL`.
-5. **Prices:** schema + hourly crons на mp (prod).
+5. **Prices:** schema + hourly crons на mp для WB и основного `Озон` (prod). Ozon Tamov price cron — gap.
 6. **DB:** 1 item на article; `stocks`/`orders_v2` без `item_id`.
+7. **Ozon Tamov:** cards/stocks/orders_v2/warehouses sync ✔; prices/trash/stop-list PATCH — gaps.
+8. **Warehouses multi-cabinet (DECISION):** lookup/create всегда в scope `marketplaceId`. Ozon stocks: find по `title` + `marketplaceId`, без auto-create (нужен prior warehouses cron). Orders Ozon: `marketplaceInternalNumber` + `marketplaceId`.
 
 ### Stop-list
 
@@ -88,7 +91,7 @@ Marketplace-independent: `id`, `article`, `articleOld`, `ownCategory`, classific
 |---------|--------|
 | `items.isArchive` | **оставляем** — product hide; не путать с mp `deleted_at` |
 | `items_sizes` | sync закомментирован; redesign — next |
-| Yandex trash | закомментирован; архив listing через mp `deleted_at` |
+| Yandex / Ozon Tamov | stop-list PATCH, trash; Ozon Tamov ещё prices |
 | Stocks API v1 | controller закомментирован |
 | Price pagination | API limit 1000 без cursor |
 

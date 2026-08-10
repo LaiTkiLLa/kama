@@ -5,7 +5,7 @@ export class GetDynamicOrdersDto {
   days: number;
 
   @IsString({ message: 'marketplace тип данных должен быть string' })
-  @IsIn(['Озон', 'WB', 'Yandex', 'Ozon Second', 'Yandex Tamov'], {
+  @IsIn(['Озон', 'WB', 'Yandex', 'Ozon Tamov', 'Yandex Tamov'], {
     message: 'Недопустимое значение marketplace'
   })
   marketplace: string;

@@ -103,8 +103,12 @@ PostgreSQL
 | Google Sheets / Apps Script | единственный UI (FACT)                                 |
 
 
-**FACT:** второй кабинет Yandex в коде как marketplace title **`Yandex Tamov`** (env `yandexTamov*`); sync карточек / остатков / orders_v2 — отдельные cron’ы.  
-Часть jobs для **Ozon Second** по-прежнему закомментирована; env для второго Ozon есть.
+**FACT:** вторые кабинеты:
+- Yandex — title **`Yandex Tamov`**, env `yandexTamov*` (cards / stocks / orders_v2).
+- Ozon — title **`Ozon Tamov`**, env `ozonTamovToken` / `ozonTamovClientId` (cards / stocks / orders_v2 / warehouses). Legacy `Ozon Second` / `ozonSecond*` снят.
+- Warehouse identity для multi-cabinet: всегда с `marketplaceId` (не искать только по title / internal number).
+
+Gaps обоих Tamov: stop-list PATCH / trash; у Ozon Tamov дополнительно price cron.
 
 ---
 
@@ -123,7 +127,7 @@ PostgreSQL
 | `statuses`, `suppliers`, …               | справочники операционного контура                                  |
 
 
-**Критично:** переход `items` → `marketplace_items`. **M1–M5 ✔ на prod**. Сейчас **Milestone 6 — Cutover**: `items_sizes`, Yandex Tamov, stocks v1. `items.isArchive` остаётся (product hide).
+**Критично:** переход `items` → `marketplace_items`. **M1–M5 ✔ на prod**. Сейчас **Milestone 6 — Cutover**: `items_sizes`, Tamov gaps (Ozon + Yandex), stocks v1. `items.isArchive` остаётся (product hide).
 Источник истины:
 
 - `[domain/items-and-marketplace-items.md](domain/items-and-marketplace-items.md)`

@@ -2,7 +2,9 @@ import { ArrayMinSize, IsArray, IsIn, IsOptional, IsString } from 'class-validat
 
 export class GetCurrentStocksDto {
   @IsString({ message: 'marketplace тип данных должен быть string' })
-  @IsIn(['Озон', 'WB', 'Yandex', 'Ozon Second'], { message: 'Недопустимое значение marketplace' })
+  @IsIn(['Озон', 'WB', 'Yandex', 'Ozon Tamov', 'Yandex Tamov'], {
+    message: 'Недопустимое значение marketplace'
+  })
   marketplace: string;
 
   @IsOptional()

@@ -86,6 +86,9 @@ export class OrdersService {
       if (getDynamicOrdersDto.marketplace === 'Озон') {
         const ordersResult = await this.getOrders(getDynamicOrdersDto.days, 'Озон', result);
         return await this.getOrdersV2(queryRunner, 'Озон', ordersResult);
+      } else if (getDynamicOrdersDto.marketplace === 'Ozon Tamov') {
+        const ordersResult = await this.getOrders(getDynamicOrdersDto.days, 'Ozon Tamov', result);
+        return await this.getOrdersV2(queryRunner, 'Ozon Tamov', ordersResult);
       } else if (getDynamicOrdersDto.marketplace === 'WB') {
         const ordersResult = await this.getOrders(getDynamicOrdersDto.days, 'WB', result);
         return await this.getOrdersV2(queryRunner, 'WB', ordersResult);
@@ -105,7 +108,7 @@ export class OrdersService {
     }
   }
 
-  async getOrders(days: number, marketplaceTitle: 'Озон' | 'WB', result: GetDynamicOrders[]) {
+  async getOrders(days: number, marketplaceTitle: 'Озон' | 'Ozon Tamov' | 'WB', result: GetDynamicOrders[]) {
     const prevDate = this.daysAgo(days);
     const prevThirdDays = this.daysAgo(3);
     const prevNinetyDays = this.daysAgo(90);
@@ -171,7 +174,7 @@ export class OrdersService {
 
   async getOrdersV2(
     queryRunner: QueryRunner,
-    marketplaceTitle: 'Озон' | 'WB' | 'Yandex' | 'Yandex Tamov',
+    marketplaceTitle: 'Озон' | 'Ozon Tamov' | 'WB' | 'Yandex' | 'Yandex Tamov',
     result: GetDynamicOrders[]
   ): Promise<GetDynamicOrders[]> {
     const ordersResult = (await queryRunner.query(
@@ -457,13 +460,6 @@ export class OrdersService {
         if (!findWarehouse) {
           continue;
         }
-        // const findItem = await this.itemsService.findItem(
-        //   { marketplaceIdentifier: String(order.nmId), marketplaceId: findMarketplace.id },
-        //   queryRunner
-        // );
-        // if (!findItem) {
-        //   continue;
-        // }
         const findMarketplaceItem = await queryRunner.manager
           .createQueryBuilder(MarketplaceItems, 'mpItems')
           .leftJoinAndSelect('mpItems.item', 'item')
@@ -655,15 +651,6 @@ export class OrdersService {
           continue;
         }
         for (const item of order.products) {
-          // const findItem = await queryRunner.manager.findOne(Items, {
-          //   where: {
-          //     marketplaceId: findMarketplace.id,
-          //     article: item.offerId
-          //   }
-          // });
-          // if (!findItem) {
-          //   continue;
-          // }
           const findMarketplaceItem = await queryRunner.manager
             .createQueryBuilder(MarketplaceItems, 'mpItems')
             .leftJoinAndSelect('mpItems.item', 'item')
@@ -731,15 +718,15 @@ export class OrdersService {
     return;
   }
 
-  // @Cron('0 */24 * * * *')
+  @Cron('2 * * * *')
   async getOrdersOzonSecond() {
-    const ozonToken = this.configService.get<string>('ozonSecondToken');
-    const clientId = this.configService.get<string>('ozonSecondClientId');
+    const ozonToken = this.configService.get<string>('ozonTamovToken');
+    const clientId = this.configService.get<string>('ozonTamovClientId');
     if (!ozonToken || !clientId) {
-      this.logger.error('Не найден токен озона или id клиента ozon second');
+      this.logger.error('Не найден токен озона или id клиента Ozon Tamov');
       return;
     }
-    const findMarketplace = await this.infoService.findMarketplace({ title: 'Ozon Second' });
+    const findMarketplace = await this.infoService.findMarketplace({ title: 'Ozon Tamov' });
     await this.getOrdersOzon(ozonToken, clientId, findMarketplace.id);
     return;
   }
@@ -851,7 +838,8 @@ export class OrdersService {
       for (const order of orders) {
         const findWarehouse = await queryRunner.manager.findOne(Warehouses, {
           where: {
-            marketplaceInternalNumber: String(order.warehouseId)
+            marketplaceInternalNumber: String(order.warehouseId),
+            marketplaceId
           }
         });
         if (!findWarehouse) {

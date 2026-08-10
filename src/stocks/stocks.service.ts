@@ -148,41 +148,6 @@ export class StocksService {
     }
   }
 
-  // async getStocksByDate(getStocksByDateDto: GetStocksByDateDto): Promise<GetStocksByDate[]> {
-  //   const queryRunner = this.dataSource.createQueryRunner();
-  //   await queryRunner.connect();
-  //   try {
-  //     return queryRunner.manager
-  //       .createQueryBuilder(Stocks, 'stocks')
-  //       .select([
-  //         'stocks.item_id AS "itemId"',
-  //         'stocks.marketplace_id AS "marketplaceId"',
-  //         'SUM(stocks.current_value) AS "currentValue"',
-  //         'SUM(stocks.reserved) AS "reserved"',
-  //         'SUM(stocks.promised) AS "promised"',
-  //         'DATE(stocks.created_at) as "date"',
-  //         'item.article AS "article"',
-  //         'marketplace.title as "marketplaceTitle"'
-  //       ])
-  //       .leftJoin('stocks.marketplaceItem', 'marketplaceItem')
-  //       .leftJoin('marketplaceItem.item', 'item')
-  //       .leftJoin('stocks.marketplace', 'marketplace')
-  //       .where('DATE(stocks.created_at) IN (:...date)', { date: getStocksByDateDto.date })
-  //       .groupBy('stocks.item_id')
-  //       .addGroupBy('stocks.marketplace_id')
-  //       .addGroupBy('DATE(stocks.created_at)')
-  //       .addGroupBy('item.article')
-  //       .addGroupBy('marketplace.title')
-  //       .getRawMany();
-  //   } catch (error) {
-  //     this.logger.error(error);
-  //     this.logger.error('Не смог получить список остатков на дату');
-  //     throw error;
-  //   } finally {
-  //     await queryRunner.release();
-  //   }
-  // }
-
   @Cron('0 */18 * * * *')
   async getWbStocksV2() {
     const apiToken = this.configService.get<string>('wbToken');
@@ -398,6 +363,17 @@ export class StocksService {
     if (!ozonToken) return;
     if (!clientId) return;
     const findMarketplace = await this.infoService.findMarketplace({ title: 'Озон' });
+    await this.getOzonStocks(clientId, ozonToken, findMarketplace.id);
+    return;
+  }
+
+  @Cron('0 */27 * * * *')
+  async getOzonStocksSecond() {
+    const ozonToken = this.configService.get<string>('ozonTamovToken');
+    const clientId = this.configService.get<string>('ozonTamovClientId');
+    if (!ozonToken) return;
+    if (!clientId) return;
+    const findMarketplace = await this.infoService.findMarketplace({ title: 'Ozon Tamov' });
     await this.getOzonStocks(clientId, ozonToken, findMarketplace.id);
     return;
   }
@@ -643,15 +619,19 @@ export class StocksService {
         offset += 1000;
       }
     }
-    for (const stock of stocks) {
-      const queryRunner = this.dataSource.createQueryRunner();
-      await queryRunner.connect();
-      await queryRunner.startTransaction();
-      try {
-        const findWarehouse = await this.infoService.findOrCreateWarehouses(
-          { title: stock.warehouse },
-          queryRunner
-        );
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    try {
+      for (const stock of stocks) {
+        const findWarehouse = await queryRunner.manager.findOne(Warehouses, {
+          where: {
+            title: stock.warehouse,
+            marketplaceId
+          }
+        });
+        if (!findWarehouse) {
+          continue;
+        }
         const findMarketplaceItem = await queryRunner.manager
           .createQueryBuilder(MarketplaceItems, 'mpItems')
           .where('mpItems.marketplaceId = :marketplaceId', { marketplaceId })
@@ -660,7 +640,6 @@ export class StocksService {
           })
           .getOne();
         if (!findMarketplaceItem) {
-          await queryRunner.commitTransaction();
           continue;
         }
         const findStock = await queryRunner.manager
@@ -692,14 +671,12 @@ export class StocksService {
           });
           await queryRunner.manager.save(Stocks, createStock);
         }
-        await queryRunner.commitTransaction();
-      } catch (error) {
-        await queryRunner.rollbackTransaction();
-        this.logger.error('Не смог обновить остатки Ozon');
-        this.logger.error(error);
-      } finally {
-        await queryRunner.release();
       }
+    } catch (error) {
+      this.logger.error('Не смог обновить остатки Ozon');
+      this.logger.error(error);
+    } finally {
+      await queryRunner.release();
     }
     return;
   }
