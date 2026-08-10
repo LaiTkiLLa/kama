@@ -14,17 +14,18 @@
 
 ## Где мы сейчас
 
-**Milestone 5 — Consolidation (в работе).**
+**Milestone 6 — Cutover (в работе).** M1–M5 ✔ (миграции на prod).
 
 | Слой | Статус |
 |------|--------|
 | M1–M3 MarketplaceItems / Stocks / Orders | ✔ |
 | M4 StopList (`send_status`) mp-only | ✔ |
-| M4b listing fields (create + update + v2 read) | ✔ |
-| M4b prices на mp + drop с items | ✔ migration `1786522800000` |
-| M5 code: entity cleanup, find-by-article, directory/stop-list mp | ✔ |
-| M5 migration: схлопывание + drop legacy columns/tables | □ `1786526400000` NEEDS VERIFICATION (fix: stocks merge CTE) |
-| M6 Cutover (crons, isArchive, cleanup) | □ |
+| M4b listing fields + prices на mp | ✔ |
+| M5 Consolidation (схлопывание + drop legacy) | ✔ prod (`1786522800000`, `1786526400000`) |
+| M5 Price crons WB/Ozon → mp | ✔ |
+| M6 Cutover (`isArchive`, sizes, Tamov, stocks v1) | □ |
+
+Changelog M5: [`../migrations/m5-consolidation-changelog.md`](../migrations/m5-consolidation-changelog.md).
 
 ---
 
@@ -32,59 +33,40 @@
 
 | Область | Статус |
 |---------|--------|
-| Stocks / Orders sync | ✔ по `marketplace_item_id` |
-| send_status | ✔ только mp (dual-write на items снят) |
-| Listing fields + prices на mp | ✔ entity + card sync |
-| Directory `marketplacesInfo` | ✔ с mp, включая price/discount |
-| PATCH directory/info | ✔ V2 → mp |
-| v2 stop-list image/title/color | ✔ с mp |
-| Card sync find item by article | ✔ |
-| 1 item на article в БД | □ после `1786526400000` |
-| Price crons | □ закомментированы |
-| Legacy `orders` / `directions` drop | □ в `1786526400000` |
+| 1 item на article в БД | ✔ после consolidation |
+| Stocks / Orders | ✔ только `marketplace_item_id` (`item_id` drop) |
+| send_status / listing / prices | ✔ на `marketplace_items` |
+| Price crons WB/Ozon | ✔ hourly → mp (`deletedAt IS NULL`) |
+| Directory `isArchive` filter | □ ещё на `items`; целевой — mp `deleted_at` |
+| Stocks filter archive | ✔ уже `mpItems.deletedAt IS NULL` |
+| Stop-list / directory read | ✔ mp-centric |
 
-**Фокус спринта:** прогнать `1786526400000` → price crons на mp → убрать `isArchive` filter → Yandex Tamov (позже).
-
-Changelog M5: [`../migrations/m5-consolidation-changelog.md`](../migrations/m5-consolidation-changelog.md).
+**Фокус спринта (M6):** directory `isArchive` → `deleted_at` → optional drop колонки → `items_sizes` / Yandex Tamov / stocks v1.
 
 ---
 
 ## Milestones
 
-### 1–3 ✔ MarketplaceItems / Stocks / Orders
+### 1–4b ✔
 
-### Milestone 4 — StopList ✔ *(send_status mp-only)*
-
-- [x] v2 read / PATCH / autostatus на `marketplace_items`
-- [x] dual-write на `items` **снят**
-
-### Milestone 4b — listing fields + prices ✔
-
-- [x] Entity + migrations copy listing fields (`1786013498713`)
-- [x] `send_status_id` на mp (`1786097301320`)
-- [x] category/title nullable (`1786107580847`)
-- [x] Card sync create/update listing fields (WB/Ozon/Yandex)
-- [x] v2 stop-list: image/title/color с mp
-- [x] Prices на mp (`1786522800000`); drop `change_prices_histories`
-- [x] Directory prices в `marketplacesInfo`
-
-### Milestone 5 — Consolidation ◐
+### Milestone 5 — Consolidation ✔
 
 - [x] Entity `items` без MP-полей и цен
-- [x] Card sync: find-or-create item by article
-- [x] PATCH directory V2 mp-centric
-- [x] Удалены legacy entity: `orders`, `directions`, `change_prices_histories`
-- [x] Migration `1786526400000` (схлопывание + drop columns/tables) — в репо
-- [ ] Прогон `1786526400000` на всех env
-- [ ] Price crons → `MarketplaceItems`
+- [x] Card sync find-or-create by article; PATCH directory V2
+- [x] Legacy entity `orders` / `directions` / `change_prices_histories` удалены
+- [x] `1786522800000` prices → mp (prod)
+- [x] `1786526400000` consolidation + drop `stocks.item_id` / `orders_v2.item_id` (prod)
+- [x] Price crons WB/Ozon → `MarketplaceItems` (discount % единая шкала; WB `priceWithDiscount`)
 
 ### Milestone 6 — Cutover □
 
-- [ ] Directory/stocks filter: `deleted_at` вместо `items.isArchive`
-- [ ] Drop `items.isArchive` (optional, после GAS)
-- [ ] `items_sizes` — новая связь с mp (TBD)
+- [ ] Directory filter: убрать `items.isArchive`, опираться на наличие active mp (`deleted_at IS NULL`)
+- [ ] Drop `items.isArchive` (optional, после подтверждения GAS)
+- [ ] `items_sizes` — связь с mp (TBD)
 - [ ] Yandex Tamov: stop-list PATCH, trash sync
-- [ ] Stocks v1 retired или восстановлен осознанно
+- [ ] Stocks API v1 — retire или восстановить осознанно
+- [ ] Cleanup: orphan DTO `get-change-price-history`, мёртвые поля stop-list interface
+- [ ] Price crons: пагинация >1000 SKU (optional)
 
 ---
 
@@ -92,16 +74,18 @@ Changelog M5: [`../migrations/m5-consolidation-changelog.md`](../migrations/m5-c
 
 | # | Задача | Статус |
 |---|--------|--------|
-| 1 | Прогнать `1786522800000` на всех env | □ NEEDS VERIFICATION |
-| 2 | Прогнать `1786526400000` (consolidation) | □ |
-| 3 | Price crons WB/Ozon → mp | □ |
-| 4 | `isArchive` → mp `deleted_at` в directory | □ |
+| 1 | Directory: `isArchive` → archive через mp `deleted_at` | □ next |
+| 2 | Согласовать с GAS drop `isArchive` | □ |
+| 3 | `items_sizes` redesign | □ |
+| 4 | Yandex Tamov gaps | □ later |
+| 5 | Stocks v1 decision | □ later |
 
 ---
 
-## Known Blockers
+## Known Blockers / Gaps
 
-| Блокер | Влияние |
-|--------|---------|
-| Consolidation migration не на prod | schema рассинхрон с entity |
-| Price crons off | цены в БД устаревают |
+| Gap | Влияние |
+|-----|---------|
+| Directory ещё фильтрует `items.isArchive` | item без active listings может скрываться иначе, чем archive listing |
+| Price API limit 1000 | хвост каталога не обновляется без pagination |
+| Card sync find by article | без явного `created_for_calculation = false` — риск match test item |

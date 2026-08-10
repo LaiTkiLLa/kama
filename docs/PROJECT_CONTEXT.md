@@ -123,8 +123,7 @@ PostgreSQL
 | `statuses`, `suppliers`, …               | справочники операционного контура                                  |
 
 
-**Критично:** переход `items` → `marketplace_items` в **Milestone 5 (Consolidation)**.  
-M1–M4b ✔ в коде. Цены на mp (`1786522800000` ✔ dev). Схлопывание — `1786526400000` (NEEDS VERIFICATION).  
+**Критично:** переход `items` → `marketplace_items`. **M1–M5 ✔ на prod** (prices + consolidation). Сейчас **Milestone 6 — Cutover**: directory без `items.isArchive`, `items_sizes`, Yandex Tamov, stocks v1.
 Источник истины:
 
 - `[domain/items-and-marketplace-items.md](domain/items-and-marketplace-items.md)`
