@@ -13,7 +13,7 @@ alwaysApply: true
 - Не меняй бизнес-логику, не поняв зачем она есть (читай callers, cron’ы и связанные docs).
 - UI — только Google Sheets + GAS; frontend в этом репозитории не создавать. Изменения API держи совместимыми с GAS.
 - Целевое направление: marketplace-independent на `items`; marketplace-specific — на `marketplace_items` (listing, prices, `send_status_id`, archive).
-- Архив listing — `marketplace_items.deleted_at`; `items.isArchive` — legacy (directory filter), убрать на M6.
+- Архив listing — `marketplace_items.deleted_at`; product hide — `items.isArchive` (**оставляем**; не путать уровни). Optional rename → `isDeleted` позже.
 
 ## Workflow
 
@@ -24,7 +24,7 @@ alwaysApply: true
 ## Items ↔ MarketplaceItems
 
 - Marketplace-independent — на `items`; marketplace-specific — на `marketplace_items` (listing, prices, `send_status_id`).
-- Архив listing: `marketplace_items.deleted_at`; не опирайся на `items.isArchive` в новой логике.
+- Архив listing: `marketplace_items.deleted_at`. Product hide: `items.isArchive` (directory). Не подменять одно другим.
 - После M5: **1 item на article** (+ отдельные `created_for_calculation`). Card sync create — find-or-create item by article.
 - Не удаляй `marketplace_id` на `stocks`/`orders_v2` без плана. `item_id` на stocks/orders_v2 и MP-колонки на `items` уже drop через `1786526400000` (prod).
 - Обновление `marketplace_items` — по `mpItem.id`, не по одному `itemId` без identity маркетплейса.
@@ -46,5 +46,5 @@ alwaysApply: true
 
 - Меняй только то, что требует задача. Без drive-by рефакторинга чужих модулей.
 - При шаге миграции Items/MP обновляй `docs/roadmap/items-marketplace-items-migration.md` после шага.
-- Текущая позиция roadmap: **Milestone 6 — Cutover**. M5 ✔ prod. Next: directory без `items.isArchive`, затем sizes / Tamov / stocks v1.
+- Текущая позиция roadmap: **Milestone 6 — Cutover**. M5 ✔ prod. `isArchive` оставляем. Next: `items_sizes` / Tamov / stocks v1.
 - Второй кабинет Yandex — `marketplaces.title = 'Yandex Tamov'`; credentials через `yandexTamov*`. Не хардкодь title и не смешивай с `Yandex`.

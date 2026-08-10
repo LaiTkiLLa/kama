@@ -77,7 +77,7 @@ Milestone 5 завершает переход с модели «1 `items` row = 
 
 ### `items`
 
-Удалены MP-поля и цены из entity. Остаются business/logistics поля + legacy `isArchive` (cutover M6).
+Удалены MP-поля и цены из entity. Остаются business/logistics поля + `isArchive` (product hide, оставляем).
 
 ### `marketplace_items`
 
@@ -119,9 +119,8 @@ Milestone 5 завершает переход с модели «1 `items` row = 
 
 | Область | Статус |
 |---------|--------|
-| Directory filter `isArchive` | заменить семантикой mp `deleted_at` |
-| Drop `items.isArchive` | optional, после GAS |
-| `items_sizes` sync | закомментирован |
+| Directory / `items.isArchive` | **оставляем** (product hide); listing = `deleted_at` |
+| `items_sizes` sync | закомментирован — next |
 | Yandex Tamov gaps | stop-list PATCH, trash sync |
 | Stocks API v1 | закомментирован в controller |
 | Price crons pagination | optional, limit 1000 |

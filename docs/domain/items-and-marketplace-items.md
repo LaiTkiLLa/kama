@@ -31,7 +31,7 @@ Marketplace-independent: `id`, `article`, `articleOld`, `ownCategory`, classific
 
 **Drop с `items` (M5, prod):** MP listing/identity/габариты/цены/`send_status_id`/`direction_id`.
 
-**Legacy (M6):** `isArchive` — ещё в directory filter; целевой архив — `marketplace_items.deleted_at`.
+**Legacy / product hide:** `isArchive` — **оставляем** (DECISION): скрытие товара в directory, даже если все mp listings удалены. Optional rename → `isDeleted` позже. Listing archive — только `marketplace_items.deleted_at`.
 
 ### Поля на `marketplace_items`
 
@@ -50,8 +50,8 @@ Marketplace-independent: `id`, `article`, `articleOld`, `ownCategory`, classific
 
 1. **Entity/code:** `items` без MP-полей; listing/price/status на mp.
 2. **Card sync:** find-or-create item by `article`; listing на mp по `{ id }`.
-3. **Directory:** `marketplacesInfo[]` с mp + prices; filter ещё `items.isArchive = false` (+ join `mp.deletedAt IS NULL`).
-4. **Stop-list / stocks:** archive через `mpItems.deletedAt IS NULL`.
+3. **Directory:** `marketplacesInfo[]` с mp + prices; filter `items.isArchive = false` + join `mp.deletedAt IS NULL` (два уровня).
+4. **Stop-list / stocks:** listing archive через `mpItems.deletedAt IS NULL`.
 5. **Prices:** schema + hourly crons на mp (prod).
 6. **DB:** 1 item на article; `stocks`/`orders_v2` без `item_id`.
 
@@ -67,7 +67,7 @@ Marketplace-independent: `id`, `article`, `articleOld`, `ownCategory`, classific
 
 | Endpoint | Статус |
 |----------|--------|
-| `GET …/directory/list` | ✔ mp prices; **legacy `isArchive` filter** |
+| `GET …/directory/list` | ✔ mp prices; `isArchive` (product) + `deleted_at` (listing) |
 | `PATCH …/directory/info` | ✔ V2 |
 
 ---
@@ -84,11 +84,11 @@ Marketplace-independent: `id`, `article`, `articleOld`, `ownCategory`, classific
 
 ## Legacy (M6)
 
-| Область | Legacy |
+| Область | Статус |
 |---------|--------|
-| `items.isArchive` | directory filter; заменить семантикой mp `deleted_at` |
-| `items_sizes` | sync закомментирован; redesign |
-| Yandex trash | закомментирован; архив через mp `deleted_at` |
+| `items.isArchive` | **оставляем** — product hide; не путать с mp `deleted_at` |
+| `items_sizes` | sync закомментирован; redesign — next |
+| Yandex trash | закомментирован; архив listing через mp `deleted_at` |
 | Stocks API v1 | controller закомментирован |
 | Price pagination | API limit 1000 без cursor |
 
@@ -99,6 +99,7 @@ Marketplace-independent: `id`, `article`, `articleOld`, `ownCategory`, classific
 | Термин | Значение |
 |--------|----------|
 | **Listing archive** | `marketplace_items.deleted_at` |
+| **Product hide** | `items.isArchive` (optional rename `isDeleted`) |
 | **Send status** | `marketplace_items.send_status_id` |
 | **Consolidation** | 1 article → 1 item; repoint mp/stocks/orders (M5 ✔) |
 | **Calculation item** | `created_for_calculation = true`, отдельные строки |
