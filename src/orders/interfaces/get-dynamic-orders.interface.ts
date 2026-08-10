@@ -1,5 +1,6 @@
 export interface GetDynamicOrders {
   itemId: number;
+  marketplaceItemId: number;
   supplierArticle: string;
   sku: number;
   orders: number;

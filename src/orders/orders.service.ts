@@ -21,7 +21,7 @@ import { OrdersV2 } from './entities/orders_v2.entity';
 import { MarketplaceItems } from '../items/entities/marketplace-items.entity';
 
 interface ItemOrdersStats {
-  item_id: string;
+  marketplace_item_id: string;
   total_orders_period: string; //кол-во заказов за весь 90 дневный период
   avg_orders_day: string; //среднее кол-во заказов за 90 дней округленное вверх
   total_orders_above_avg: string; //кол-во заказов, которых больше чем avg_orders_day
@@ -59,6 +59,7 @@ export class OrdersService {
           supplierArticle: item.supplierArticle,
           sku: Number(item.sku),
           itemId: item.id,
+          marketplaceItemId: item.mpItem,
           barcode: String(item.barcode),
           orders: 0,
           reserved: item.inWayToClient,
@@ -124,7 +125,7 @@ export class OrdersService {
       .andWhere('marketplace.title = :marketplaceTitle', { marketplaceTitle })
       .getMany();
     for (const order of orders) {
-      const findItem = result.find(item => item.itemId === order.itemId);
+      const findItem = result.find(item => item.marketplaceItemId === order.marketplaceItemId);
       if (!findItem) {
         continue;
       }
@@ -182,50 +183,50 @@ export class OrdersService {
                    INTERVAL '1 day'
                  )::date AS order_day
         ),
-             item_list AS (
-               SELECT DISTINCT orders_v2.item_id
+             mp_list AS (
+               SELECT DISTINCT orders_v2.marketplace_item_id
                FROM orders_v2
                       LEFT JOIN public.marketplaces m ON orders_v2.marketplace_id = m.id
                WHERE orders_v2.marketplace_created_at >= now() - INTERVAL '90 days'
           AND m.title = $1
           ),
-          item_days AS (
-        SELECT item_id, order_day
-        FROM item_list
+          mp_days AS (
+        SELECT marketplace_item_id, order_day
+        FROM mp_list
           CROSS JOIN date_series
           ),
           daily_counts AS (
         SELECT
-          orders_v2.item_id,
+          orders_v2.marketplace_item_id,
           date_trunc('day', orders_v2.marketplace_created_at)::date AS order_day,
           count(*) AS orders_count
         FROM orders_v2
           LEFT JOIN public.marketplaces m ON orders_v2.marketplace_id = m.id
         WHERE orders_v2.marketplace_created_at >= now() - INTERVAL '90 days'
           AND m.title = $1
-        GROUP BY orders_v2.item_id, date_trunc('day', orders_v2.marketplace_created_at)::date
+        GROUP BY orders_v2.marketplace_item_id, date_trunc('day', orders_v2.marketplace_created_at)::date
           ),
           full_counts AS (
         SELECT
-          id.item_id,
-          id.order_day,
+          md.marketplace_item_id,
+          md.order_day,
           coalesce(dc.orders_count, 0) AS orders_count
-        FROM item_days id
+        FROM mp_days md
           LEFT JOIN daily_counts dc
-        ON dc.item_id = id.item_id
-          AND dc.order_day = id.order_day
+        ON dc.marketplace_item_id = md.marketplace_item_id
+          AND dc.order_day = md.order_day
           ),
           with_totals AS (
         SELECT
-          item_id,
+          marketplace_item_id,
           order_day,
           orders_count,
-          sum(orders_count) OVER (PARTITION BY item_id) AS total_orders_period
+          sum(orders_count) OVER (PARTITION BY marketplace_item_id) AS total_orders_period
         FROM full_counts
           ),
           with_avg AS (
         SELECT
-          item_id,
+          marketplace_item_id,
           order_day,
           orders_count,
           total_orders_period,
@@ -233,20 +234,20 @@ export class OrdersService {
         FROM with_totals
           )
         SELECT
-          item_id,
+          marketplace_item_id,
           max(total_orders_period) AS total_orders_period,
           max(avg_orders_day)      AS avg_orders_day,
           sum(orders_count)        AS total_orders_above_avg,
           count(*)                 AS days_above_avg
         FROM with_avg
         WHERE orders_count > avg_orders_day
-        GROUP BY item_id
-        ORDER BY item_id;
+        GROUP BY marketplace_item_id
+        ORDER BY marketplace_item_id;
   `,
       [marketplaceTitle]
     )) as ItemOrdersStats[];
     for (const order of ordersResult) {
-      const findItem = result.find(item => item.itemId === Number(order.item_id));
+      const findItem = result.find(item => item.marketplaceItemId === Number(order.marketplace_item_id));
       if (!findItem) {
         continue;
       }
@@ -483,7 +484,7 @@ export class OrdersService {
         if (!findOrder) {
           const countItemOrder = await queryRunner.manager.count(OrdersV2, {
             where: {
-              itemId: findMarketplaceItem.itemId
+              marketplaceItemId: findMarketplaceItem.id
             }
           });
           if (!countItemOrder && !findMarketplaceItem.item.wbCreatedAt) {
@@ -515,7 +516,6 @@ export class OrdersService {
             clusterTo: order.oblastOkrugName,
             cancelReasonId: order.isCancel ? 999 : undefined,
             city: order.regionName,
-            itemId: findMarketplaceItem.itemId,
             warehouseId: findWarehouse.id,
             marketplaceId: findMarketplace.id,
             //Приведение к 0 часовому поясу
@@ -692,7 +692,6 @@ export class OrdersService {
               price: item.price,
               payout: item.price,
               cancelReasonId: order.cancelRequested ? 999 : undefined,
-              itemId: findMarketplaceItem.itemId,
               warehouseId: findWarehouse.id,
               marketplaceId: findMarketplace.id,
               marketplaceCreatedAt: order.createdAt,
@@ -903,7 +902,6 @@ export class OrdersService {
               clusterTo: item.clusterTo,
               cancelReasonId: order.cancelReasonId,
               city: order.city,
-              itemId: findMarketplaceItem.itemId,
               warehouseId: findWarehouse.id,
               marketplaceId,
               marketplaceCreatedAt: order.createdAt,

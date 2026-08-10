@@ -12,8 +12,8 @@ alwaysApply: true
 - Если данных мало или они двусмысленны: сначала исследуй репозиторий; помечай FACT / ASSUMPTION / NEEDS VERIFICATION / UNKNOWN.
 - Не меняй бизнес-логику, не поняв зачем она есть (читай callers, cron’ы и связанные docs).
 - UI — только Google Sheets + GAS; frontend в этом репозитории не создавать. Изменения API держи совместимыми с GAS.
-- Целевое направление: marketplace-independent данные на `items`; marketplace-specific — на `marketplace_items` (включая `category`, `title`, `color`, `imageUrl`, `send_status_id`).
-- Архив listing — через `marketplace_items.deleted_at`, не через `items.isArchive` (целевая модель).
+- Целевое направление: marketplace-independent на `items`; marketplace-specific — на `marketplace_items` (listing, prices, `send_status_id`, archive).
+- Архив listing — `marketplace_items.deleted_at`; `items.isArchive` — legacy (directory filter), убрать на M6.
 
 ## Workflow
 
@@ -23,23 +23,22 @@ alwaysApply: true
 
 ## Items ↔ MarketplaceItems
 
-- Marketplace-independent — на `items`; marketplace-specific — на `marketplace_items` (включая listing-поля и `send_status_id` по продуктовому решению).
-- Архив listing: `marketplace_items.deleted_at`; в новой логике не опирайся на `items.isArchive`.
-- Текущий runtime — **transition state** (часто 1:1 item↔marketplace_item, dual-write, dual keys). Не считай модель 1 item : N marketplace_items полностью реализованной.
-- Не ломай dual-write в `items` и `marketplace_items`, пока sync/API зависят от обоих.
-- Не удаляй legacy-колонки/таблицы (`item_id`, `marketplace_id` на stocks/orders, MP-поля на `items`, legacy `orders`) без плана миграции и cutover.
-- Обновление `marketplace_items` только по `itemId` небезопасно для будущего 1:N — при смене паттерна включай identity маркетплейса.
-- Избегай `marketplaceItemId ?? 0`; нет marketplace item → skip / error, никогда не подставляй id `0`.
-- `marketplace_items.category` / `title` на transition — **nullable** (миграция `1786107580847`). Не возвращай NOT NULL без полного dual-write create+update.
-- **Gap (Milestone 4b):** card sync **create** уже dual-пишет listing-поля; **update** `MarketplaceItems` всё ещё без `category`/`title`/`color`/`imageUrl` — см. `docs/AI_CONTEXT.md`.
-- Контур `send_status` (PATCH / autostatus / v2 read) уже mp-centric + dual-write на `items` — не откатывать на items-only без плана.
+- Marketplace-independent — на `items`; marketplace-specific — на `marketplace_items` (listing, prices, `send_status_id`).
+- Архив listing: `marketplace_items.deleted_at`; не опирайся на `items.isArchive` в новой логике.
+- После M5: **1 item на article** (+ отдельные `created_for_calculation`). Card sync create — find-or-create item by article.
+- Не удаляй legacy keys на `stocks`/`orders_v2` (`item_id`, `marketplace_id`) без плана.
+- MP-колонки на `items` drop только через migration `1786526400000` (consolidation).
+- Обновление `marketplace_items` — по `mpItem.id`, не по одному `itemId` без identity маркетплейса.
+- Избегай `marketplaceItemId ?? 0`.
+- `marketplace_items.category` / `title` — **nullable** (`1786107580847`).
+- Контур `send_status` — mp-only (PATCH / autostatus / v2 read). Dual-write на `items` **снят**.
 
 ## Совместимость и целостность данных
 
 - Предпочитай обратную совместимость существующего cron-поведения, пока пользователь явно не просит breaking change.
 - Stop-list read: активен только `GET /api/items/v2/stop-list`; не включай v1 read без плана.
-- Stocks API: v1 (`/stocks/current`) и v2 пока сосуществуют.
-- Активный sync заказов пишет в `orders_v2`. Не оживляй запись в legacy `orders` без явного плана. Учитывай, что часть логики ещё может читать `orders`.
+- Stocks API: v1 (`/stocks/current`) закомментирован в controller; v2 — активный.
+- Активный sync заказов пишет в `orders_v2`. Legacy таблица `orders` drop в `1786526400000`.
 - Изменения схемы — только через TypeORM migrations (`synchronize: false`). Никогда не включай synchronize, чтобы «починить» схему.
 - Не коммить секреты и не хардкодь токены/API-ключи маркетплейсов.
 
@@ -47,5 +46,5 @@ alwaysApply: true
 
 - Меняй только то, что требует задача. Без drive-by рефакторинга чужих модулей.
 - При шаге миграции Items/MP обновляй `docs/roadmap/items-marketplace-items-migration.md` после шага.
-- Текущая позиция roadmap: **Milestone 4b** — create dual-write listing fields ✔; update dual-write и v2 image/title/color с mp — ещё нет. Consolidation (M5) и Cutover (M6) не начаты.
+- Текущая позиция roadmap: **Milestone 5 — Consolidation**. M4b ✔. Migration `1786526400000` — схлопывание + drop legacy. M6 — cutover (crons, isArchive).
 - Второй кабинет Yandex — `marketplaces.title = 'Yandex Tamov'`; credentials через `yandexTamov*`. Не хардкодь title и не смешивай с `Yandex`.

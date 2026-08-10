@@ -2,7 +2,7 @@
 
 > [`../domain/items-and-marketplace-items.md`](../domain/items-and-marketplace-items.md) · [`../AI_CONTEXT.md`](../AI_CONTEXT.md)
 
-Последнее обновление: 2026-08-07 (create dual-write + nullable category/title).
+Последнее обновление: 2026-08-10.
 
 ---
 
@@ -14,19 +14,17 @@
 
 ## Где мы сейчас
 
-**Milestone 4b — listing fields (в работе).**
+**Milestone 5 — Consolidation (в работе).**
 
 | Слой | Статус |
 |------|--------|
 | M1–M3 MarketplaceItems / Stocks / Orders | ✔ |
-| M4 StopList (`send_status`) | ✔ |
-| M4b schema listing fields + send_status | ✔ |
-| M4b `category`/`title` nullable (`1786107580847`) | ✔ |
-| M4b card sync create dual-write listing fields | ✔ |
-| M4b card sync update dual-write listing fields | □ **следующий код-шаг** |
-| M4b v2 stop-list image/title/color с mp | □ |
-| M5 Consolidation | □ |
-| M6 Cutover | □ |
+| M4 StopList (`send_status`) mp-only | ✔ |
+| M4b listing fields (create + update + v2 read) | ✔ |
+| M4b prices на mp + drop с items | ✔ migration `1786522800000` |
+| M5 code: entity cleanup, find-by-article, directory/stop-list mp | ✔ |
+| M5 migration: схлопывание + drop legacy columns/tables | □ `1786526400000` NEEDS VERIFICATION |
+| M6 Cutover (crons, isArchive, cleanup) | □ |
 
 ---
 
@@ -35,15 +33,17 @@
 | Область | Статус |
 |---------|--------|
 | Stocks / Orders sync | ✔ по `marketplace_item_id` |
-| Stop-list send_status | ✔ mp-centric + dual-write |
-| Entity listing fields | ✔; category/title nullable |
-| Migrations | ✔ `178601*` → `178609*` → `1786107580847` |
-| Card sync create listing fields | ✔ |
-| Card sync update listing fields | □ |
-| v2 image/title/color с mp | □ |
-| Drop с `items` | □ |
+| send_status | ✔ только mp (dual-write на items снят) |
+| Listing fields + prices на mp | ✔ entity + card sync |
+| Directory `marketplacesInfo` | ✔ с mp, включая price/discount |
+| PATCH directory/info | ✔ V2 → mp |
+| v2 stop-list image/title/color | ✔ с mp |
+| Card sync find item by article | ✔ |
+| 1 item на article в БД | □ после `1786526400000` |
+| Price crons | □ закомментированы |
+| Legacy `orders` / `directions` drop | □ в `1786526400000` |
 
-**Фокус спринта:** dual-write listing fields на **update** → v2 read с mp → Consolidation.
+**Фокус спринта:** прогнать `1786526400000` → price crons на mp → убрать `isArchive` filter → Yandex Tamov (позже).
 
 ---
 
@@ -51,21 +51,38 @@
 
 ### 1–3 ✔ MarketplaceItems / Stocks / Orders
 
-### Milestone 4 — StopList ✔ *(send_status)*
+### Milestone 4 — StopList ✔ *(send_status mp-only)*
 
-### Milestone 4b / prep M5 — listing fields ◐
+- [x] v2 read / PATCH / autostatus на `marketplace_items`
+- [x] dual-write на `items` **снят**
 
-- [x] Entity + migration copy `category/title/color/image_url` (`1786013498713`)
-- [x] Verify migration `1786013498714`
-- [x] `send_status_id` в `1786097301320`
-- [x] `category`/`title` DROP NOT NULL (`1786107580847`)
-- [x] Card sync **create** dual-write listing fields (WB / Ozon / Yandex)
-- [ ] Card sync **update** dual-write listing fields
-- [ ] v2 stop-list: image/title/color с `mpItems`
+### Milestone 4b — listing fields + prices ✔
 
-### Milestone 5 — Consolidation □
+- [x] Entity + migrations copy listing fields (`1786013498713`)
+- [x] `send_status_id` на mp (`1786097301320`)
+- [x] category/title nullable (`1786107580847`)
+- [x] Card sync create/update listing fields (WB/Ozon/Yandex)
+- [x] v2 stop-list: image/title/color с mp
+- [x] Prices на mp (`1786522800000`); drop `change_prices_histories`
+- [x] Directory prices в `marketplacesInfo`
+
+### Milestone 5 — Consolidation ◐
+
+- [x] Entity `items` без MP-полей и цен
+- [x] Card sync: find-or-create item by article
+- [x] PATCH directory V2 mp-centric
+- [x] Удалены legacy entity: `orders`, `directions`, `change_prices_histories`
+- [x] Migration `1786526400000` (схлопывание + drop columns/tables) — в репо
+- [ ] Прогон `1786526400000` на всех env
+- [ ] Price crons → `MarketplaceItems`
 
 ### Milestone 6 — Cutover □
+
+- [ ] Directory/stocks filter: `deleted_at` вместо `items.isArchive`
+- [ ] Drop `items.isArchive` (optional, после GAS)
+- [ ] `items_sizes` — новая связь с mp (TBD)
+- [ ] Yandex Tamov: stop-list PATCH, trash sync
+- [ ] Stocks v1 retired или восстановлен осознанно
 
 ---
 
@@ -73,9 +90,10 @@
 
 | # | Задача | Статус |
 |---|--------|--------|
-| 1 | Прогнать migrations (`178601*` → `178609*` → `178610*`) | □ / NEEDS VERIFICATION |
-| 2 | Dual-write listing fields на card sync **update** | □ |
-| 3 | v2 stop-list: image/title/color с mp | □ |
+| 1 | Прогнать `1786522800000` на всех env | □ NEEDS VERIFICATION |
+| 2 | Прогнать `1786526400000` (consolidation) | □ |
+| 3 | Price crons WB/Ozon → mp | □ |
+| 4 | `isArchive` → mp `deleted_at` в directory | □ |
 
 ---
 
@@ -83,4 +101,5 @@
 
 | Блокер | Влияние |
 |--------|---------|
-| Update mp без listing fields | существующие карточки: Directory/`marketplacesInfo` stale |
+| Consolidation migration не на prod | schema рассинхрон с entity |
+| Price crons off | цены в БД устаревают |

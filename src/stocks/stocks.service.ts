@@ -255,7 +255,6 @@ export class StocksService {
           );
         } else {
           const createStock = queryRunner.manager.create(Stocks, {
-            itemId: findMarketplaceItem.itemId,
             warehouseId: findWarehouse.id,
             currentValue: stock.quantity,
             reserved: stock.inWayToClient,
@@ -388,7 +387,6 @@ export class StocksService {
             );
           } else {
             const createStock = queryRunner.manager.create(Stocks, {
-              itemId: findMarketplaceItem.itemId,
               warehouseId: findWarehouse.id,
               currentValue: warehouse.amount,
               marketplaceId: findMarketplace.id,
@@ -490,7 +488,6 @@ export class StocksService {
 
     const findMarketplace = await this.infoService.findMarketplace({ title: mpTitle });
     const result: {
-      itemId: number;
       warehouseId: number;
       currentValue: number;
       reserved: number;
@@ -576,7 +573,6 @@ export class StocksService {
             reserved = fit - available;
           }
           result.push({
-            itemId: findMarketplaceItem.itemId,
             warehouseId: findWarehouse.id,
             currentValue: available,
             reserved: reserved,
@@ -607,7 +603,6 @@ export class StocksService {
           );
         } else {
           const createStock = queryRunner.manager.create(Stocks, {
-            itemId: item.itemId,
             warehouseId: item.warehouseId,
             currentValue: item.currentValue,
             reserved: item.reserved,
@@ -711,7 +706,6 @@ export class StocksService {
           );
         } else {
           const createStock = queryRunner.manager.create(Stocks, {
-            itemId: findMarketplaceItem.itemId,
             warehouseId: findWarehouse.id,
             currentValue: stock.current,
             reserved: stock.reserved,

@@ -83,9 +83,6 @@ export class OrdersV2 {
   @Column({ type: 'int', nullable: true, name: 'cancel_reason_id' })
   cancelReasonId: number;
 
-  @Column({ type: 'int', name: 'item_id', nullable: false })
-  itemId: number;
-
   @Column({ type: 'int', name: 'warehouse_id', nullable: false })
   warehouseId: number;
 

@@ -60,7 +60,7 @@ PostgreSQL
 
 | Подсистема                                 | Модуль       | Роль                                             |
 | ------------------------------------------ | ------------ | ------------------------------------------------ |
-| Ассортимент / directory / stop-list / цены | `src/items`  | ядро + dual-write `items` / `marketplace_items`  |
+| Ассортимент / directory / stop-list / цены | `src/items`  | ядро; listing/prices/status на `marketplace_items` |
 | Остатки                                    | `src/stocks` | sync снимков + API current / by-date             |
 | Заказы                                     | `src/orders` | sync в `orders_v2` + API динамики                |
 | Справочники и склады                       | `src/info`   | marketplaces, warehouses, statuses, suppliers, … |
@@ -115,17 +115,16 @@ PostgreSQL
 
 | Сущность                                 | Смысл                                                              |
 | ---------------------------------------- | ------------------------------------------------------------------ |
-| `items`                                  | товар / listing (исторически 1 строка ≈ 1 МП) + бизнес-поля        |
-| `marketplace_items`                      | listing на конкретном маркетплейсе                                 |
+| `items`                                  | marketplace-independent товар (1 на article после M5)                |
+| `marketplace_items`                      | listing на МП: identity, listing, prices, send_status, archive     |
 | `stocks`                                 | дневной снимок остатков                                            |
 | `orders_v2`                              | актуальные заказы (**FACT:** пишут активные cron)                  |
-| `orders`                                 | legacy (**FACT:** активные cron не пишут; часть логики ещё читает) |
 | `warehouses`, `marketplaces`             | склады и справочник МП                                             |
-| `statuses`, `directions`, `suppliers`, … | справочники операционного контура                                  |
+| `statuses`, `suppliers`, …               | справочники операционного контура                                  |
 
 
-**Критично:** модель в **transition state** `items` ↔ `marketplace_items`.  
-**Текущий шаг roadmap:** Milestone **4b** (listing fields: dual-write card sync → v2 read с mp). M1–M4 ✔.  
+**Критично:** переход `items` → `marketplace_items` в **Milestone 5 (Consolidation)**.  
+M1–M4b ✔ в коде. Цены на mp (`1786522800000` ✔ dev). Схлопывание — `1786526400000` (NEEDS VERIFICATION).  
 Источник истины:
 
 - `[domain/items-and-marketplace-items.md](domain/items-and-marketplace-items.md)`
