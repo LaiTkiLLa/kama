@@ -7,45 +7,60 @@
 
 ---
 
-## Текущая позиция миграции (FACT, 2026-08-07)
+## Текущая позиция миграции (FACT, 2026-08-10)
 
-**Milestone 4b — listing fields.** M1–M4 (`send_status`) закрыты. Schema listing-полей есть. Card sync **create** dual-write listing fields ✔ (WB/Ozon/Yandex). **Update** mp listing fields ещё только identity/dimensions. `category`/`title` на mp снова **nullable** (`1786107580847`) — безопасный transition. Дальше: dual-write на update → v2 stop-list image/title/color с mp → Consolidation.
+**Milestone 5 — Consolidation (в работе).** M1–M4 и M4b закрыты в коде. Цены перенесены на `marketplace_items` (`1786522800000` ✔ на dev). Схлопывание items + drop legacy MP-колонок — миграция `1786526400000` в репо, прогон на всех env — NEEDS VERIFICATION.
 
 ---
 
 ## Принятые решения
 
 - `items` + `marketplace_items`; возврат к `item == listing` **запрещён**.
-- Целевые MP-поля на `marketplace_items`: `category`, `title`, `color`, `imageUrl`, `send_status_id` (+ identity/dimensions).
-- `title` на переходном этапе dual: остаётся на `items` и копируется на mp listing.
-- `send_status_id` целевое место — `marketplace_items`; dual-write на `items` до cutover.
-- Архив listing — `marketplace_items.deleted_at` (не `isArchive`).
-- На transition `marketplace_items.category` / `title` — **nullable** (не требовать NOT NULL, пока dual-write update не полный).
-- Цены / `wbCreatedAt` / drop колонок с `items` — пока не трогаем.
+- **1 item на article** (кроме `created_for_calculation = true`) — целевая модель после M5.
+- Marketplace-specific на `marketplace_items`: identity, dimensions, volume, `category`, `title`, `color`, `imageUrl`, `price`, `discount`, `priceWithDiscount`, `send_status_id`, `deleted_at`.
+- Marketplace-independent на `items`: article, логистика/себестоимость/classification, `wbCreatedAt`, `ownImagesUrl`, `isArchive` (legacy, см. gap).
+- `send_status_id` — только `marketplace_items` (dual-write на `items` **снят**).
+- Архив listing — `marketplace_items.deleted_at` (целевая модель); `items.isArchive` — legacy, ещё в directory filter.
+- `directions` — **удалены** из кода; таблица drop в `1786526400000`.
+- Legacy `orders` — **удалены** из кода; таблица drop в `1786526400000`.
+- `change_prices_histories` — **удалены** (drop в `1786522800000`).
 - UI — Google Sheets + GAS; frontend в репо не создавать.
 - Stop-list read — только `GET /api/items/v2/stop-list`.
-- Второй кабинет Yandex — отдельная строка в `marketplaces` с title **`Yandex Tamov`** (не смешивать с `Yandex`). Склады тоже scoped по `marketplace_id` кабинета (не общий пул «внутри одного Yandex»).
+- Второй кабинet Yandex — `marketplaces.title = 'Yandex Tamov'`; gaps по stop-list PATCH / card sync — **отложено**.
 
 ---
 
-## Завершено (FACT, 2026-08-07)
+## Завершено (FACT, 2026-08-10)
 
 | Область | Статус |
 |---------|--------|
-| M1 marketplace_items + identity dual-write | ✔ |
+| M1 marketplace_items + identity | ✔ |
 | M2 stocks sync по `marketplace_item_id` | ✔ |
 | M3 orders_v2 по `marketplace_item_id` | ✔ |
-| Stop-list v1 read retired | ✔ |
-| Entity listing fields + `sendStatusId` | ✔ |
-| Migrations `178601*` / `178609*` | ✔ в репо |
-| Migration `1786107580847` (category/title nullable) | ✔ |
-| Directory `marketplacesInfo` с mp | ✔ |
-| PATCH / autostatus / v2 `sendStatus` | ✔ |
-| Card sync **create** dual-write category/title/color/imageUrl | ✔ WB/Ozon/Yandex |
-| Card sync **update** dual-write listing fields | □ только identity/dimensions |
-| v2 stop-list image/title/color | □ с `item` |
-| Drop колонок с `items` | □ cutover |
-| Прогон migrations на всех env | □ NEEDS VERIFICATION |
+| M4 send_status mp-centric (read/PATCH/autostatus) | ✔ |
+| M4b listing fields schema + nullable category/title | ✔ |
+| Card sync create/update listing fields на mp | ✔ WB/Ozon/Yandex |
+| Directory read `marketplacesInfo` + prices с mp | ✔ |
+| PATCH directory/info → mp (V2) | ✔ |
+| v2 stop-list image/title/color с mp | ✔ |
+| Card sync create: find item by article | ✔ WB/Ozon/Yandex |
+| Migration prices → mp (`1786522800000`) | ✔ dev / NEEDS VERIFICATION all env |
+| Entity `items` без MP-полей и цен | ✔ |
+| Legacy entity `orders`, `directions`, `change_prices_histories` | ✔ удалены из кода |
+
+---
+
+## В работе / следующие шаги
+
+| Область | Статус |
+|---------|--------|
+| Migration consolidation (`1786526400000`) | □ в репо; прогон NEEDS VERIFICATION |
+| Price crons (WB/Ozon) → `MarketplaceItems` | □ закомментированы |
+| `items.isArchive` → filter по `mpItems.deletedAt` | □ |
+| `items_sizes` sync | □ закомментирован, будет переделан |
+| Yandex Tamov: stop-list PATCH, trash sync | □ отложено |
+| Stocks API v1 (`/stocks/current`) | □ закомментирован в controller |
+| Drop `wb_created_at` с items (optional) | □ не решено |
 
 ---
 
@@ -53,17 +68,19 @@
 
 | Issue | Суть |
 |-------|------|
-| Card sync update gap | update `MarketplaceItems` без category/title/color/imageUrl — Directory/mp stale на существующих |
-| v2 stop-list | image/title/color с `item`, не с `mpItems` |
-| dual-write `send_status` | держать до Consolidation/Cutover |
-| Update mp by `itemId` alone | card sync update по `{ itemId }` — ок при 1:1, риск при 1:N |
-| Yandex Tamov gaps | trash / stop-list PATCH / stocks DTO / dynamic orders live API |
+| Consolidation not run everywhere | entity уже без MP-колонок; без `1786526400000` на env — рассинхрон schema/runtime |
+| Price crons off | цены не обновляются из API WB/Ozon до переписывания на mp |
+| `items.isArchive` | directory filter ещё на items, не на mp archive |
+| Card sync find by article | без `created_for_calculation = false` filter — риск при совпадении с test item |
+| Yandex Tamov gaps | trash / stop-list PATCH / часть API |
+| Orphan DTO | `get-change-price-history.dto.ts` без endpoint |
+| stop-list.interface | мёртвые поля `directionId`/`directionTitle` |
 
 ---
 
 ## Не менять без плана
 
-Dual-write identity и `send_status`; legacy keys stocks/orders_v2; drop `items.send_status_id` / MP-колонок до cutover; stocks API v1 (GAS); цены / `wb_created_at`.
+Drop legacy keys на `stocks`/`orders_v2` (`item_id`, `marketplace_id`); force cutover без миграции; включение stocks API v1 без плана GAS; секреты в репо.
 
 ---
 
@@ -71,11 +88,7 @@ Dual-write identity и `send_status`; legacy keys stocks/orders_v2; drop `items.
 
 | Дата | Итог |
 |------|------|
-| 2026-08-06 | AI-ready docs; Sheets; field split; stop-list v1 off; migrations copy fields |
-| 2026-08-07 | Stocks/Orders mp-centric; send_status полный контур (PATCH/autostatus/v2) |
-| 2026-08-07 | Merge docs; убран `send_status_id` из `178601*` — остаётся в `178609` |
-| 2026-08-07 | Ревью: позиция = M4b; dual-write gap listing fields подтверждён кодом |
-| 2026-08-07 | Второй Yandex (`Yandex Tamov`): card/stocks/orders_v2 cron; gaps warehouses/API DTO/stop-list |
-| 2026-08-07 | Create dual-write listing fields; category/title nullable (`1786107580847`) |
-| 2026-08-07 | Yandex Tamov warehouses sync; upsert по (marketplace_id, internal_number) |
-| 2026-08-07 | Yandex orders_v2: warehouse lookup + marketplaceId |
+| 2026-08-06 | AI-ready docs; Sheets; field split; stop-list v1 off |
+| 2026-08-07 | M1–M4; send_status mp-centric; create dual-write listing |
+| 2026-08-07 | Yandex Tamov card/stocks/orders_v2 |
+| 2026-08-10 | Prices → mp (`1786522800000`); entity cleanup; send_status items-only снят; consolidation migration (`1786526400000`); card sync find-by-article; v2 stop-list с mp image |

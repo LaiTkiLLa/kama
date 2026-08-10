@@ -208,24 +208,86 @@ export class ConsolidateItemsAndDropLegacy1786526400000 implements MigrationInte
     /**
      * ============================================================
      * 4. Dedup marketplace_items (item_id + marketplace_id)
+     * keep = MIN(id) per pair — иначе при 3+ строках UPDATE stocks
+     * мог переназначить duplicate на другой duplicate, а не на keep.
      * ============================================================
      */
     await queryRunner.query(`
+      UPDATE stocks s
+      SET marketplace_item_id = mi.id, updated_at = now()
+      FROM marketplace_items mi
+      WHERE s.marketplace_item_id IS NULL
+        AND mi.item_id = s.item_id
+        AND mi.marketplace_id = s.marketplace_id
+    `);
+
+    await queryRunner.query(`
+      UPDATE orders_v2 o
+      SET marketplace_item_id = mi.id, updated_at = now()
+      FROM marketplace_items mi
+      WHERE o.marketplace_item_id IS NULL
+        AND mi.item_id = o.item_id
+        AND mi.marketplace_id = o.marketplace_id
+    `);
+
+    await queryRunner.query(`
       CREATE TEMP TABLE marketplace_items_duplicates ON COMMIT DROP AS
+      WITH keepers AS (
+        SELECT
+          item_id,
+          marketplace_id,
+          MIN(id) AS keep_mp_id
+        FROM marketplace_items
+        GROUP BY item_id, marketplace_id
+        HAVING COUNT(*) > 1
+      )
       SELECT
         mi.id AS duplicate_mp_id,
-        keep.id AS keep_mp_id
+        k.keep_mp_id
       FROM marketplace_items mi
-      INNER JOIN marketplace_items keep
-        ON keep.item_id = mi.item_id
-       AND keep.marketplace_id = mi.marketplace_id
-       AND keep.id < mi.id
+      INNER JOIN keepers k
+        ON k.item_id = mi.item_id
+       AND k.marketplace_id = mi.marketplace_id
+      WHERE mi.id <> k.keep_mp_id
+    `);
+
+    await queryRunner.query(`
+      UPDATE stocks keep_s
+      SET
+        current_value = keep_s.current_value + dup_s.current_value,
+        reserved = keep_s.reserved + dup_s.reserved,
+        promised = keep_s.promised + dup_s.promised,
+        updated_at = now()
+      FROM marketplace_items_duplicates d
+      INNER JOIN stocks dup_s ON dup_s.marketplace_item_id = d.duplicate_mp_id
+      INNER JOIN stocks keep_s ON keep_s.marketplace_item_id = d.keep_mp_id
+        AND keep_s.warehouse_id = dup_s.warehouse_id
+        AND DATE(keep_s.created_at) = DATE(dup_s.created_at)
+    `);
+
+    await queryRunner.query(`
+      DELETE FROM stocks dup_s
+      USING marketplace_items_duplicates d
+      WHERE dup_s.marketplace_item_id = d.duplicate_mp_id
+        AND EXISTS (
+          SELECT 1
+          FROM stocks keep_s
+          WHERE keep_s.marketplace_item_id = d.keep_mp_id
+            AND keep_s.warehouse_id = dup_s.warehouse_id
+            AND DATE(keep_s.created_at) = DATE(dup_s.created_at)
+        )
     `);
 
     await queryRunner.query(`
       UPDATE stocks s
       SET marketplace_item_id = d.keep_mp_id, updated_at = now()
       FROM marketplace_items_duplicates d
+      WHERE s.marketplace_item_id = d.duplicate_mp_id
+    `);
+
+    await queryRunner.query(`
+      DELETE FROM stocks s
+      USING marketplace_items_duplicates d
       WHERE s.marketplace_item_id = d.duplicate_mp_id
     `);
 
@@ -370,6 +432,19 @@ export class ConsolidateItemsAndDropLegacy1786526400000 implements MigrationInte
     if (directionsTable) {
       await queryRunner.dropTable('directions', true, true, true);
     }
+
+    /**
+     * ============================================================
+     * 10. Drop legacy item_id from stocks / orders_v2 (mp-only FK)
+     * ============================================================
+     */
+    await this.dropForeignKeysForColumns(queryRunner, 'stocks', ['item_id']);
+    await queryRunner.query(`DROP INDEX IF EXISTS idx_stocks_created_item`);
+    await queryRunner.query(`DROP INDEX IF EXISTS idx_stocks_item_created`);
+    await this.dropColumnIfExists(queryRunner, 'stocks', 'item_id');
+
+    await this.dropForeignKeysForColumns(queryRunner, 'orders_v2', ['item_id']);
+    await this.dropColumnIfExists(queryRunner, 'orders_v2', 'item_id');
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars

@@ -20,9 +20,6 @@ export class Stocks {
   })
   id: number;
 
-  @Column({ type: 'int', name: 'item_id', nullable: false })
-  itemId: number;
-
   @Column({ type: 'int', name: 'marketplace_id', nullable: false })
   marketplaceId: number;
 

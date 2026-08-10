@@ -16,50 +16,56 @@
 
 ```text
 Item (marketplace-independent, 1 на article)
- ├── MarketplaceItem (WB)   ← category, title, color, imageUrl, send_status_id, prices…
+ ├── MarketplaceItem (WB)   ← identity, listing, prices, send_status
  ├── MarketplaceItem (Ozon)
  ├── MarketplaceItem (Yandex)
- └── MarketplaceItem (Yandex Tamov)   ← второй кабинет YM (FACT: title в marketplaces)
+ └── MarketplaceItem (Yandex Tamov)   ← отдельный marketplaces.title
         ├── Stocks
         └── OrdersV2
 ```
 
-**FACT:** второй кабинет Yandex — отдельный `marketplaces.title = 'Yandex Tamov'`, отдельные env (`yandexTamovToken` / `yandexTamovCLientId` / `yandexTamovBusinessId`) и cron’ы карточек / остатков / orders_v2. Не путать с `Yandex`.
+### Поля на `items` (DECISION, 2026-08-10)
 
-### Поля на `items` (DECISION)
+Marketplace-independent: `id`, `article`, `articleOld`, `ownCategory`, classification/virality/planning, логистика/сроки, себестоимость/таможня, общие габариты/объём (`dimensionsFact`, `dimensionsMasterBox`, `volume`, …), `ownImagesUrl`, `downloadCalculationMethod`, `wbCreatedAt`, audit.
 
-Marketplace-independent: `id`, `article`, `articleOld`, `ownCategory`, `title`, логистика/сроки, `directionId`, classification/virality/planning, общие габариты/объём, себестоимость/таможня, `ownImagesUrl`, `downloadCalculationMethod`, audit.
+**Не на `items` (drop в `1786526400000`):** `category`, `title`, `barcode`, `sku`, `color`, `image_url`, `marketplace_identifier`, `marketplace_id`, MP-габариты/объёмы, `chrt_id`, `send_status_id`, `direction_id`, цены.
 
-**Не целевые на `items`:** `sendStatusId`, `category`, `color`, `imageUrl`, MP-identity, MP-габариты, цены — dual-write / legacy до cutover.
+**Legacy (ещё в entity, cutover позже):** `isArchive` — directory filter; целевой архив — `marketplace_items.deleted_at`.
 
 ### Поля на `marketplace_items`
 
-| Уже в entity (FACT) | Дальше |
-|---------------------|--------|
-| identity, dimensions, volume, chrt, deleted_at | цены, `wbCreatedAt` |
-| `category`, `title`, `color`, `image_url`, `send_status_id` | drop зеркал с `items` на cutover |
-
-**Архив:** `deleted_at` (не `isArchive`).
+| Группа | Поля |
+|--------|------|
+| Identity | `marketplace_identifier`, `barcode`, `sku`, `marketplace_id`, `item_id` |
+| Listing | `category`, `title`, `color`, `image_url` (nullable) |
+| Prices | `price`, `discount`, `price_with_discount` |
+| Ops | `send_status_id`, `dimensions`, `volume`, `chrt_id`, `deleted_at` |
 
 ---
 
-## Текущий transition state (FACT)
+## Текущий runtime (FACT, 2026-08-10)
 
-1. Sync создаёт отдельную строку `items` на МП + `marketplace_items` 1:1.
-2. Identity dual-write (barcode/sku/dimensions) — да.
-3. **Listing-поля** на entity; `category`/`title` **nullable** (`1786107580847`). Card sync **create** заполняет listing fields; **update** — ещё только identity/dimensions → partial dual-write gap (M4b).
-4. Stocks / Orders: lookup и uniqueness по `marketplace_item_id`.
-5. Directory: `marketplacesInfo` читает category/barcode/image/color/itemTitle с **mp items**.
-6. Stop-list: полный контур `send_status` на mp (+ dual-write items); v2 image/title/color пока с **`item`**.
+1. **Entity/code:** `items` без MP-полей; все listing/price/status на mp.
+2. **Card sync:** create/update пишет listing fields на mp; create ищет item по `article` (find-or-create).
+3. **Directory:** один item на article в ответе; `marketplacesInfo[]` с mp-полями + prices.
+4. **Stop-list v2:** read image/title/color/sendStatus с mp; PATCH/autostatus mp-only.
+5. **Prices:** в БД на mp (`1786522800000`); crons закомментированы — переписать на mp.
+6. **DB transition:** до прогона `1786526400000` в prod может оставаться несколько `items` на article и legacy columns в schema.
 
-### Stop-list (FACT)
+### Stop-list
 
 | Endpoint / код | Статус |
 |----------------|--------|
-| `GET …/stop-list` v1 | отключён |
-| `GET …/v2/stop-list` | ✔ `mpItems.sendStatus`; image/title/color с `item` |
-| `PATCH …/stop-list` | ✔ find → update by id, dual-write, без continue |
-| `updateItemSendStatus` | ✔ mp root + dual-write + mp aggregations + `orders_v2` |
+| `GET …/v2/stop-list` | ✔ mp: image/title/color/sendStatus |
+| `PATCH …/stop-list` | ✔ mp-only, find by article + mp title |
+| `updateItemSendStatus` | ✔ mp root, `deletedAt IS NULL` |
+
+### Directory
+
+| Endpoint | Статус |
+|----------|--------|
+| `GET …/directory/list` | ✔ `marketplacesInfo` с mp |
+| `PATCH …/directory/info` | ✔ V2 → items (business) + mp (listing/calculation) |
 
 ---
 
@@ -70,23 +76,23 @@ Marketplace-independent: `id`, `article`, `articleOld`, `ownCategory`, `title`, 
 | 1. MarketplaceItems | ✔ |
 | 2. Stocks | ✔ |
 | 3. Orders | ✔ |
-| 4. StopList (send_status) | ✔ |
-| **4b. listing fields** | **schema ✔; create dual-write ✔; update / v2 selects □ ← мы здесь** |
-| 5. Consolidation | □ |
+| 4. StopList | ✔ |
+| 4b. listing + prices | ✔ |
+| **5. Consolidation** | **◐ migration в репо** |
 | 6. Cutover | □ |
 
 ---
 
-## Legacy
+## Legacy (что ещё убрать)
 
 | Область | Legacy |
 |---------|--------|
-| Card sync create | listing fields → `items` + `marketplace_items` |
-| Card sync update | listing fields только в `items`; mp — identity/dimensions |
-| Card sync update mp key | по `{ itemId }` (безопасно только при 1:1) |
-| v2 stop-list image/title/color | с `item` |
-| dual-write `send_status` на `items` | до cutover |
-| Prices | на `items` |
+| `items.isArchive` filter | directory; заменить на mp `deleted_at` |
+| Price crons | закомментированы, писали в items |
+| `items_sizes` | sync закомментирован |
+| Yandex trash | закомментирован; архив через mp `deleted_at` |
+| Stocks API v1 | controller закомментирован |
+| `stocks.item_id` / `orders_v2.item_id` | denorm keys, пока нужны |
 
 ---
 
@@ -95,9 +101,9 @@ Marketplace-independent: `id`, `article`, `articleOld`, `ownCategory`, `title`, 
 | Термин | Значение |
 |--------|----------|
 | **Listing archive** | `marketplace_items.deleted_at` |
-| **Send status** | `marketplace_items.send_status_id` (+ dual на items) |
-| **Stop-list v2** | единственный read |
-| **Dual-write gap** | create пишет listing fields; update mp — ещё нет |
+| **Send status** | `marketplace_items.send_status_id` |
+| **Consolidation** | 1 article → 1 item; repoint mp/stocks/orders |
+| **Calculation item** | `created_for_calculation = true`, отдельные строки |
 
 ---
 
