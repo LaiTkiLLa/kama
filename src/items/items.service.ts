@@ -1,25 +1,20 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { DataSource, FindOptionsWhere, In, QueryRunner } from 'typeorm';
+import { DataSource, IsNull } from 'typeorm';
 import axios from 'axios';
 import { InfoService } from '../info/info.service';
 import { ConfigService } from '@nestjs/config';
 import { Items } from './entities/items.entity';
-import { WbItem, WbItems, WbItemsPrices, WbTrashedItems } from './interfaces/wb-items.interface';
-import { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
+import { WbItem, WbItems, WbTrashedItems } from './interfaces/wb-items.interface';
 import { YandexItems, YandexItemsResult } from './interfaces/yandex-items.interface';
-import { UpdateItemInfoDto } from './dto/update-item-info.dto';
 import { GetStopListFromDbV2, StopListCronResult, StopListResponse } from './interfaces/stop-list.interface';
 import { GetItemsStopListDto } from './dto/get-items-stop-list.dto';
 import { UpdateStopListItems } from './dto/update-status-stop-list.dto';
 import { StatusesTypes } from '../info/enum/statuses.enum';
 import { UpdateArrayDirectoryItemsInfoDto } from './dto/update-directory-item-info.dto';
 import { Suppliers } from '../info/entities/suppliers.entity';
-import { OzonCategoryData, OzonItemsInfo, OzonItemsPrices } from './interfaces/ozon-items-info.interface';
+import { OzonCategoryData, OzonItemsInfo } from './interfaces/ozon-items-info.interface';
 import { GetDirectoryListDto } from './dto/get-directory-list.dto';
-import { ChangePricesHistories } from './entities/change-prices-histories.entity';
-import { GetChangePriceHistoryDto } from './dto/get-change-price-history.dto';
-import { ItemsSizes } from './entities/items-sizes.entity';
 import { ItemsSuppliers } from './entities/items_suppliers.entity';
 import { MarketplaceItems } from './entities/marketplace-items.entity';
 import { MarketplaceInfo } from './interfaces/get-items-directory-list.interface';
@@ -43,26 +38,32 @@ export class ItemsService {
       const findWbMp = await this.infoService.findMarketplace({ title: 'WB' });
       const createItem = queryRunner.manager.create(Items, {
         createdForCalculation: true,
-        marketplaceId: findWbMp.id,
-        article: 'тестовый артикул',
-        category: 'тестовая категория',
-        title: 'тестовое название',
-        barcode: 'тестовый баркод',
-        sku: 'тестовый ску',
-        marketplaceIdentifier: 'тестовый идентификатор'
+        // marketplaceId: findWbMp.id,
+        article: 'тестовый артикул'
+        // category: 'тестовая категория',
+        // title: 'тестовое название',
+        // barcode: 'тестовый баркод',
+        // sku: 'тестовый ску',
+        // marketplaceIdentifier: 'тестовый идентификатор'
       });
       await queryRunner.manager.save(Items, createItem);
       await queryRunner.manager.update(
         Items,
         { id: createItem.id },
         {
-          article: `тестовый артикул ${createItem.id}`,
-          title: `тестовое название ${createItem.id}`,
-          barcode: `тестовый баркод ${createItem.id}`,
-          sku: `тестовый ску ${createItem.id}`,
-          marketplaceIdentifier: `тестовый идентификатор ${createItem.id}`
+          article: `тестовый артикул ${createItem.id}`
         }
       );
+      const createMarketplaceItem = queryRunner.manager.create(MarketplaceItems, {
+        itemId: createItem.id,
+        marketplaceId: findWbMp.id,
+        category: 'тестовая категория',
+        title: `тестовое название ${createItem.id}`,
+        barcode: `тестовый баркод ${createItem.id}`,
+        sku: `тестовый ску ${createItem.id}`,
+        marketplaceIdentifier: `тестовый идентификатор ${createItem.id}`
+      });
+      await queryRunner.manager.save(MarketplaceItems, createMarketplaceItem);
       await queryRunner.commitTransaction();
       return { id: createItem.id };
     } catch (error) {
@@ -75,48 +76,16 @@ export class ItemsService {
     }
   }
 
-  // async getItemsList(getItemsListDto: GetItemsListDto): Promise<{ id: number; identifier: string }[]> {
-  //   let marketplace: Marketplaces;
-  //   if (getItemsListDto.marketplaceTitle === 'Ozon') {
-  //     marketplace = await this.infoService.findMarketplace({ title: 'Озон' });
-  //   } else {
-  //     marketplace = await this.infoService.findMarketplace({ title: 'WB' });
-  //   }
-  //   const queryRunner = this.dataSource.createQueryRunner();
-  //   await queryRunner.connect();
-  //   try {
-  //     let items: Items[];
-  //     if (getItemsListDto.itemsId) {
-  //       items = await queryRunner.manager.find(Items, {
-  //         where: { id: In(getItemsListDto.itemsId), marketplaceId: marketplace.id }
-  //       });
-  //     } else {
-  //       items = await queryRunner.manager.find(Items, { where: { marketplaceId: marketplace.id } });
-  //     }
-  //     if (getItemsListDto.marketplaceTitle === 'Ozon') {
-  //       return items.map(item => ({ id: item.id, identifier: item.sku }));
-  //     }
-  //     return items.map(item => ({ id: item.id, identifier: item.marketplaceIdentifier }));
-  //   } catch (error) {
-  //     this.logger.error(error);
-  //     this.logger.error('Не смог получить список товаров');
-  //     throw error;
-  //   } finally {
-  //     await queryRunner.release();
-  //   }
-  // }
-
   async getItemsDirectoryList(getDirectoryListDto: GetDirectoryListDto) {
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     try {
       const queryBuilder = queryRunner.manager
         .createQueryBuilder(Items, 'items')
-        .leftJoinAndSelect('items.marketplaceItems', 'marketplaceItems')
+        .leftJoinAndSelect('items.marketplaceItems', 'marketplaceItems', 'marketplaceItems.deletedAt IS NULL')
         .leftJoinAndSelect('marketplaceItems.marketplace', 'marketplaceV2')
         .leftJoinAndSelect('items.itemsSuppliers', 'itemsSuppliers')
         .leftJoinAndSelect('itemsSuppliers.supplier', 'supplier')
-        .leftJoinAndSelect('items.marketplace', 'marketplace')
         .where('items.isArchive = :isArchive', { isArchive: false });
       if (getDirectoryListDto.supplierTitle) {
         queryBuilder.andWhere('supplier.title = :supplierTitle', {
@@ -129,98 +98,52 @@ export class ItemsService {
         });
       }
       const findItems = await queryBuilder.orderBy('items.id', 'ASC').getMany();
-      const filterWbItems = findItems
-        .filter(item => item.marketplace.title === 'WB')
-        .map(item => {
-          return {
-            id: item.id,
-            article: item.article,
-            ownCategory: item.ownCategory,
-            image: item.imageUrl,
-            barcode: item.barcode,
-            supplierTitle: item.itemsSuppliers.length ? item.itemsSuppliers[0].supplier.title : null,
-            title: item.title,
-            color: item.color,
-            articleOld: item.articleOld,
-            classification: item.classification,
-            multiplicity: item.multiplicity,
-            wbMarketplaceIdentifier: item.marketplaceIdentifier,
-            ozonMarketplaceIdentifier: '',
-            boxNumber: item.boxNumber,
-            dimensionsFact: item.dimensionsFact,
-            dimensionsWB: item.dimensionsWB,
-            dimensionsYandex: '',
-            dimensionsOzon: '',
-            skuOzon: '',
-            volume: item.volume,
-            wbCreatedAt: item.wbCreatedAt,
-            category: item.category,
-            costInYuan: item.costInYuan,
-            costInRub: item.costInRub,
-            replenishmentPeriod: item.replenishmentPeriod,
-            remainingBalance: item.remainingBalance,
-            volumeWB: Number(item.volumeWB).toFixed(2),
-            volumeOzon: item.createdForCalculation ? item.volumeOzon : '',
-            volumeYandex: '',
-            ownImagesUrl: item.ownImagesUrl,
-            volumePerUnit: item.volumePerUnit,
-            weightPerUnit: item.weightPerUnit,
-            transportRateUsd: item.transportRateUsd,
-            dutyPercentage: item.dutyPercentage,
-            density: item.density,
-            tariffWeight: item.tariffWeight,
-            createdForCalculation: item.createdForCalculation,
-            costInYuanWhite: item.costInYuanWhite,
-            codeTNVED: item.codeTNVED,
-            dimensionsMasterBox: item.dimensionsMasterBox,
-            volumeMasterBox: item.volumeMasterBox,
-            consolidation: item.consolidation,
-            payment: item.payment,
-            assembling: item.assembling,
-            fullfillmentAcceptance: item.fullfillmentAcceptance,
-            marketplaceAcceptance: item.marketplaceAcceptance,
-            production: item.production,
-            buffer: item.buffer,
-            daysDeliveryToRussia: item.daysDeliveryToRussia,
-            yandexCategory: '',
-            ozonCategory: '',
-            wbPrice: item.priceWb,
-            ozonPrice: 0,
-            priceWithDiscountOzon: 0,
-            discountWb: item.discountWb,
-            supplierMinimumOrder: item.supplierMinimumOrder,
-            // seasonalityForExport: item.seasonalityForExport,
-            // seasonalityForOrder: item.seasonalityForOrder,
-            virality: item.virality,
-            costCalculationType: item.costCalculationType,
-            calculationType: item.calculationType,
-            downloadCalculationMethod: item.downloadCalculationMethod,
-            wbSizes: item?.sizes?.map(el => el.techSize) ?? [],
-            marketplacesInfo: [] as MarketplaceInfo[]
-          };
-        });
-      const filterOzonItems = findItems.filter(item => item.marketplace.title === 'Озон');
-      const filterYandexItems = findItems.filter(item => item.marketplace.title === 'Yandex');
-      for (const ozonItem of filterOzonItems) {
-        const findItem = filterWbItems.find(wbItem => wbItem.article === ozonItem.article);
-        if (findItem) {
-          findItem.dimensionsOzon = ozonItem.dimensionsOzon;
-          findItem.skuOzon = ozonItem.sku;
-          findItem.volumeOzon = Number(ozonItem.volumeOzon).toFixed(2);
-          findItem.ozonCategory = ozonItem.category;
-          findItem.ozonPrice = ozonItem.priceOzon;
-          findItem.priceWithDiscountOzon = ozonItem.priceWithDiscountOzon;
-          findItem.ozonMarketplaceIdentifier = ozonItem.marketplaceIdentifier;
-        }
-      }
-      for (const yandexItem of filterYandexItems) {
-        const findItem = filterWbItems.find(wbItem => wbItem.article === yandexItem.article);
-        if (findItem) {
-          findItem.dimensionsYandex = yandexItem.dimensionsYandex;
-          findItem.volumeYandex = yandexItem.volumeYandex;
-          findItem.yandexCategory = yandexItem.category;
-        }
-      }
+      const filterWbItems = findItems.map(item => {
+        return {
+          id: item.id,
+          article: item.article,
+          ownCategory: item.ownCategory,
+          supplierTitle: item.itemsSuppliers.length ? item.itemsSuppliers[0].supplier.title : null,
+          articleOld: item.articleOld,
+          classification: item.classification,
+          multiplicity: item.multiplicity,
+          boxNumber: item.boxNumber,
+          dimensionsFact: item.dimensionsFact,
+          volume: item.volume,
+          wbCreatedAt: item.wbCreatedAt,
+          costInYuan: item.costInYuan,
+          costInRub: item.costInRub,
+          replenishmentPeriod: item.replenishmentPeriod,
+          remainingBalance: item.remainingBalance,
+          ownImagesUrl: item.ownImagesUrl,
+          volumePerUnit: item.volumePerUnit,
+          weightPerUnit: item.weightPerUnit,
+          transportRateUsd: item.transportRateUsd,
+          dutyPercentage: item.dutyPercentage,
+          density: item.density,
+          tariffWeight: item.tariffWeight,
+          createdForCalculation: item.createdForCalculation,
+          costInYuanWhite: item.costInYuanWhite,
+          codeTNVED: item.codeTNVED,
+          dimensionsMasterBox: item.dimensionsMasterBox,
+          volumeMasterBox: item.volumeMasterBox,
+          consolidation: item.consolidation,
+          payment: item.payment,
+          assembling: item.assembling,
+          fullfillmentAcceptance: item.fullfillmentAcceptance,
+          marketplaceAcceptance: item.marketplaceAcceptance,
+          production: item.production,
+          buffer: item.buffer,
+          daysDeliveryToRussia: item.daysDeliveryToRussia,
+          supplierMinimumOrder: item.supplierMinimumOrder,
+          virality: item.virality,
+          costCalculationType: item.costCalculationType,
+          calculationType: item.calculationType,
+          downloadCalculationMethod: item.downloadCalculationMethod,
+          wbSizes: item?.sizes?.map(el => el.techSize) ?? [],
+          marketplacesInfo: [] as MarketplaceInfo[]
+        };
+      });
       for (const item of findItems) {
         const findItem = filterWbItems.find(wbItem => wbItem.article === item.article);
         if (findItem) {
@@ -235,7 +158,10 @@ export class ItemsService {
               barcode: el.barcode,
               image: el.imageUrl,
               color: el.color,
-              itemTitle: el.title
+              itemTitle: el.title,
+              price: el.price,
+              discount: el.discount,
+              priceWithDiscount: el.priceWithDiscount
             }))
           );
         }
@@ -250,17 +176,19 @@ export class ItemsService {
     }
   }
 
-  async updateArrayDirectoryItemsInfo(updateArrayDirectoryItemsInfoDto: UpdateArrayDirectoryItemsInfoDto) {
+  async updateArrayDirectoryItemsInfoV2(updateArrayDirectoryItemsInfoDto: UpdateArrayDirectoryItemsInfoDto) {
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     try {
       for (const item of updateArrayDirectoryItemsInfoDto.items) {
-        const findItems = await queryRunner.manager.find(Items, {
-          where: {
-            article: item.article
-          }
-        });
-        if (!findItems.length) {
+        const findItem = await queryRunner.manager
+          .createQueryBuilder(Items, 'items')
+          .leftJoinAndSelect('items.marketplaceItems', 'mpItems', 'mpItems.deletedAt IS NULL')
+          .leftJoinAndSelect('mpItems.marketplace', 'marketplace')
+          .where('items.article = :article', { article: item.article })
+          .getOne();
+
+        if (!findItem) {
           throw new NotFoundException('Артикул не найден');
         }
         if (item.supplier) {
@@ -272,31 +200,27 @@ export class ItemsService {
           if (!findSupplier) {
             throw new NotFoundException('Поставщик не найден');
           }
-          const itemsId = findItems.map(el => el.id);
           const findItemsSupplier = await queryRunner.manager.find(ItemsSuppliers, {
             where: {
-              itemId: In(itemsId)
+              itemId: findItem.id
             }
           });
           if (findItemsSupplier.length) {
             await queryRunner.manager.update(
               ItemsSuppliers,
-              { itemId: In(itemsId) },
+              { itemId: findItem.id },
               { supplierId: findSupplier.id }
             );
           } else {
-            await queryRunner.manager.insert(
-              ItemsSuppliers,
-              itemsId.map(itemId => ({
-                supplierId: findSupplier.id,
-                itemId
-              }))
-            );
+            await queryRunner.manager.insert(ItemsSuppliers, {
+              supplierId: findSupplier.id,
+              itemId: findItem.id
+            });
           }
         }
         await queryRunner.manager.update(
           Items,
-          { id: In(findItems.map(el => el.id)) },
+          { id: findItem.id },
           {
             ownCategory: item.ownCategory,
             classification: item.classification,
@@ -314,16 +238,10 @@ export class ItemsService {
             weightPerUnit: item.weightPerUnit,
             transportRateUsd: item.transportRateUsd,
             dutyPercentage: item.dutyPercentage,
-            // density: item.density,
             tariffWeight: item.tariffWeight,
-            title: findItems[0].createdForCalculation ? item.title : undefined,
-            volumeWB: findItems[0].createdForCalculation ? item.volumeWB : undefined,
-            volumeOzon: findItems[0].createdForCalculation ? item.volumeOzon : undefined,
-            category: findItems[0].createdForCalculation ? item.category : undefined,
             costInYuanWhite: item.costInYuanWhite,
             codeTNVED: item.codeTNVED,
             dimensionsMasterBox: item.dimensionsMasterBox,
-            // volumeMasterBox: item.volumeMasterBox,
             consolidation: item.consolidation,
             payment: item.payment,
             assembling: item.assembling,
@@ -333,14 +251,41 @@ export class ItemsService {
             buffer: item.buffer,
             daysDeliveryToRussia: item.daysDeliveryToRussia,
             supplierMinimumOrder: item.supplierMinimumOrder,
-            // seasonalityForExport: item.seasonalityForExport,
-            // seasonalityForOrder: item.seasonalityForOrder,
             virality: item.virality,
             costCalculationType: item.costCalculationType,
             calculationType: item.calculationType,
             downloadCalculationMethod: item.downloadCalculationMethod
           }
         );
+        for (const mpItem of findItem.marketplaceItems) {
+          if (mpItem.marketplace.title === 'WB') {
+            await queryRunner.manager.update(
+              MarketplaceItems,
+              { id: mpItem.id },
+              {
+                category: item.category,
+                volume: findItem.createdForCalculation ? item.volumeWB : undefined,
+                title: findItem.createdForCalculation ? item.title : undefined
+              }
+            );
+          } else if (mpItem.marketplace.title === 'Озон') {
+            await queryRunner.manager.update(
+              MarketplaceItems,
+              { id: mpItem.id },
+              {
+                category: item.category,
+                volume: findItem.createdForCalculation ? item.volumeOzon : undefined,
+                title: findItem.createdForCalculation ? item.title : undefined
+              }
+            );
+          } else if (mpItem.marketplace.title === 'Yandex') {
+            await queryRunner.manager.update(
+              MarketplaceItems,
+              { id: mpItem.id },
+              { category: item.category, title: findItem.createdForCalculation ? item.title : undefined }
+            );
+          }
+        }
       }
       return { success: true };
     } catch (error) {
@@ -352,175 +297,102 @@ export class ItemsService {
     }
   }
 
-  async updateItemInfo(id: number, updateItemInfoDto: UpdateItemInfoDto): Promise<{ id: number }> {
-    const queryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
-    await queryRunner.startTransaction();
-    try {
-      const findItem = await queryRunner.manager.findOne(Items, { where: { id } });
-      if (!findItem) {
-        throw new NotFoundException('Товар не найден');
-      }
-      await this.infoService.findStatus(queryRunner, { id: updateItemInfoDto.statusId });
-      await this.infoService.findDirection(queryRunner, { id: updateItemInfoDto.directionId });
-      await queryRunner.manager.update(
-        Items,
-        { id },
-        { directionId: updateItemInfoDto.directionId, sendStatusId: updateItemInfoDto.statusId }
-      );
-      await queryRunner.commitTransaction();
-      return { id };
-    } catch (error) {
-      this.logger.error(error);
-      this.logger.error('Не смог обновить товар');
-      await queryRunner.rollbackTransaction();
-      throw error;
-    } finally {
-      await queryRunner.release();
-    }
-  }
-
-  // async getItemStopsList(getItemsStopListDto: GetItemsStopListDto) {
+  // async updateArrayDirectoryItemsInfo(updateArrayDirectoryItemsInfoDto: UpdateArrayDirectoryItemsInfoDto) {
   //   const queryRunner = this.dataSource.createQueryRunner();
   //   await queryRunner.connect();
   //   try {
-  //     const weekAgo = new Date(new Date().setDate(new Date().getDate() - 7));
-  //     const queryBuilder = queryRunner.manager
-  //       .createQueryBuilder(Items, 'items')
-  //       .select([
-  //         'items.id AS "itemId"',
-  //         'items.article AS article',
-  //         'items.imageUrl AS "imageUrl"',
-  //         'items.title AS title',
-  //         'items.color AS color',
-  //         'items.barcode AS barcode',
-  //         'items.marketplaceIdentifier AS "marketplaceIdentifier"',
-  //         'items.sku AS sku',
-
-  //         'directions.id AS "directionId"',
-  //         'directions.title AS "directionTitle"',
-
-  //         'marketplace.id AS "marketplaceId"',
-  //         'marketplace.title AS "marketplaceTitle"',
-
-  //         'sendStatus.id AS "sendStatusId"',
-  //         'sendStatus.title AS "sendStatusTitle"'
-  //       ])
-  //       .innerJoin('items.marketplace', 'marketplace', `marketplace.title != 'Ozon Second'`)
-  //       .leftJoin('items.direction', 'directions')
-  //       .leftJoin('items.sendStatus', 'sendStatus')
-  //       .leftJoin(
-  //         qb => {
-  //           return (
-  //             qb
-  //               .select('stock.item_id', 'item_id')
-  //               .addSelect(
-  //                 `SUM(CASE WHEN stock.warehouse_id IN (18, 1146895, 16, 59, 95, 1146938, 1146932, 1147083, 19, 1146912, 1146906, 242582, 158, 67, 1146879, 1146902, 1146903, 1146878, 1146919, 1147137, 1147160, 1146898, 1147058) THEN 0 ELSE stock.current_value END)`,
-  //                 'stocks_sum'
-  //               )
-  //               // .addSelect('SUM(stock.current_value)', 'stocks_sum')
-  //               .from('stocks', 'stock')
-  //               .where('stock.created_at >= CURRENT_DATE')
-  //               .andWhere("stock.created_at < CURRENT_DATE + INTERVAL '1 day'")
-  //               .groupBy('stock.item_id')
-  //           );
-  //         },
-  //         'stocks_summary',
-  //         'stocks_summary.item_id = items.id'
-  //       )
-  //       .leftJoin(
-  //         qb => {
-  //           return qb
-  //             .select('ord.item_id', 'item_id')
-  //             .addSelect('SUM(ord.quantity)', 'orders_sum')
-  //             .from('orders', 'ord')
-  //             .where(`ord.created_at >= :weekAgo`, { weekAgo })
-  //             .groupBy('ord.item_id');
-  //         },
-  //         'orders_summary',
-  //         'orders_summary.item_id = items.id'
-  //       )
-
-  //       .addSelect([
-  //         'COALESCE(stocks_summary.stocks_sum, 0) AS "stocksSum"',
-  //         'COALESCE(orders_summary.orders_sum, 0) AS "ordersSum"'
-  //       ]);
-  //     if (getItemsStopListDto.marketplaceTitle) {
-  //       queryBuilder.andWhere('marketplace.title = :marketplaceTitle', {
-  //         marketplaceTitle: getItemsStopListDto.marketplaceTitle
+  //     for (const item of updateArrayDirectoryItemsInfoDto.items) {
+  //       const findItems = await queryRunner.manager.find(Items, {
+  //         where: {
+  //           article: item.article
+  //         }
   //       });
-  //     }
-  //     if (getItemsStopListDto.withActiveStatus) {
-  //       queryBuilder.andWhere('sendStatus.title IN (:...activeStatuses)', {
-  //         activeStatuses: ['Новинка', 'Bestseller']
-  //       });
-  //     }
-  //     const result: GetStopListFromDb[] = await queryBuilder
-  //       .andWhere('items.createdForCalculation = :createdForCalculation', { createdForCalculation: false })
-  //       .andWhere('items.isArchive = :isArchive', { isArchive: false })
-  //       .getRawMany();
-
-  //     const mappedItems: StopListResponse[] = [];
-  //     for (const item of result) {
-  //       const findArticle = mappedItems.find(el => el.article === item.article);
-  //       // const raw = result.raw[index];
-  //       const wbBarcode = item.marketplaceTitle === 'WB' ? item.barcode : undefined;
-  //       const wbIdentifier = item.marketplaceTitle === 'WB' ? item.marketplaceIdentifier : undefined;
-  //       const ozonIdentifier = item.marketplaceTitle === 'Озон' ? item.sku : undefined;
-  //       if (findArticle) {
-  //         if (wbBarcode) {
-  //           findArticle.wbBarcode = wbBarcode;
-  //         }
-  //         if (wbIdentifier) {
-  //           findArticle.wbIdentifier = wbIdentifier;
-  //         }
-  //         if (ozonIdentifier) {
-  //           findArticle.ozonIdentifier = ozonIdentifier;
-  //         }
-  //         findArticle.marketplace.push({
-  //           id: item.marketplaceId,
-  //           title: item.marketplaceTitle,
-  //           itemId: item.itemId,
-  //           orders: Number(item.ordersSum),
-  //           stocks: Number(item.stocksSum),
-  //           sendStatus: {
-  //             id: item.sendStatusId,
-  //             title: item.sendStatusTitle
-  //           }
-  //         });
-  //       } else {
-  //         mappedItems.push({
-  //           article: item.article,
-  //           image: item.imageUrl,
-  //           title: item.title,
-  //           color: item.color,
-  //           wbBarcode: wbBarcode ? wbBarcode : null,
-  //           wbIdentifier: wbIdentifier ? wbIdentifier : null,
-  //           ozonIdentifier: ozonIdentifier ? ozonIdentifier : null,
-  //           marketplace: [
-  //             {
-  //               id: item.marketplaceId,
-  //               title: item.marketplaceTitle,
-  //               itemId: item.itemId,
-  //               orders: Number(item.ordersSum),
-  //               stocks: Number(item.stocksSum),
-  //               sendStatus: {
-  //                 id: item.sendStatusId,
-  //                 title: item.sendStatusTitle
-  //               }
-  //             }
-  //           ],
-  //           direction: {
-  //             id: item.directionId,
-  //             title: item.directionTitle
-  //           }
-  //         });
+  //       if (!findItems.length) {
+  //         throw new NotFoundException('Артикул не найден');
   //       }
+  //       if (item.supplier) {
+  //         const findSupplier = await queryRunner.manager.findOne(Suppliers, {
+  //           where: {
+  //             title: item.supplier
+  //           }
+  //         });
+  //         if (!findSupplier) {
+  //           throw new NotFoundException('Поставщик не найден');
+  //         }
+  //         const itemsId = findItems.map(el => el.id);
+  //         const findItemsSupplier = await queryRunner.manager.find(ItemsSuppliers, {
+  //           where: {
+  //             itemId: In(itemsId)
+  //           }
+  //         });
+  //         if (findItemsSupplier.length) {
+  //           await queryRunner.manager.update(
+  //             ItemsSuppliers,
+  //             { itemId: In(itemsId) },
+  //             { supplierId: findSupplier.id }
+  //           );
+  //         } else {
+  //           await queryRunner.manager.insert(
+  //             ItemsSuppliers,
+  //             itemsId.map(itemId => ({
+  //               supplierId: findSupplier.id,
+  //               itemId
+  //             }))
+  //           );
+  //         }
+  //       }
+  //       await queryRunner.manager.update(
+  //         Items,
+  //         { id: In(findItems.map(el => el.id)) },
+  //         {
+  //           ownCategory: item.ownCategory,
+  //           classification: item.classification,
+  //           multiplicity: item.multiplicity,
+  //           boxNumber: item.boxNumber,
+  //           dimensionsFact: item.dimensionsFact,
+  //           volume: item.volume,
+  //           articleOld: item.articleOld,
+  //           costInYuan: item.costInYuan,
+  //           costInRub: item.costInRub,
+  //           replenishmentPeriod: item.replenishmentPeriod,
+  //           remainingBalance: item.remainingBalance,
+  //           ownImagesUrl: item.ownImagesUrl,
+  //           volumePerUnit: item.volumePerUnit,
+  //           weightPerUnit: item.weightPerUnit,
+  //           transportRateUsd: item.transportRateUsd,
+  //           dutyPercentage: item.dutyPercentage,
+  //           // density: item.density,
+  //           tariffWeight: item.tariffWeight,
+  //           title: findItems[0].createdForCalculation ? item.title : undefined,
+  //           volumeWB: findItems[0].createdForCalculation ? item.volumeWB : undefined,
+  //           volumeOzon: findItems[0].createdForCalculation ? item.volumeOzon : undefined,
+  //           category: findItems[0].createdForCalculation ? item.category : undefined,
+  //           costInYuanWhite: item.costInYuanWhite,
+  //           codeTNVED: item.codeTNVED,
+  //           dimensionsMasterBox: item.dimensionsMasterBox,
+  //           // volumeMasterBox: item.volumeMasterBox,
+  //           consolidation: item.consolidation,
+  //           payment: item.payment,
+  //           assembling: item.assembling,
+  //           fullfillmentAcceptance: item.fullfillmentAcceptance,
+  //           marketplaceAcceptance: item.marketplaceAcceptance,
+  //           production: item.production,
+  //           buffer: item.buffer,
+  //           daysDeliveryToRussia: item.daysDeliveryToRussia,
+  //           supplierMinimumOrder: item.supplierMinimumOrder,
+  //           // seasonalityForExport: item.seasonalityForExport,
+  //           // seasonalityForOrder: item.seasonalityForOrder,
+  //           virality: item.virality,
+  //           costCalculationType: item.costCalculationType,
+  //           calculationType: item.calculationType,
+  //           downloadCalculationMethod: item.downloadCalculationMethod
+  //         }
+  //       );
   //     }
-  //     return mappedItems;
+  //     return { success: true };
   //   } catch (error) {
   //     this.logger.error(error);
-  //     this.logger.error('Не смог получить список стоп листа');
+  //     this.logger.error('Не смог обновить справочник товаров');
   //     throw error;
   //   } finally {
   //     await queryRunner.release();
@@ -537,15 +409,12 @@ export class ItemsService {
         .select([
           'mpItems.id AS "id"',
           'item.article AS article',
-          'item.imageUrl AS "imageUrl"',
-          'item.title AS title',
-          'item.color AS color',
+          'mpItems.imageUrl AS "imageUrl"',
+          'mpItems.title AS title',
+          'mpItems.color AS color',
           'mpItems.barcode AS barcode',
           'mpItems.marketplaceIdentifier AS "marketplaceIdentifier"',
           'mpItems.sku AS sku',
-
-          'directions.id AS "directionId"',
-          'directions.title AS "directionTitle"',
 
           'marketplace.id AS "marketplaceId"',
           'marketplace.title AS "marketplaceTitle"',
@@ -555,7 +424,6 @@ export class ItemsService {
         ])
         .innerJoin('mpItems.item', 'item')
         .innerJoin('mpItems.marketplace', 'marketplace')
-        .leftJoin('item.direction', 'directions')
         .leftJoin('mpItems.sendStatus', 'sendStatus')
         .leftJoin(
           qb => {
@@ -658,11 +526,7 @@ export class ItemsService {
                   title: item.sendStatusTitle
                 }
               }
-            ],
-            direction: {
-              id: item.directionId,
-              title: item.directionTitle
-            }
+            ]
           });
         }
       }
@@ -699,108 +563,61 @@ export class ItemsService {
         ozonStatus
       };
     });
-    const findMarketplaceYandex = await this.infoService.findMarketplace({
-      title: 'Yandex'
-    });
-    const findMarketplaceWB = await this.infoService.findMarketplace({
-      title: 'WB'
-    });
-    const findMarketplaceOzon = await this.infoService.findMarketplace({
-      title: 'Озон'
-    });
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
     try {
       for (const item of items) {
-        if (item.ozonStatus) {
-          const findItem = await queryRunner.manager.findOne(Items, {
+        const findItem = await queryRunner.manager
+          .createQueryBuilder(Items, 'items')
+          .leftJoinAndSelect(
+            'items.marketplaceItems',
+            'marketplaceItems',
+            'marketplaceItems.deletedAt IS NULL'
+          )
+          .leftJoinAndSelect('marketplaceItems.marketplace', 'marketplace')
+          .andWhere('items.article = :article', { article: item.article })
+          .getOne();
+        const findOzonItem = findItem?.marketplaceItems.find(el => el.marketplace.title === 'Озон');
+        const findWbItem = findItem?.marketplaceItems.find(el => el.marketplace.title === 'WB');
+        const findYandexItem = findItem?.marketplaceItems.find(el => el.marketplace.title === 'Yandex');
+        if (item.ozonStatus && findOzonItem) {
+          const findStatusOzon = await queryRunner.manager.findOne(Statuses, {
             where: {
-              marketplaceId: findMarketplaceOzon.id,
-              article: item.article
+              title: item.ozonStatus,
+              type: StatusesTypes.Отправка
             }
           });
-          if (findItem) {
-            const findStatusOzon = await queryRunner.manager.findOne(Statuses, {
-              where: {
-                title: item.ozonStatus,
-                type: StatusesTypes.Отправка
-              }
+          if (findStatusOzon) {
+            await queryRunner.manager.update(MarketplaceItems, findOzonItem.id, {
+              sendStatusId: findStatusOzon.id
             });
-            if (findStatusOzon) {
-              await queryRunner.manager.update(Items, findItem.id, { sendStatusId: findStatusOzon.id });
-              const findMpItem = await queryRunner.manager.findOne(MarketplaceItems, {
-                where: {
-                  marketplaceId: findMarketplaceOzon.id,
-                  itemId: findItem.id
-                }
-              });
-              if (findMpItem) {
-                await queryRunner.manager.update(MarketplaceItems, findMpItem.id, {
-                  sendStatusId: findStatusOzon.id
-                });
-              }
-            }
           }
         }
-        if (item.wbStatus) {
-          const findItem = await queryRunner.manager.findOne(Items, {
+        if (item.wbStatus && findWbItem) {
+          const findStatusWB = await queryRunner.manager.findOne(Statuses, {
             where: {
-              marketplaceId: findMarketplaceWB.id,
-              article: item.article
+              title: item.wbStatus,
+              type: StatusesTypes.Отправка
             }
           });
-          if (findItem) {
-            const findStatusWB = await queryRunner.manager.findOne(Statuses, {
-              where: {
-                title: item.wbStatus,
-                type: StatusesTypes.Отправка
-              }
+          if (findStatusWB) {
+            await queryRunner.manager.update(MarketplaceItems, findWbItem.id, {
+              sendStatusId: findStatusWB.id
             });
-            if (findStatusWB) {
-              await queryRunner.manager.update(Items, findItem.id, { sendStatusId: findStatusWB.id });
-              const findMpItem = await queryRunner.manager.findOne(MarketplaceItems, {
-                where: {
-                  marketplaceId: findMarketplaceWB.id,
-                  itemId: findItem.id
-                }
-              });
-              if (findMpItem) {
-                await queryRunner.manager.update(MarketplaceItems, findMpItem.id, {
-                  sendStatusId: findStatusWB.id
-                });
-              }
-            }
           }
         }
-        if (item.yandexStatus) {
-          const findItem = await queryRunner.manager.findOne(Items, {
+        if (item.yandexStatus && findYandexItem) {
+          const findStatusYandex = await queryRunner.manager.findOne(Statuses, {
             where: {
-              marketplaceId: findMarketplaceYandex.id,
-              article: item.article
+              title: item.yandexStatus,
+              type: StatusesTypes.Отправка
             }
           });
-          if (findItem) {
-            const findStatusYandex = await queryRunner.manager.findOne(Statuses, {
-              where: {
-                title: item.yandexStatus,
-                type: StatusesTypes.Отправка
-              }
+          if (findStatusYandex) {
+            await queryRunner.manager.update(MarketplaceItems, findYandexItem.id, {
+              sendStatusId: findStatusYandex.id
             });
-            if (findStatusYandex) {
-              await queryRunner.manager.update(Items, findItem.id, { sendStatusId: findStatusYandex.id });
-              const findMpItem = await queryRunner.manager.findOne(MarketplaceItems, {
-                where: {
-                  marketplaceId: findMarketplaceYandex.id,
-                  itemId: findItem.id
-                }
-              });
-              if (findMpItem) {
-                await queryRunner.manager.update(MarketplaceItems, findMpItem.id, {
-                  sendStatusId: findStatusYandex.id
-                });
-              }
-            }
           }
         }
       }
@@ -813,51 +630,6 @@ export class ItemsService {
     } finally {
       await queryRunner.release();
     }
-  }
-
-  async getChangePriceHistory(getChangePriceHistoryDto: GetChangePriceHistoryDto) {
-    const queryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
-    try {
-      const queryBuilder = queryRunner.manager
-        .createQueryBuilder(ChangePricesHistories, 'cph')
-        .leftJoinAndSelect('cph.item', 'item');
-      if (getChangePriceHistoryDto.date) {
-        queryBuilder.andWhere('DATE(cph.createdAt) = DATE(:date)', { date: getChangePriceHistoryDto.date });
-      } else {
-        queryBuilder.andWhere('DATE(cph.createdAt) = DATE(now())');
-      }
-
-      const findHistory = await queryBuilder.getMany();
-      return findHistory.map(el => {
-        return {
-          id: el.id,
-          itemId: el.itemId,
-          article: el.item.article,
-          oldPrice: el.oldPrice,
-          newPrice: el.newPrice,
-          oldDiscount: el.oldDiscount,
-          newDiscount: el.newDiscount
-        };
-      });
-    } catch (error) {
-      this.logger.error(error);
-      this.logger.error('Не смог получить историю изменения цены');
-    } finally {
-      await queryRunner.release();
-    }
-  }
-
-  async findItem(where: FindOptionsWhere<Items>, queryRunner: QueryRunner) {
-    return queryRunner.manager.findOne(Items, { where });
-  }
-
-  async updateItem(
-    where: FindOptionsWhere<Items>,
-    updateData: QueryDeepPartialEntity<Items>,
-    queryRunner: QueryRunner
-  ) {
-    return queryRunner.manager.update(Items, where, updateData);
   }
 
   @Cron('0 */40 * * * *')
@@ -903,36 +675,36 @@ export class ItemsService {
     try {
       for (const item of items) {
         const findColor = item?.characteristics?.find(el => el.name === 'Цвет');
-        const findItem = await queryRunner.manager.findOne(Items, {
-          where: { marketplaceIdentifier: String(item.nmID), marketplaceId: wbMarketplace.id },
-          relations: {
-            sizes: true
-          }
+        const findMpItem = await queryRunner.manager.findOne(MarketplaceItems, {
+          where: { marketplaceIdentifier: String(item.nmID), marketplaceId: wbMarketplace.id }
+          // relations: {
+          //   sizes: true
+          // }
         });
         const volumeWB = (
           (item.dimensions.length * item.dimensions.width * item.dimensions.height) /
           1000
         ).toFixed(2);
 
-        if (!findItem) {
-          const createItem = queryRunner.manager.create(Items, {
-            article: item.vendorCode,
-            category: item.subjectName,
-            title: item.title,
-            barcode: item?.sizes[0]?.skus[0] ?? '0',
-            sku: '0',
-            marketplaceIdentifier: String(item.nmID),
-            imageUrl: item.photos ? item.photos[0].big : null,
-            marketplaceId: wbMarketplace.id,
-            color: findColor ? findColor.value[0] : '',
-            //Размеры в см, вес в кг
-            dimensionsWB: `${item.dimensions.length}/${item.dimensions.width}/${item.dimensions.height}/${item.dimensions.weightBrutto}`,
-            volumeWB,
-            chrtId: String(item?.sizes[0]?.chrtID)
+        if (!findMpItem) {
+          const findItem = await queryRunner.manager.findOne(Items, {
+            where: {
+              article: item.vendorCode
+            }
           });
-          await queryRunner.manager.save(Items, createItem);
+          let itemId: number;
+          if (findItem) {
+            itemId = findItem.id;
+          } else {
+            const createItem = queryRunner.manager.create(Items, {
+              article: item.vendorCode
+            });
+            await queryRunner.manager.save(Items, createItem);
+            itemId = createItem.id;
+          }
+
           const createMarketplaceItem = queryRunner.manager.create(MarketplaceItems, {
-            itemId: createItem.id,
+            itemId,
             marketplaceIdentifier: String(item.nmID),
             barcode: item?.sizes[0]?.skus[0] ?? '0',
             sku: '0',
@@ -947,69 +719,63 @@ export class ItemsService {
             color: findColor ? findColor.value[0] : ''
           });
           await queryRunner.manager.save(MarketplaceItems, createMarketplaceItem);
-          if (item?.sizes?.length) {
-            for (const size of item.sizes) {
-              if (size.techSize === '0') continue;
-              const createSize = queryRunner.manager.create(ItemsSizes, {
-                itemId: createItem.id,
-                chrtId: String(size.chrtID),
-                techSize: size.techSize,
-                wbSize: size.wbSize
-              });
-              await queryRunner.manager.save(ItemsSizes, createSize);
-            }
-          }
+          // if (item?.sizes?.length) {
+          //   for (const size of item.sizes) {
+          //     if (size.techSize === '0') continue;
+          //     const createSize = queryRunner.manager.create(ItemsSizes, {
+          //       itemId: createItem.id,
+          //       chrtId: String(size.chrtID),
+          //       techSize: size.techSize,
+          //       wbSize: size.wbSize
+          //     });
+          //     await queryRunner.manager.save(ItemsSizes, createSize);
+          //   }
+          // }
         } else {
           await queryRunner.manager.update(
             Items,
-            { id: findItem.id },
+            { id: findMpItem.itemId },
             {
-              article: item.vendorCode,
-              sku: '0',
-              barcode: item?.sizes[0]?.skus[0] ?? '0',
-              category: item.subjectName,
-              title: item.title,
-              color: findColor ? findColor.value[0] : '',
-              imageUrl: item.photos ? item.photos[0].big : null,
-              //Размеры в см, вес в кг
-              dimensionsWB: `${item.dimensions.length}/${item.dimensions.width}/${item.dimensions.height}/${item.dimensions.weightBrutto}`,
-              volumeWB,
-              chrtId: String(item?.sizes[0]?.chrtID)
+              article: item.vendorCode
             }
           );
           await queryRunner.manager.update(
             MarketplaceItems,
-            { itemId: findItem.id },
+            { id: findMpItem.id },
             {
               barcode: item?.sizes[0]?.skus[0] ?? '0',
               sku: '0',
               //Размеры в см, вес в кг
               dimensions: `${item.dimensions.length}/${item.dimensions.width}/${item.dimensions.height}/${item.dimensions.weightBrutto}`,
               volume: volumeWB,
-              chrtId: String(item?.sizes[0]?.chrtID)
+              chrtId: String(item?.sizes[0]?.chrtID),
+              category: item.subjectName,
+              title: item.title,
+              color: findColor ? findColor.value[0] : '',
+              imageUrl: item.photos ? item.photos[0].big : null
             }
           );
-          if (item?.sizes?.length) {
-            for (const size of item.sizes) {
-              if (size.techSize === '0') continue;
-              const findCurrentSize = findItem.sizes.find(el => el.chrtId === String(size.chrtID));
-              if (findCurrentSize) {
-                await queryRunner.manager.update(ItemsSizes, findCurrentSize.id, {
-                  chrtId: String(size.chrtID),
-                  techSize: size.techSize,
-                  wbSize: size.wbSize
-                });
-              } else {
-                const createSize = queryRunner.manager.create(ItemsSizes, {
-                  itemId: findItem.id,
-                  chrtId: String(size.chrtID),
-                  techSize: size.techSize,
-                  wbSize: size.wbSize
-                });
-                await queryRunner.manager.save(ItemsSizes, createSize);
-              }
-            }
-          }
+          // if (item?.sizes?.length) {
+          //   for (const size of item.sizes) {
+          //     if (size.techSize === '0') continue;
+          //     const findCurrentSize = findItem.sizes.find(el => el.chrtId === String(size.chrtID));
+          //     if (findCurrentSize) {
+          //       await queryRunner.manager.update(ItemsSizes, findCurrentSize.id, {
+          //         chrtId: String(size.chrtID),
+          //         techSize: size.techSize,
+          //         wbSize: size.wbSize
+          //       });
+          //     } else {
+          //       const createSize = queryRunner.manager.create(ItemsSizes, {
+          //         itemId: findItem.id,
+          //         chrtId: String(size.chrtID),
+          //         techSize: size.techSize,
+          //         wbSize: size.wbSize
+          //       });
+          //       await queryRunner.manager.save(ItemsSizes, createSize);
+          //     }
+          //   }
+          // }
         }
       }
     } catch (error) {
@@ -1062,24 +828,17 @@ export class ItemsService {
     await queryRunner.connect();
     try {
       for (const item of items) {
-        const findItem = await queryRunner.manager.findOne(Items, {
+        const findMpItem = await queryRunner.manager.findOne(MarketplaceItems, {
           where: {
             marketplaceIdentifier: String(item.nmID),
             marketplaceId: wbMarketplace.id,
-            isArchive: false
+            deletedAt: IsNull()
           }
         });
-        if (findItem) {
-          await queryRunner.manager.update(
-            Items,
-            { id: findItem.id },
-            {
-              isArchive: true
-            }
-          );
+        if (findMpItem) {
           await queryRunner.manager.update(
             MarketplaceItems,
-            { itemId: findItem.id },
+            { id: findMpItem.id },
             {
               deletedAt: new Date()
             }
@@ -1123,18 +882,17 @@ export class ItemsService {
         if (!item.sku) {
           continue;
         }
-        const findItem = await queryRunner.manager.findOne(Items, {
+        const findMpItem = await queryRunner.manager.findOne(MarketplaceItems, {
           where: {
             marketplaceIdentifier: String(item.id),
             marketplaceId: ozonMarketplace.id,
-            isArchive: false
+            deletedAt: IsNull()
           }
         });
-        if (findItem) {
-          await queryRunner.manager.update(Items, { id: findItem.id }, { isArchive: true });
+        if (findMpItem) {
           await queryRunner.manager.update(
             MarketplaceItems,
-            { itemId: findItem.id },
+            { id: findMpItem.id },
             { deletedAt: new Date() }
           );
         }
@@ -1149,80 +907,80 @@ export class ItemsService {
   }
 
   // @Cron('0 */51 * * * *')
-  async getYandexTrashItems() {
-    const businessId = this.configService.get<string>('yandexBusinessId');
-    let pageToken;
-    let hasMoreData = true;
+  // async getYandexTrashItems() {
+  //   const businessId = this.configService.get<string>('yandexBusinessId');
+  //   let pageToken;
+  //   let hasMoreData = true;
 
-    const items: { marketplaceIdentifier: string; article: string; sku: string }[] = [];
+  //   const items: { marketplaceIdentifier: string; article: string; sku: string }[] = [];
 
-    while (hasMoreData) {
-      let urlItems = `https://api.partner.market.yandex.ru/businesses/${businessId}/offer-mappings?limit=200`;
-      if (pageToken) {
-        urlItems = `https://api.partner.market.yandex.ru/businesses/${businessId}/offer-mappings?limit=200&page_token=${pageToken}`;
-      }
+  //   while (hasMoreData) {
+  //     let urlItems = `https://api.partner.market.yandex.ru/businesses/${businessId}/offer-mappings?limit=200`;
+  //     if (pageToken) {
+  //       urlItems = `https://api.partner.market.yandex.ru/businesses/${businessId}/offer-mappings?limit=200&page_token=${pageToken}`;
+  //     }
 
-      const { data }: { data: YandexItems } = await axios.post(
-        urlItems,
-        {
-          data: {
-            archived: true
-          }
-        },
-        {
-          headers: {
-            'Api-Key': 'ACMA:1pUUUtGUjFw0frKFuYg5ymG5nEs5RKNtz5NbW9OQ:226d6e1d'
-          }
-        }
-      );
-      for (const item of data.result.offerMappings) {
-        if (!item.mapping.marketSku) {
-          continue;
-        }
-        items.push({
-          marketplaceIdentifier: String(item.mapping.marketSku),
-          article: item.offer.offerId,
-          sku: String(0)
-        });
-      }
-      if (data.result.paging?.nextPageToken) {
-        pageToken = data.result.paging.nextPageToken;
-      } else {
-        hasMoreData = false;
-      }
-    }
-    const yandexMarketplace = await this.infoService.findMarketplace({ title: 'Yandex' });
+  //     const { data }: { data: YandexItems } = await axios.post(
+  //       urlItems,
+  //       {
+  //         data: {
+  //           archived: true
+  //         }
+  //       },
+  //       {
+  //         headers: {
+  //           'Api-Key': 'ACMA:1pUUUtGUjFw0frKFuYg5ymG5nEs5RKNtz5NbW9OQ:226d6e1d'
+  //         }
+  //       }
+  //     );
+  //     for (const item of data.result.offerMappings) {
+  //       if (!item.mapping.marketSku) {
+  //         continue;
+  //       }
+  //       items.push({
+  //         marketplaceIdentifier: String(item.mapping.marketSku),
+  //         article: item.offer.offerId,
+  //         sku: String(0)
+  //       });
+  //     }
+  //     if (data.result.paging?.nextPageToken) {
+  //       pageToken = data.result.paging.nextPageToken;
+  //     } else {
+  //       hasMoreData = false;
+  //     }
+  //   }
+  //   const yandexMarketplace = await this.infoService.findMarketplace({ title: 'Yandex' });
 
-    const queryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
-    try {
-      for (const item of items) {
-        const findItem = await queryRunner.manager.findOne(Items, {
-          where: {
-            marketplaceIdentifier: String(item.marketplaceIdentifier),
-            marketplaceId: yandexMarketplace.id,
-            isArchive: false
-          }
-        });
+  //   const queryRunner = this.dataSource.createQueryRunner();
+  //   await queryRunner.connect();
+  //   try {
+  //     for (const item of items) {
+  //       const findItem = await queryRunner.manager.findOne(Items, {
+  //         where: {
+  //           marketplaceIdentifier: String(item.marketplaceIdentifier),
+  //           marketplaceId: yandexMarketplace.id,
+  //           isArchive: false
+  //         }
+  //       });
 
-        if (findItem) {
-          await queryRunner.manager.update(
-            Items,
-            { id: findItem.id },
-            {
-              isArchive: true
-            }
-          );
-        }
-      }
-      return;
-    } catch (error) {
-      this.logger.error(error);
-      this.logger.error('Не смог получить архивные товары Яндекс');
-    } finally {
-      await queryRunner.release();
-    }
-  }
+  //       if (findItem) {
+  //         await queryRunner.manager.update(
+  //           Items,
+  //           { id: findItem.id },
+  //           {
+  //             isArchive: true
+  //           }
+  //         );
+  //       }
+  //     }
+  //     return;
+  //   } catch (error) {
+  //     this.logger.error(error);
+  //     this.logger.error('Не смог получить архивные товары Яндекс');
+  //   } finally {
+  //     await queryRunner.release();
+  //   }
+  // }
 
   @Cron('0 */42 * * * *')
   async getOzonItemsFirst() {
@@ -1321,30 +1079,30 @@ export class ItemsService {
       await queryRunner.connect();
       try {
         await queryRunner.startTransaction();
-        const findItem = await queryRunner.manager.findOne(Items, {
+        const findMpItem = await queryRunner.manager.findOne(MarketplaceItems, {
           where: {
             marketplaceIdentifier: String(item.marketplaceIdentifier),
             marketplaceId: yandexMarketplace.id
           }
         });
-
-        if (!findItem) {
-          const createItem = queryRunner.manager.create(Items, {
-            article: item.article,
-            category: item.category,
-            title: item.title,
-            barcode: item.barcode,
-            sku: String(0),
-            marketplaceIdentifier: String(item.marketplaceIdentifier),
-            imageUrl: item.imageUrl,
-            marketplaceId: yandexMarketplace.id,
-            //Размеры в см, вес в кг
-            dimensionsYandex: item.dimensionsYandex,
-            volumeYandex: item.volumeYandex
+        if (!findMpItem) {
+          const findItem = await queryRunner.manager.findOne(Items, {
+            where: {
+              article: item.article
+            }
           });
-          await queryRunner.manager.save(Items, createItem);
+          let itemId: number;
+          if (findItem) {
+            itemId = findItem.id;
+          } else {
+            const createItem = queryRunner.manager.create(Items, {
+              article: item.article
+            });
+            await queryRunner.manager.save(Items, createItem);
+            itemId = createItem.id;
+          }
           const createMarketplaceItem = queryRunner.manager.create(MarketplaceItems, {
-            itemId: createItem.id,
+            itemId,
             barcode: item.barcode,
             sku: String(0),
             marketplaceIdentifier: String(item.marketplaceIdentifier),
@@ -1359,24 +1117,15 @@ export class ItemsService {
           await queryRunner.manager.save(MarketplaceItems, createMarketplaceItem);
         } else {
           await queryRunner.manager.update(
-            Items,
-            { id: findItem.id },
-            {
-              article: item.article,
-              title: item.title,
-              category: item.category,
-              //Размеры в см, вес в кг
-              dimensionsYandex: item.dimensionsYandex,
-              volumeYandex: item.volumeYandex
-            }
-          );
-          await queryRunner.manager.update(
             MarketplaceItems,
-            { itemId: findItem.id },
+            { id: findMpItem.id },
             {
               //Размеры в см, вес в кг
               dimensions: item.dimensionsYandex,
-              volume: item.volumeYandex
+              volume: item.volumeYandex,
+              category: item.category,
+              title: item.title,
+              imageUrl: item.imageUrl
             }
           );
         }
@@ -1436,7 +1185,7 @@ export class ItemsService {
         if (!item.sku) {
           continue;
         }
-        const findItem = await queryRunner.manager.findOne(Items, {
+        const findMpItem = await queryRunner.manager.findOne(MarketplaceItems, {
           where: { marketplaceIdentifier: String(item.id), marketplaceId }
         });
         const volumeOzon = String(((item.depth / 10) * (item.width / 10) * (item.height / 10)) / 1000);
@@ -1450,23 +1199,24 @@ export class ItemsService {
             category = findSubCategory.title;
           }
         }
-        if (!findItem) {
-          const createItem = queryRunner.manager.create(Items, {
-            article: item.offer_id,
-            category,
-            title: item.name,
-            barcode: item.barcode,
-            sku: String(item.sku),
-            marketplaceIdentifier: String(item.id),
-            imageUrl: item.primary_image,
-            marketplaceId,
-            //Переводим размеры в см, вес в кг
-            dimensionsOzon: `${Number((item.depth / 10).toFixed(2))}/${Number((item.width / 10).toFixed(2))}/${Number((item.height / 10).toFixed(2))}/${Number((item.weight / 1000).toFixed(3))}`,
-            volumeOzon
+        if (!findMpItem) {
+          const findItem = await queryRunner.manager.findOne(Items, {
+            where: {
+              article: item.offer_id
+            }
           });
-          await queryRunner.manager.save(Items, createItem);
+          let itemId: number;
+          if (findItem) {
+            itemId = findItem.id;
+          } else {
+            const createItem = queryRunner.manager.create(Items, {
+              article: item.offer_id
+            });
+            await queryRunner.manager.save(Items, createItem);
+            itemId = createItem.id;
+          }
           const createMarketplaceItem = queryRunner.manager.create(MarketplaceItems, {
-            itemId: createItem.id,
+            itemId,
             barcode: item.barcode,
             sku: String(item.sku),
             marketplaceIdentifier: String(item.id),
@@ -1482,24 +1232,21 @@ export class ItemsService {
         } else {
           await queryRunner.manager.update(
             Items,
-            { id: findItem.id },
+            { id: findMpItem.itemId },
             {
-              article: item.offer_id,
-              title: item.name,
-              imageUrl: item.primary_image,
-              //Переводим размеры в см, вес в кг
-              dimensionsOzon: `${Number((item.depth / 10).toFixed(2))}/${Number((item.width / 10).toFixed(2))}/${Number((item.height / 10).toFixed(2))}/${Number((item.weight / 1000).toFixed(3))}`,
-              volumeOzon,
-              category
+              article: item.offer_id
             }
           );
           await queryRunner.manager.update(
             MarketplaceItems,
-            { itemId: findItem.id },
+            { id: findMpItem.id },
             {
               //Переводим размеры в см, вес в кг
               dimensions: `${Number((item.depth / 10).toFixed(2))}/${Number((item.width / 10).toFixed(2))}/${Number((item.height / 10).toFixed(2))}/${Number((item.weight / 1000).toFixed(3))}`,
-              volume: volumeOzon
+              volume: volumeOzon,
+              title: item.name,
+              imageUrl: item.primary_image,
+              category
             }
           );
         }
@@ -1542,6 +1289,7 @@ export class ItemsService {
             .where('ord.marketplace_item_id = mpItems.id')
             .andWhere('ord.created_at >= DATE(:weekAgo)', { weekAgo });
         }, 'ordersSum')
+        .where('mpItems.deletedAt IS NULL')
         .getRawAndEntities();
       //      const findItems = await queryRunner.manager
       //        .createQueryBuilder(Items, 'items')
@@ -1595,7 +1343,6 @@ export class ItemsService {
         //Считаем скорость продаж на 1 день и умножаем на 30 дней
         const salesSpeed = Number((item.orders / 7).toFixed(2)) * 30;
         if (item.stocks - salesSpeed <= 0) {
-          await queryRunner.manager.update(Items, { id: item.itemId }, { sendStatusId: findRejectStatus.id });
           await queryRunner.manager.update(
             MarketplaceItems,
             { id: item.mpItemId },
@@ -1605,28 +1352,17 @@ export class ItemsService {
         }
         if (item.classification === 'Бестселлер / А' && item.stocks - salesSpeed > 0) {
           await queryRunner.manager.update(
-            Items,
-            { id: item.itemId },
-            { sendStatusId: findBestSellerStatus.id }
-          );
-          await queryRunner.manager.update(
             MarketplaceItems,
             { id: item.mpItemId },
             { sendStatusId: findBestSellerStatus.id }
           );
         } else if (item.classification === 'Новинка / A' && item.stocks - salesSpeed > 0) {
-          await queryRunner.manager.update(Items, { id: item.itemId }, { sendStatusId: findNewStatus.id });
           await queryRunner.manager.update(
             MarketplaceItems,
             { id: item.mpItemId },
             { sendStatusId: findNewStatus.id }
           );
         } else if (item.classification === 'Хит продаж / А' && item.stocks - salesSpeed > 0) {
-          await queryRunner.manager.update(
-            Items,
-            { id: item.itemId },
-            { sendStatusId: findSuccessStatus.id }
-          );
           await queryRunner.manager.update(
             MarketplaceItems,
             { id: item.mpItemId },
@@ -1694,160 +1430,160 @@ export class ItemsService {
     }
   }
 
-  @Cron(CronExpression.EVERY_HOUR)
-  async updateWbItemsPrices() {
-    let getItems: WbItemsPrices = {
-      data: {
-        listGoods: []
-      }
-    };
-    try {
-      const apiToken = this.configService.get<string>('wbToken');
-      const wbUrl =
-        'https://discounts-prices-api.wildberries.ru/api/v2/list/goods/filter?limit=1000&offset=0';
-      const getItemsFromWb = await axios.get<WbItemsPrices>(wbUrl, {
-        headers: {
-          Authorization: apiToken
-        }
-      });
-      getItems = getItemsFromWb.data;
-    } catch (error) {
-      this.logger.error(error);
-      this.logger.error('Не смог получить цены товаров WB');
-    }
-    if (!getItems.data.listGoods.length) {
-      return;
-    }
-    const manager = this.dataSource.manager;
-    try {
-      const itemsId = getItems.data.listGoods.map(el => String(el.nmID));
-      const findItems = await manager.find(Items, {
-        where: {
-          marketplaceIdentifier: In(itemsId)
-        }
-      });
-      for (const item of getItems.data.listGoods) {
-        const findItem = findItems.find(el => el.marketplaceIdentifier === String(item.nmID));
-        if (findItem) {
-          await manager.update(
-            Items,
-            { id: findItem.id },
-            { discountWb: item.discount, priceWb: item?.sizes?.[0]?.price ?? null }
-          );
-          if (item.discount !== findItem.discountWb && item.discount < 64) {
-            const findHistory = await manager
-              .createQueryBuilder(ChangePricesHistories, 'cph')
-              .where('cph.itemId = :itemId', { itemId: findItem.id })
-              .andWhere('DATE(cph.createdAt) = DATE(now())')
-              .getOne();
-            if (findHistory) {
-              await manager.update(
-                ChangePricesHistories,
-                {
-                  id: findHistory.id
-                },
-                {
-                  oldDiscount: findItem.discountWb,
-                  oldPrice: findItem.priceWb,
-                  newDiscount: item.discount,
-                  newPrice: item?.sizes?.[0]?.price ?? null
-                }
-              );
-            } else {
-              const createHistory = manager.create(ChangePricesHistories, {
-                oldDiscount: findItem.discountWb,
-                oldPrice: findItem.priceWb,
-                newDiscount: item.discount,
-                newPrice: item?.sizes?.[0]?.price ?? null,
-                itemId: findItem.id
-              });
-              await manager.save(ChangePricesHistories, createHistory);
-            }
-          }
-        }
-      }
-    } catch (error) {
-      this.logger.error(error);
-      this.logger.error('Не смог проставить цену товарам WB');
-    }
-  }
+  // @Cron(CronExpression.EVERY_HOUR)
+  // async updateWbItemsPrices() {
+  //   let getItems: WbItemsPrices = {
+  //     data: {
+  //       listGoods: []
+  //     }
+  //   };
+  //   try {
+  //     const apiToken = this.configService.get<string>('wbToken');
+  //     const wbUrl =
+  //       'https://discounts-prices-api.wildberries.ru/api/v2/list/goods/filter?limit=1000&offset=0';
+  //     const getItemsFromWb = await axios.get<WbItemsPrices>(wbUrl, {
+  //       headers: {
+  //         Authorization: apiToken
+  //       }
+  //     });
+  //     getItems = getItemsFromWb.data;
+  //   } catch (error) {
+  //     this.logger.error(error);
+  //     this.logger.error('Не смог получить цены товаров WB');
+  //   }
+  //   if (!getItems.data.listGoods.length) {
+  //     return;
+  //   }
+  //   const manager = this.dataSource.manager;
+  //   try {
+  //     const itemsId = getItems.data.listGoods.map(el => String(el.nmID));
+  //     const findItems = await manager.find(Items, {
+  //       where: {
+  //         marketplaceIdentifier: In(itemsId)
+  //       }
+  //     });
+  //     for (const item of getItems.data.listGoods) {
+  //       const findItem = findItems.find(el => el.marketplaceIdentifier === String(item.nmID));
+  //       if (findItem) {
+  //         await manager.update(
+  //           Items,
+  //           { id: findItem.id },
+  //           { discountWb: item.discount, priceWb: item?.sizes?.[0]?.price ?? null }
+  //         );
+  //         if (item.discount !== findItem.discountWb && item.discount < 64) {
+  //           const findHistory = await manager
+  //             .createQueryBuilder(ChangePricesHistories, 'cph')
+  //             .where('cph.itemId = :itemId', { itemId: findItem.id })
+  //             .andWhere('DATE(cph.createdAt) = DATE(now())')
+  //             .getOne();
+  //           if (findHistory) {
+  //             await manager.update(
+  //               ChangePricesHistories,
+  //               {
+  //                 id: findHistory.id
+  //               },
+  //               {
+  //                 oldDiscount: findItem.discountWb,
+  //                 oldPrice: findItem.priceWb,
+  //                 newDiscount: item.discount,
+  //                 newPrice: item?.sizes?.[0]?.price ?? null
+  //               }
+  //             );
+  //           } else {
+  //             const createHistory = manager.create(ChangePricesHistories, {
+  //               oldDiscount: findItem.discountWb,
+  //               oldPrice: findItem.priceWb,
+  //               newDiscount: item.discount,
+  //               newPrice: item?.sizes?.[0]?.price ?? null,
+  //               itemId: findItem.id
+  //             });
+  //             await manager.save(ChangePricesHistories, createHistory);
+  //           }
+  //         }
+  //       }
+  //     }
+  //   } catch (error) {
+  //     this.logger.error(error);
+  //     this.logger.error('Не смог проставить цену товарам WB');
+  //   }
+  // }
 
-  @Cron(CronExpression.EVERY_HOUR)
-  async updateOzonItemsPrices() {
-    let getItems: OzonItemsPrices = {
-      items: []
-    };
-    const ozonToken = this.configService.get<string>('ozonToken');
-    const clientId = this.configService.get<string>('ozonClientId');
-    const headers = {
-      'Client-Id': clientId,
-      'Api-Key': ozonToken
-    };
-    const ozonPricesUrl = 'https://api-seller.ozon.ru/v5/product/info/prices';
-    try {
-      const { data: ozonPrices }: { data: OzonItemsPrices } = await axios.post(
-        ozonPricesUrl,
-        {
-          limit: 1000,
-          filter: {
-            visibility: 'ALL'
-          }
-        },
-        { headers }
-      );
-      getItems = ozonPrices;
-    } catch (error) {
-      this.logger.error(error);
-      this.logger.error('Не смог получить цены товаров Ozon');
-    }
+  // @Cron(CronExpression.EVERY_HOUR)
+  // async updateOzonItemsPrices() {
+  //   let getItems: OzonItemsPrices = {
+  //     items: []
+  //   };
+  //   const ozonToken = this.configService.get<string>('ozonToken');
+  //   const clientId = this.configService.get<string>('ozonClientId');
+  //   const headers = {
+  //     'Client-Id': clientId,
+  //     'Api-Key': ozonToken
+  //   };
+  //   const ozonPricesUrl = 'https://api-seller.ozon.ru/v5/product/info/prices';
+  //   try {
+  //     const { data: ozonPrices }: { data: OzonItemsPrices } = await axios.post(
+  //       ozonPricesUrl,
+  //       {
+  //         limit: 1000,
+  //         filter: {
+  //           visibility: 'ALL'
+  //         }
+  //       },
+  //       { headers }
+  //     );
+  //     getItems = ozonPrices;
+  //   } catch (error) {
+  //     this.logger.error(error);
+  //     this.logger.error('Не смог получить цены товаров Ozon');
+  //   }
 
-    const manager = this.dataSource.manager;
-    try {
-      const itemsId = getItems.items.map(el => String(el.product_id));
-      const findItems = await manager.find(Items, {
-        where: {
-          marketplaceIdentifier: In(itemsId)
-        }
-      });
-      for (const item of getItems.items) {
-        const findItem = findItems.find(el => el.marketplaceIdentifier === String(item.product_id));
-        if (findItem) {
-          await manager.update(
-            Items,
-            { id: findItem.id },
-            { priceOzon: item.price.price, priceWithDiscountOzon: item.price.marketing_seller_price }
-          );
-          if (item.price.price > findItem.priceOzon) {
-            const findHistory = await manager
-              .createQueryBuilder(ChangePricesHistories, 'cph')
-              .where('cph.itemId = :itemId', { itemId: findItem.id })
-              .andWhere('DATE(cph.createdAt) = DATE(now())')
-              .getOne();
-            if (findHistory) {
-              await manager.update(
-                ChangePricesHistories,
-                {
-                  id: findHistory.id
-                },
-                {
-                  oldPrice: findItem.priceOzon,
-                  newPrice: item.price.price
-                }
-              );
-            } else {
-              const createHistory = manager.create(ChangePricesHistories, {
-                oldPrice: findItem.priceOzon,
-                newPrice: item.price.price,
-                itemId: findItem.id
-              });
-              await manager.save(ChangePricesHistories, createHistory);
-            }
-          }
-        }
-      }
-    } catch (error) {
-      this.logger.error(error);
-      this.logger.error('Не смог проставить цену товарам Ozon');
-    }
-  }
+  //   const manager = this.dataSource.manager;
+  //   try {
+  //     const itemsId = getItems.items.map(el => String(el.product_id));
+  //     const findItems = await manager.find(Items, {
+  //       where: {
+  //         marketplaceIdentifier: In(itemsId)
+  //       }
+  //     });
+  //     for (const item of getItems.items) {
+  //       const findItem = findItems.find(el => el.marketplaceIdentifier === String(item.product_id));
+  //       if (findItem) {
+  //         await manager.update(
+  //           Items,
+  //           { id: findItem.id },
+  //           { priceOzon: item.price.price, priceWithDiscountOzon: item.price.marketing_seller_price }
+  //         );
+  //         if (item.price.price > findItem.priceOzon) {
+  //           const findHistory = await manager
+  //             .createQueryBuilder(ChangePricesHistories, 'cph')
+  //             .where('cph.itemId = :itemId', { itemId: findItem.id })
+  //             .andWhere('DATE(cph.createdAt) = DATE(now())')
+  //             .getOne();
+  //           if (findHistory) {
+  //             await manager.update(
+  //               ChangePricesHistories,
+  //               {
+  //                 id: findHistory.id
+  //               },
+  //               {
+  //                 oldPrice: findItem.priceOzon,
+  //                 newPrice: item.price.price
+  //               }
+  //             );
+  //           } else {
+  //             const createHistory = manager.create(ChangePricesHistories, {
+  //               oldPrice: findItem.priceOzon,
+  //               newPrice: item.price.price,
+  //               itemId: findItem.id
+  //             });
+  //             await manager.save(ChangePricesHistories, createHistory);
+  //           }
+  //         }
+  //       }
+  //     }
+  //   } catch (error) {
+  //     this.logger.error(error);
+  //     this.logger.error('Не смог проставить цену товарам Ozon');
+  //   }
+  // }
 }

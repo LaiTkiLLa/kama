@@ -7,7 +7,6 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn
 } from 'typeorm';
-import { Items } from '../../items/entities/items.entity';
 import { Warehouses } from '../../info/entities/warehouses.entity';
 import { Marketplaces } from '../../info/entities/marketplaces.entity';
 import { MarketplaceItems } from '../../items/entities/marketplace-items.entity';
@@ -60,12 +59,6 @@ export class Stocks {
     default: new Date()
   })
   updatedAt: Date;
-
-  @ManyToOne(() => Items, item => item.stocks)
-  @JoinColumn({
-    name: 'item_id'
-  })
-  item: Items;
 
   @ManyToOne(() => Warehouses, warehouse => warehouse.stocks)
   @JoinColumn({

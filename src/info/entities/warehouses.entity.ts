@@ -7,8 +7,8 @@ import {
   UpdateDateColumn
 } from 'typeorm';
 import { Stocks } from '../../stocks/entities/stocks.entity';
-import { Orders } from '../../orders/entities/orders.entity';
 import { Marketplaces } from './marketplaces.entity';
+import { OrdersV2 } from 'src/orders/entities/orders_v2.entity';
 
 @Entity({
   name: 'warehouses'
@@ -57,6 +57,6 @@ export class Warehouses {
   @OneToMany(() => Marketplaces, marketplace => marketplace.warehouses)
   marketplace: Marketplaces;
 
-  @OneToMany(() => Orders, orders => orders.warehouse)
-  orders: Orders[];
+  @OneToMany(() => OrdersV2, orders => orders.warehouse)
+  orders: OrdersV2[];
 }

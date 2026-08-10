@@ -9,16 +9,16 @@ import { GetStocksByDate } from './interfaces/get-stocks-by-date.interface';
 export class StocksController {
   constructor(private stocksService: StocksService) {}
 
-  @Get('current')
-  async getCurrentStocks(
-    @Headers('api-key') apiKey: string,
-    @Query() getCurrentStocksDto: GetCurrentStocksDto
-  ): Promise<GetCurrentStocks[]> {
-    if (!apiKey || apiKey !== process.env.apiKey) {
-      throw new ForbiddenException('Отсутствует токен');
-    }
-    return this.stocksService.getCurrentStocks(getCurrentStocksDto);
-  }
+  // @Get('current')
+  // async getCurrentStocks(
+  //   @Headers('api-key') apiKey: string,
+  //   @Query() getCurrentStocksDto: GetCurrentStocksDto
+  // ): Promise<GetCurrentStocks[]> {
+  //   if (!apiKey || apiKey !== process.env.apiKey) {
+  //     throw new ForbiddenException('Отсутствует токен');
+  //   }
+  //   return this.stocksService.getCurrentStocks(getCurrentStocksDto);
+  // }
 
   @Get('/v2/current')
   async getCurrentStocksV2(
@@ -31,14 +31,14 @@ export class StocksController {
     return this.stocksService.getCurrentStocksV2(getCurrentStocksDto);
   }
 
-  @Get('by-date')
-  async getStocksByDate(
-    @Headers('api-key') apiKey: string,
-    @Query() getStocksByDateDto: GetStocksByDateDto
-  ): Promise<GetStocksByDate[]> {
-    if (!apiKey || apiKey !== process.env.apiKey) {
-      throw new ForbiddenException('Отсутствует токен');
-    }
-    return this.stocksService.getStocksByDate(getStocksByDateDto);
-  }
+  // @Get('by-date')
+  // async getStocksByDate(
+  //   @Headers('api-key') apiKey: string,
+  //   @Query() getStocksByDateDto: GetStocksByDateDto
+  // ): Promise<GetStocksByDate[]> {
+  //   if (!apiKey || apiKey !== process.env.apiKey) {
+  //     throw new ForbiddenException('Отсутствует токен');
+  //   }
+  //   return this.stocksService.getStocksByDate(getStocksByDateDto);
+  // }
 }

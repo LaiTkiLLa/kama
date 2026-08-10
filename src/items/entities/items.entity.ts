@@ -2,18 +2,10 @@ import {
   Column,
   CreateDateColumn,
   Entity,
-  JoinColumn,
-  ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn
 } from 'typeorm';
-import { Stocks } from '../../stocks/entities/stocks.entity';
-import { Marketplaces } from '../../info/entities/marketplaces.entity';
-import { Orders } from '../../orders/entities/orders.entity';
-import { Directions } from '../../info/entities/directions.entity';
-import { Statuses } from '../../info/entities/statuses.entity';
-import { ChangePricesHistories } from './change-prices-histories.entity';
 import { ItemsSizes } from './items-sizes.entity';
 import { ItemsSuppliers } from './items_suppliers.entity';
 import { MarketplaceItems } from './marketplace-items.entity';
@@ -33,27 +25,9 @@ export class Items {
   @Column({ type: 'varchar', nullable: false, name: 'article_old' })
   articleOld: string;
 
-  @Column({ type: 'varchar', nullable: false })
-  category: string;
-
   //Свое наименование категории
   @Column({ type: 'varchar', nullable: true, name: 'own_category' })
   ownCategory: string;
-
-  @Column({ type: 'varchar', nullable: false })
-  title: string;
-
-  @Column({ type: 'varchar', nullable: false })
-  barcode: string;
-
-  @Column({ type: 'varchar', nullable: false })
-  sku: string;
-
-  @Column({ type: 'varchar', nullable: true })
-  color: string;
-
-  @Column({ type: 'varchar', nullable: false, name: 'marketplace_identifier' })
-  marketplaceIdentifier: string;
 
   //Консолидация груза
   @Column({ type: 'int', nullable: false, default: 14 })
@@ -87,18 +61,6 @@ export class Items {
   @Column({ type: 'int', nullable: false, default: 10, name: 'days_delivery_to_Russia' })
   daysDeliveryToRussia: number;
 
-  @Column({ type: 'varchar', nullable: true, name: 'image_url' })
-  imageUrl: string | null;
-
-  @Column({ type: 'int', nullable: false, name: 'marketplace_id' })
-  marketplaceId: number;
-
-  @Column({ type: 'int', name: 'send_status_id', nullable: true })
-  sendStatusId: number;
-
-  @Column({ type: 'int', name: 'direction_id', nullable: false })
-  directionId: number;
-
   //Классификация товара
   @Column({ type: 'varchar', nullable: true })
   classification: string;
@@ -115,49 +77,9 @@ export class Items {
   @Column({ type: 'varchar', nullable: true, name: 'dimensions_fact' })
   dimensionsFact: string;
 
-  //Размеры WB д/ш/в/вес
-  @Column({ type: 'varchar', nullable: true, name: 'dimensions_wb' })
-  dimensionsWB: string;
-
-  //Размеры Ozon д/ш/в/вес
-  @Column({ type: 'varchar', nullable: true, name: 'dimensions_ozon' })
-  dimensionsOzon: string;
-
-  //Размеры Yandex д/ш/в/вес
-  @Column({ type: 'varchar', nullable: true, name: 'dimensions_yandex' })
-  dimensionsYandex: string;
-
   //Размеры Мастер короба д/ш/в/вес
   @Column({ type: 'varchar', nullable: true, name: 'dimensions_master_box' })
   dimensionsMasterBox: string;
-
-  //Объем WB
-  @Column({ type: 'varchar', nullable: true, name: 'volume_wb' })
-  volumeWB: string;
-
-  //Цена товара на WB
-  @Column({ type: 'float', nullable: true, name: 'price_wb' })
-  priceWb: number;
-
-  //% скидки товара на WB
-  @Column({ type: 'float', nullable: true, name: 'discount_wb' })
-  discountWb: number;
-
-  //Цена товара на Ozon
-  @Column({ type: 'float', nullable: true, name: 'price_ozon' })
-  priceOzon: number;
-
-  //Цена товара по акции на Ozon
-  @Column({ type: 'float', nullable: true, name: 'price_with_discount_ozon' })
-  priceWithDiscountOzon: number;
-
-  //Объем Ozon
-  @Column({ type: 'varchar', nullable: true, name: 'volume_ozon' })
-  volumeOzon: string;
-
-  //Объем Yandex
-  @Column({ type: 'varchar', nullable: true, name: 'volume_yandex' })
-  volumeYandex: string;
 
   //Объем Мастер короба
   @Column({ type: 'varchar', nullable: true, name: 'volume_master_box' })
@@ -166,10 +88,6 @@ export class Items {
   //Объем товара
   @Column({ type: 'varchar', nullable: true })
   volume: string;
-
-  //Что то вроде id размера, нужен для получения остатков по FBS
-  @Column({ type: 'varchar', nullable: true, name: 'chrt_id' })
-  chrtId: string;
 
   @Column({
     type: 'boolean',
@@ -235,14 +153,6 @@ export class Items {
   @Column({ type: 'varchar', name: 'calculation_type', nullable: true })
   calculationType: string;
 
-  //Сезонность для вывоза
-  @Column({ type: 'float', name: 'seasonality_for_export', nullable: true })
-  seasonalityForExport: number;
-
-  //Сезонность для заказа
-  @Column({ type: 'float', name: 'seasonality_for_order', nullable: true })
-  seasonalityForOrder: number;
-
   //Виральность товара
   @Column({ type: 'varchar', nullable: true })
   virality: string;
@@ -294,35 +204,8 @@ export class Items {
   })
   updatedAt: Date;
 
-  @ManyToOne(() => Marketplaces, marketplace => marketplace.items)
-  @JoinColumn({
-    name: 'marketplace_id'
-  })
-  marketplace: Marketplaces;
-
-  @OneToMany(() => Stocks, stocks => stocks.item)
-  stocks: Stocks[];
-
-  @OneToMany(() => Orders, orders => orders.item)
-  orders: Orders[];
-
   @OneToMany(() => ItemsSizes, sizes => sizes.item)
   sizes: ItemsSizes[];
-
-  @ManyToOne(() => Directions, direction => direction.items)
-  @JoinColumn({
-    name: 'direction_id'
-  })
-  direction: Directions;
-
-  @ManyToOne(() => Statuses, sendStatus => sendStatus.items)
-  @JoinColumn({
-    name: 'send_status_id'
-  })
-  sendStatus: Statuses;
-
-  @OneToMany(() => ChangePricesHistories, priceHistories => priceHistories.item)
-  priceHistories: ChangePricesHistories[];
 
   @OneToMany(() => ItemsSuppliers, itemsSuppliers => itemsSuppliers.item)
   itemsSuppliers: ItemsSuppliers[];

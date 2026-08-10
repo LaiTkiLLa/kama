@@ -1,6 +1,5 @@
-import { Body, Controller, Get, Headers, Param, ParseIntPipe, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Patch, Post, Query } from '@nestjs/common';
 import { ItemsService } from './items.service';
-import { UpdateItemInfoDto } from './dto/update-item-info.dto';
 import { GetItemsStopListDto } from './dto/get-items-stop-list.dto';
 import { UpdateStopListItems } from './dto/update-status-stop-list.dto';
 import { UpdateArrayDirectoryItemsInfoDto } from './dto/update-directory-item-info.dto';
@@ -9,11 +8,6 @@ import { GetDirectoryListDto } from './dto/get-directory-list.dto';
 @Controller('items')
 export class ItemsController {
   constructor(private itemsService: ItemsService) {}
-
-  // @Get('list')
-  // async getItemsList(@Headers('api-key') apiKey: string, @Query() getItemsListDto: GetItemsListDto) {
-  //   return this.itemsService.getItemsList(getItemsListDto);
-  // }
 
   @Post()
   async createTestItem(@Headers('api-key') apiKey: string) {
@@ -33,25 +27,8 @@ export class ItemsController {
     @Headers('api-key') apiKey: string,
     @Body() updateArrayDirectoryItemsInfoDto: UpdateArrayDirectoryItemsInfoDto
   ) {
-    return this.itemsService.updateArrayDirectoryItemsInfo(updateArrayDirectoryItemsInfoDto);
+    return this.itemsService.updateArrayDirectoryItemsInfoV2(updateArrayDirectoryItemsInfoDto);
   }
-
-  @Patch('info/:id')
-  async updateItemInfo(
-    @Headers('api-key') apiKey: string,
-    @Param('id', ParseIntPipe) id: number,
-    @Body() updateItemInfoDto: UpdateItemInfoDto
-  ) {
-    return this.itemsService.updateItemInfo(id, updateItemInfoDto);
-  }
-
-  // @Get('stop-list')
-  // async getItemsStopList(
-  //   @Headers('api-key') apiKey: string,
-  //   @Query() getItemsStopListDto: GetItemsStopListDto
-  // ) {
-  //   return this.itemsService.getItemStopsList(getItemsStopListDto);
-  // }
 
   @Get('v2/stop-list')
   async getItemsStopListV2(
