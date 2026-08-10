@@ -35,8 +35,8 @@
 | Область | Статус |
 |---------|--------|
 | M1 marketplace_items + identity | ✔ |
-| M2 stocks sync по `marketplace_item_id` | ✔ |
-| M3 orders_v2 по `marketplace_item_id` | ✔ |
+| M2 stocks sync по `marketplace_item_id` (без `item_id`) | ✔ entity + crons |
+| M3 orders_v2 по `marketplace_item_id` (без `item_id`) | ✔ entity + crons + dynamic orders SQL |
 | M4 send_status mp-centric (read/PATCH/autostatus) | ✔ |
 | M4b listing fields schema + nullable category/title | ✔ |
 | Card sync create/update listing fields на mp | ✔ WB/Ozon/Yandex |
@@ -80,7 +80,7 @@
 
 ## Не менять без плана
 
-Drop legacy keys на `stocks`/`orders_v2` (`item_id`, `marketplace_id`); force cutover без миграции; включение stocks API v1 без плана GAS; секреты в репо.
+Drop `marketplace_id` на `stocks`/`orders_v2` без плана; force cutover без миграции; включение stocks API v1 без плана GAS; секреты в репо.
 
 ---
 
@@ -91,4 +91,4 @@ Drop legacy keys на `stocks`/`orders_v2` (`item_id`, `marketplace_id`); force 
 | 2026-08-06 | AI-ready docs; Sheets; field split; stop-list v1 off |
 | 2026-08-07 | M1–M4; send_status mp-centric; create dual-write listing |
 | 2026-08-07 | Yandex Tamov card/stocks/orders_v2 |
-| 2026-08-10 | Prices → mp (`1786522800000`); entity cleanup; send_status items-only снят; consolidation migration (`1786526400000`); card sync find-by-article; v2 stop-list с mp image |
+| 2026-08-10 | Prices → mp; entity cleanup; consolidation migration (`1786526400000`); drop `item_id` на stocks/orders_v2; stocks merge CTE fix |

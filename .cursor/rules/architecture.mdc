@@ -26,7 +26,7 @@ alwaysApply: true
 - Marketplace-independent — на `items`; marketplace-specific — на `marketplace_items` (listing, prices, `send_status_id`).
 - Архив listing: `marketplace_items.deleted_at`; не опирайся на `items.isArchive` в новой логике.
 - После M5: **1 item на article** (+ отдельные `created_for_calculation`). Card sync create — find-or-create item by article.
-- Не удаляй legacy keys на `stocks`/`orders_v2` (`item_id`, `marketplace_id`) без плана.
+- Не удаляй `marketplace_id` на `stocks`/`orders_v2` без плана; `item_id` drop только через migration `1786526400000`.
 - MP-колонки на `items` drop только через migration `1786526400000` (consolidation).
 - Обновление `marketplace_items` — по `mpItem.id`, не по одному `itemId` без identity маркетплейса.
 - Избегай `marketplaceItemId ?? 0`.

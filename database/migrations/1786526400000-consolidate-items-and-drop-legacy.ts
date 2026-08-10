@@ -252,17 +252,32 @@ export class ConsolidateItemsAndDropLegacy1786526400000 implements MigrationInte
     `);
 
     await queryRunner.query(`
-      UPDATE stocks keep_s
+      WITH duplicate_totals AS (
+        SELECT
+          d.keep_mp_id,
+          dup_s.warehouse_id,
+          DATE(dup_s.created_at) AS created_date,
+          SUM(dup_s.current_value) AS current_value,
+          SUM(dup_s.reserved) AS reserved,
+          SUM(dup_s.promised) AS promised
+        FROM marketplace_items_duplicates d
+        INNER JOIN stocks dup_s
+          ON dup_s.marketplace_item_id = d.duplicate_mp_id
+        GROUP BY
+          d.keep_mp_id,
+          dup_s.warehouse_id,
+          DATE(dup_s.created_at)
+      )
+      UPDATE stocks AS keep_s
       SET
-        current_value = keep_s.current_value + dup_s.current_value,
-        reserved = keep_s.reserved + dup_s.reserved,
-        promised = keep_s.promised + dup_s.promised,
+        current_value = keep_s.current_value + dt.current_value,
+        reserved = keep_s.reserved + dt.reserved,
+        promised = keep_s.promised + dt.promised,
         updated_at = now()
-      FROM marketplace_items_duplicates d
-      INNER JOIN stocks dup_s ON dup_s.marketplace_item_id = d.duplicate_mp_id
-      INNER JOIN stocks keep_s ON keep_s.marketplace_item_id = d.keep_mp_id
-        AND keep_s.warehouse_id = dup_s.warehouse_id
-        AND DATE(keep_s.created_at) = DATE(dup_s.created_at)
+      FROM duplicate_totals dt
+      WHERE keep_s.marketplace_item_id = dt.keep_mp_id
+        AND keep_s.warehouse_id = dt.warehouse_id
+        AND DATE(keep_s.created_at) = dt.created_date
     `);
 
     await queryRunner.query(`
