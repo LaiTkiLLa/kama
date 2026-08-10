@@ -24,19 +24,6 @@ export class InfoService {
 
   private logger: Logger = new Logger(InfoService.name);
 
-  async findOrCreateWarehouses(where: FindOptionsWhere<Warehouses>, queryRunner: QueryRunner) {
-    let findWarehouse = await queryRunner.manager.findOne(Warehouses, { where });
-    if (!findWarehouse) {
-      const createData = { title: where.title, marketplaceId: where.marketplaceId } as {
-        title: string;
-        marketplaceId: number;
-      };
-      const createWarehouse = queryRunner.manager.create(Warehouses, createData);
-      findWarehouse = await queryRunner.manager.save(Warehouses, createWarehouse);
-    }
-    return findWarehouse;
-  }
-
   async findMarketplace(where: FindOptionsWhere<Marketplaces>): Promise<Marketplaces> {
     const findMarketplace = await this.marketplacesRepository.findOne({
       where
