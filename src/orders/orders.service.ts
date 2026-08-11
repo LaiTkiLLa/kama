@@ -93,10 +93,10 @@ export class OrdersService {
         const ordersResult = await this.getOrders(getDynamicOrdersDto.days, 'WB', result);
         return await this.getOrdersV2(queryRunner, 'WB', ordersResult);
       } else if (getDynamicOrdersDto.marketplace === 'Yandex') {
-        const ordersResult = await this.getYandexOrders(getDynamicOrdersDto.days, result);
+        const ordersResult = await this.getOrders(getDynamicOrdersDto.days, 'Yandex', result);
         return await this.getOrdersV2(queryRunner, 'Yandex', ordersResult);
       } else if (getDynamicOrdersDto.marketplace === 'Yandex Tamov') {
-        const ordersResult = await this.getYandexOrders(getDynamicOrdersDto.days, result);
+        const ordersResult = await this.getOrders(getDynamicOrdersDto.days, 'Yandex Tamov', result);
         return await this.getOrdersV2(queryRunner, 'Yandex Tamov', ordersResult);
       }
     } catch (error) {
@@ -108,7 +108,11 @@ export class OrdersService {
     }
   }
 
-  async getOrders(days: number, marketplaceTitle: 'Озон' | 'Ozon Tamov' | 'WB', result: GetDynamicOrders[]) {
+  async getOrders(
+    days: number,
+    marketplaceTitle: 'Озон' | 'Ozon Tamov' | 'WB' | 'Yandex Tamov' | 'Yandex',
+    result: GetDynamicOrders[]
+  ) {
     const prevDate = this.daysAgo(days);
     const prevThirdDays = this.daysAgo(3);
     const prevNinetyDays = this.daysAgo(90);
