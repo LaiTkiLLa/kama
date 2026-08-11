@@ -56,7 +56,8 @@ Backend-сервис синхронизации товаров, остатков
 - [`AI_CONTEXT.md`](AI_CONTEXT.md) — оперативная память и принятые решения
 - [`PROJECT_CONTEXT.md`](PROJECT_CONTEXT.md) — краткий обзор
 - [`domain/items-and-marketplace-items.md`](domain/items-and-marketplace-items.md) — доменная модель и transition
-- [`roadmap/items-marketplace-items-migration.md`](roadmap/items-marketplace-items-migration.md) — статус миграции
+- [`roadmap/items-marketplace-items-migration.md`](roadmap/items-marketplace-items-migration.md) — статус миграции Items/MP
+- [`roadmap/google-sheets-api.md`](roadmap/google-sheets-api.md) — отдельный roadmap API для Google Sheets / GAS
 - [`ai/agent-guide.md`](ai/agent-guide.md) — workflow для AI Agent
 - [`.cursor/rules/architecture.mdc`](../.cursor/rules/architecture.mdc) — жёсткие правила агента
 
