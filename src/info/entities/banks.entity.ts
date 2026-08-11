@@ -7,6 +7,7 @@ import {
   UpdateDateColumn
 } from 'typeorm';
 import { Contaminants } from './contaminants.entity';
+import { Suppliers } from './suppliers.entity';
 
 @Entity({
   name: 'banks'
@@ -67,4 +68,7 @@ export class Banks {
 
   @OneToMany(() => Contaminants, contaminants => contaminants.bank)
   contaminants: Contaminants;
+
+  @OneToMany(() => Suppliers, supplier => supplier.bank)
+  suppliers: Suppliers[];
 }

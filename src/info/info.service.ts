@@ -13,6 +13,7 @@ import { GetWbOwnWarehouses, GetWbWarehouses } from './interfaces/wb-warehouses.
 import { OzonWarehouses } from './interfaces/ozon-warehouses.interface';
 import { Contaminants } from './entities/contaminants.entity';
 import { Suppliers } from './entities/suppliers.entity';
+import { UpdateSupplierDto } from './dto/update-supplier.dto';
 
 @Injectable()
 export class InfoService {
@@ -111,14 +112,77 @@ export class InfoService {
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     try {
-      const findSuppliers = await queryRunner.manager.find(Suppliers, {});
+      const findSuppliers = await queryRunner.manager.find(Suppliers, { relations: { bank: true } });
       return findSuppliers.map(supplier => ({
         id: supplier.id,
-        title: supplier.title
+        title: supplier.title,
+        contact: supplier.contact,
+        paymentTerms: supplier.paymentTerms,
+        typeOfMutualSettlements: supplier.typeOfMutualSettlements,
+        legalTitle: supplier.legalTitle,
+        legalAddress: supplier.legalAddress,
+        accRaschet: supplier.accRaschet,
+        reliabilityRating: supplier.reliabilityRating,
+        warehouseAddress: supplier.warehouseAddress,
+        responsibleEmployee: supplier.responsibleEmployee,
+        comment: supplier.comment,
+        creditLimit: supplier.creditLimit,
+        canBeAbleToStoreInWarehouse: supplier.canBeAbleToStoreInWarehouse,
+        numberOfStorageDays: supplier.numberOfStorageDays,
+        webSite: supplier.webSite,
+        rank: supplier.rank,
+        bank: supplier.bank
+          ? {
+              title: supplier.bank.title,
+              accBik: supplier.bank.accBik,
+              accKorschet: supplier.bank.accKorschet,
+              address: supplier.bank.address,
+              swift: supplier.bank.swift
+            }
+          : null
       }));
     } catch (error) {
       this.logger.error(error);
       this.logger.error('Не смог получить список поставщиков');
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  async updateSupplier(id: number, updateSupplierDto: UpdateSupplierDto) {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    try {
+      const findSuppliers = await queryRunner.manager.findOne(Suppliers, {
+        where: {
+          id
+        }
+      });
+      if (!findSuppliers) {
+        throw new NotFoundException(['Поставщик не найден']);
+      }
+      await queryRunner.manager.update(
+        Suppliers,
+        { id },
+        {
+          title: updateSupplierDto.title,
+          contact: updateSupplierDto.contact,
+          paymentTerms: updateSupplierDto.paymentTerms,
+          typeOfMutualSettlements: updateSupplierDto.typeOfMutualSettlements,
+          legalTitle: updateSupplierDto.legalTitle,
+          legalAddress: updateSupplierDto.legalAddress,
+          reliabilityRating: updateSupplierDto.reliabilityRating,
+          warehouseAddress: updateSupplierDto.warehouseAddress,
+          responsibleEmployee: updateSupplierDto.responsibleEmployee,
+          comment: updateSupplierDto.comment,
+          creditLimit: updateSupplierDto.creditLimit
+        }
+      );
+      return { id };
+    } catch (error) {
+      this.logger.error(error);
+      this.logger.error('Не смог изменить данные поставщика');
       throw error;
     } finally {
       await queryRunner.release();
