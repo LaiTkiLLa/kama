@@ -25,6 +25,12 @@ export class Items {
   @Column({ type: 'varchar', nullable: false, name: 'article_old' })
   articleOld: string;
 
+  @Column({ type: 'varchar', nullable: true })
+  title: string;
+
+  @Column({ type: 'varchar', nullable: true })
+  category: string;
+
   //Свое наименование категории
   @Column({ type: 'varchar', nullable: true, name: 'own_category' })
   ownCategory: string;

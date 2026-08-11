@@ -112,7 +112,7 @@ export class InfoService {
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     try {
-      const findSuppliers = await queryRunner.manager.find(Suppliers, {});
+      const findSuppliers = await queryRunner.manager.find(Suppliers, { relations: { bank: true } });
       return findSuppliers.map(supplier => ({
         id: supplier.id,
         title: supplier.title,
@@ -121,11 +121,25 @@ export class InfoService {
         typeOfMutualSettlements: supplier.typeOfMutualSettlements,
         legalTitle: supplier.legalTitle,
         legalAddress: supplier.legalAddress,
+        accRaschet: supplier.accRaschet,
         reliabilityRating: supplier.reliabilityRating,
         warehouseAddress: supplier.warehouseAddress,
         responsibleEmployee: supplier.responsibleEmployee,
         comment: supplier.comment,
-        creditLimit: supplier.creditLimit
+        creditLimit: supplier.creditLimit,
+        canBeAbleToStoreInWarehouse: supplier.canBeAbleToStoreInWarehouse,
+        numberOfStorageDays: supplier.numberOfStorageDays,
+        webSite: supplier.webSite,
+        rank: supplier.rank,
+        bank: supplier.bank
+          ? {
+              title: supplier.bank.title,
+              accBik: supplier.bank.accBik,
+              accKorschet: supplier.bank.accKorschet,
+              address: supplier.bank.address,
+              swift: supplier.bank.swift
+            }
+          : null
       }));
     } catch (error) {
       this.logger.error(error);

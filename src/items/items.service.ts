@@ -99,6 +99,8 @@ export class ItemsService {
           ownCategory: item.ownCategory,
           supplierTitle: item.itemsSuppliers.length ? item.itemsSuppliers[0].supplier.title : null,
           articleOld: item.articleOld,
+          title: item.title,
+          category: item.category,
           classification: item.classification,
           multiplicity: item.multiplicity,
           boxNumber: item.boxNumber,

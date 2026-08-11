@@ -2,11 +2,14 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  JoinColumn,
+  ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn
 } from 'typeorm';
 import { ItemsSuppliers } from '../../items/entities/items_suppliers.entity';
+import { Banks } from './banks.entity';
 
 @Entity({
   name: 'suppliers'
@@ -17,12 +20,14 @@ export class Suppliers {
   })
   id: number;
 
+  //Название поставщика
   @Column({
     type: 'varchar',
     nullable: false
   })
   title: string;
 
+  //Контакт c поставщиков
   @Column({
     type: 'varchar',
     nullable: true
@@ -45,14 +50,7 @@ export class Suppliers {
   })
   typeOfMutualSettlements: string;
 
-  //Тип расчета в белую или серую
-  @Column({
-    type: 'varchar',
-    nullable: true,
-    name: 'type_of_calculation'
-  })
-  typeOfCalculation: string;
-
+  //Юридическое название
   @Column({
     type: 'varchar',
     nullable: true,
@@ -60,12 +58,28 @@ export class Suppliers {
   })
   legalTitle: string;
 
+  //Юридический адрес
   @Column({
     type: 'varchar',
     nullable: true,
     name: 'legal_address'
   })
   legalAddress: string;
+
+  //Расчетный счет
+  @Column({
+    type: 'varchar',
+    nullable: true,
+    name: 'acc_raschet'
+  })
+  accRaschet: string;
+
+  @Column({
+    type: 'int',
+    nullable: true,
+    name: 'bank_id'
+  })
+  bankId: number;
 
   //Рейтинг надежности
   @Column({
@@ -75,6 +89,7 @@ export class Suppliers {
   })
   reliabilityRating: string;
 
+  //Адрес склада
   @Column({
     type: 'varchar',
     nullable: true,
@@ -82,6 +97,7 @@ export class Suppliers {
   })
   warehouseAddress: string;
 
+  //Ответственный сотрудник
   @Column({
     type: 'varchar',
     nullable: true,
@@ -89,18 +105,53 @@ export class Suppliers {
   })
   responsibleEmployee: string;
 
+  //Комментарий
   @Column({
     type: 'varchar',
     nullable: true
   })
   comment: string;
 
+  //Кредитный лимит
   @Column({
     type: 'varchar',
     nullable: true,
     name: 'credit_limit'
   })
   creditLimit: string;
+
+  //Можно ли хранить в складе
+  @Column({
+    type: 'boolean',
+    nullable: false,
+    default: false,
+    name: 'can_be_able_to_store_in_warehouse'
+  })
+  canBeAbleToStoreInWarehouse: boolean;
+
+  //Кол-во дней хранения на складе
+  @Column({
+    type: 'int',
+    nullable: false,
+    default: 0,
+    name: 'number_of_storage_days'
+  })
+  numberOfStorageDays: number;
+
+  //Сайт поставщика
+  @Column({
+    type: 'varchar',
+    nullable: true,
+    name: 'web_site'
+  })
+  webSite: string;
+
+  //Ранжирование для сортировки
+  @Column({
+    type: 'int',
+    nullable: true
+  })
+  rank: number;
 
   @CreateDateColumn({
     type: 'timestamp',
@@ -120,4 +171,10 @@ export class Suppliers {
 
   @OneToMany(() => ItemsSuppliers, itemsSuppliers => itemsSuppliers.supplier)
   itemsSuppliers: ItemsSuppliers[];
+
+  @ManyToOne(() => Banks, bank => bank.suppliers)
+  @JoinColumn({
+    name: 'bank_id'
+  })
+  bank: Banks;
 }
