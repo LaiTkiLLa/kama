@@ -19,6 +19,7 @@ import { ItemsSuppliers } from './entities/items_suppliers.entity';
 import { MarketplaceItems } from './entities/marketplace-items.entity';
 import { MarketplaceInfo } from './interfaces/get-items-directory-list.interface';
 import { Statuses } from 'src/info/entities/statuses.entity';
+import { GetErpItemsListDto } from './dto/get-erp-items-list.dto';
 
 @Injectable()
 export class ItemsService {
@@ -166,6 +167,49 @@ export class ItemsService {
     } catch (error) {
       this.logger.error(error);
       this.logger.error('Не смог получить справочник товаров');
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  async getItemsErpList(getErpItemsListDto: GetErpItemsListDto) {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    try {
+      const queryBuilder = queryRunner.manager
+        .createQueryBuilder(Items, 'items')
+        .leftJoinAndSelect(
+          'items.marketplaceItems',
+          'marketplaceItems',
+          `marketplaceItems.deletedAt IS NULL AND marketplaceItems.marketplaceId = (
+            SELECT m.id FROM marketplaces m WHERE m.title = :marketplaceTitle LIMIT 1
+          )`,
+          { marketplaceTitle: 'WB' }
+        )
+        .where('items.isArchive = :isArchive', { isArchive: false });
+      if (getErpItemsListDto.withTestArticles === false) {
+        queryBuilder.andWhere('items.createdForCalculation = :createdForCalculation', {
+          createdForCalculation: false
+        });
+      }
+      const findItems = await queryBuilder.orderBy('items.id', 'ASC').getMany();
+      return findItems.map(item => {
+        const wbListing = item.marketplaceItems[0];
+        return {
+          id: item.id,
+          article: item.article,
+          title: item.title,
+          category: item.category,
+          ownCategory: item.ownCategory,
+          image: wbListing?.imageUrl ?? '',
+          color: wbListing?.color ?? '',
+          barcode: wbListing?.barcode ?? ''
+        };
+      });
+    } catch (error) {
+      this.logger.error(error);
+      this.logger.error('Не смог получить ERP-список товаров');
       throw error;
     } finally {
       await queryRunner.release();

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, Param, Query } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Param, Patch, Query } from '@nestjs/common';
 import { InfoService } from './info.service';
 import { GetStatusesListDto } from './dto/get-statuses-list.dto';
 import { UpdateSupplierDto } from './dto/update-supplier.dto';
@@ -17,7 +17,7 @@ export class InfoController {
     return this.infoService.getSuppliersList();
   }
 
-  @Get('suppliers/:id')
+  @Patch('suppliers/:id')
   async updateSupplier(
     @Headers('api-key') apiKey: string,
     @Param('id') id: number,
