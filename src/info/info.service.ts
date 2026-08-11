@@ -14,6 +14,7 @@ import { OzonWarehouses } from './interfaces/ozon-warehouses.interface';
 import { Contaminants } from './entities/contaminants.entity';
 import { Suppliers } from './entities/suppliers.entity';
 import { UpdateSupplierDto } from './dto/update-supplier.dto';
+import { Banks } from './entities/banks.entity';
 
 @Injectable()
 export class InfoService {
@@ -127,6 +128,7 @@ export class InfoService {
         responsibleEmployee: supplier.responsibleEmployee,
         comment: supplier.comment,
         creditLimit: supplier.creditLimit,
+        contract: supplier.contract,
         canBeAbleToStoreInWarehouse: supplier.canBeAbleToStoreInWarehouse,
         numberOfStorageDays: supplier.numberOfStorageDays,
         webSite: supplier.webSite,
@@ -162,21 +164,37 @@ export class InfoService {
       if (!findSuppliers) {
         throw new NotFoundException(['Поставщик не найден']);
       }
+      if (updateSupplierDto.bank) {
+        const findBank = await queryRunner.manager.findOne(Banks, {
+          where: {
+            title: updateSupplierDto.bank
+          }
+        });
+        if (!findBank) {
+          throw new NotFoundException(['Банк не найден']);
+        }
+      }
       await queryRunner.manager.update(
         Suppliers,
         { id },
         {
           title: updateSupplierDto.title,
           contact: updateSupplierDto.contact,
+          contract: updateSupplierDto.contract,
           paymentTerms: updateSupplierDto.paymentTerms,
           typeOfMutualSettlements: updateSupplierDto.typeOfMutualSettlements,
           legalTitle: updateSupplierDto.legalTitle,
           legalAddress: updateSupplierDto.legalAddress,
+          accRaschet: updateSupplierDto.accRaschet,
           reliabilityRating: updateSupplierDto.reliabilityRating,
           warehouseAddress: updateSupplierDto.warehouseAddress,
           responsibleEmployee: updateSupplierDto.responsibleEmployee,
           comment: updateSupplierDto.comment,
-          creditLimit: updateSupplierDto.creditLimit
+          creditLimit: updateSupplierDto.creditLimit,
+          canBeAbleToStoreInWarehouse: updateSupplierDto.canBeAbleToStoreInWarehouse,
+          numberOfStorageDays: updateSupplierDto.numberOfStorageDays,
+          webSite: updateSupplierDto.webSite,
+          rank: updateSupplierDto.rank
         }
       );
       return { id };

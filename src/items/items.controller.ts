@@ -4,6 +4,7 @@ import { GetItemsStopListDto } from './dto/get-items-stop-list.dto';
 import { UpdateStopListItems } from './dto/update-status-stop-list.dto';
 import { UpdateArrayDirectoryItemsInfoDto } from './dto/update-directory-item-info.dto';
 import { GetDirectoryListDto } from './dto/get-directory-list.dto';
+import { GetErpItemsListDto } from './dto/get-erp-items-list.dto';
 
 @Controller('items')
 export class ItemsController {
@@ -44,5 +45,10 @@ export class ItemsController {
     @Body() updateStopListItems: UpdateStopListItems
   ) {
     return this.itemsService.updateItemsStopList(updateStopListItems);
+  }
+
+  @Get('erp/list')
+  async getItemsErpList(@Headers('api-key') apiKey: string, @Query() getErpItemsListDto: GetErpItemsListDto) {
+    return this.itemsService.getItemsErpList(getErpItemsListDto);
   }
 }

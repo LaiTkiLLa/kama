@@ -34,6 +34,13 @@ export class Suppliers {
   })
   contact: string;
 
+  //Договор c поставщиков
+  @Column({
+    type: 'varchar',
+    nullable: true
+  })
+  contract: string;
+
   //Условия оплат
   @Column({
     type: 'text',
