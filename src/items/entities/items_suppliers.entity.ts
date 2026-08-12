@@ -51,11 +51,11 @@ export class ItemsSuppliers {
   multiplicity: string;
 
   //Сборка груза
-  @Column({ type: 'int', nullable: false, default: 5 })
+  @Column({ type: 'int', nullable: true })
   assembling: number;
 
   //Производство товара
-  @Column({ type: 'int', nullable: false, default: 10 })
+  @Column({ type: 'int', nullable: true })
   production: number;
 
   @ManyToOne(() => Items, item => item.itemsSuppliers, {
