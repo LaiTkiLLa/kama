@@ -73,12 +73,7 @@ export class ItemsService {
         itemId: createItem.id,
         supplierId: findSupplier.id,
         multiplicity: 'тестовая кратность',
-        boxNumber: 'тестовый номер короба',
-        costInYuan: 0,
-        costInYuanWhite: 0,
-        assembling: 0,
-        production: 0,
-        supplierMinimumOrder: 100
+        boxNumber: 'тестовый номер короба'
       });
       await queryRunner.commitTransaction();
       return { id: createItem.id };
@@ -258,6 +253,7 @@ export class ItemsService {
         return {
           itemId: itemsSupplier.itemId,
           supplierId: itemsSupplier.supplierId,
+          itemSupplierId: itemsSupplier.id,
           supplierMinimumOrder: itemsSupplier.supplierMinimumOrder,
           article: itemsSupplier.item.article,
           title: itemsSupplier.item.title,
