@@ -46,7 +46,9 @@ export class ItemsService {
         Items,
         { id: createItem.id },
         {
-          article: `тестовый артикул ${createItem.id}`
+          article: `тестовый артикул ${createItem.id}`,
+          category: 'тестовая категория',
+          title: `тестовое название ${createItem.id}`
         }
       );
       const createMarketplaceItem = queryRunner.manager.create(MarketplaceItems, {
@@ -59,6 +61,25 @@ export class ItemsService {
         marketplaceIdentifier: `тестовый идентификатор ${createItem.id}`
       });
       await queryRunner.manager.save(MarketplaceItems, createMarketplaceItem);
+      const findSupplier = await queryRunner.manager.findOne(Suppliers, {
+        where: {
+          title: 'Системный поставщик'
+        }
+      });
+      if (!findSupplier) {
+        throw new NotFoundException('Поставщик не найден');
+      }
+      await queryRunner.manager.insert(ItemsSuppliers, {
+        itemId: createItem.id,
+        supplierId: findSupplier.id,
+        multiplicity: 'тестовая кратность',
+        boxNumber: 'тестовый номер короба',
+        costInYuan: 0,
+        costInYuanWhite: 0,
+        assembling: 0,
+        production: 0,
+        supplierMinimumOrder: 100
+      });
       await queryRunner.commitTransaction();
       return { id: createItem.id };
     } catch (error) {
@@ -103,12 +124,12 @@ export class ItemsService {
           title: item.title,
           category: item.category,
           classification: item.classification,
-          multiplicity: item.multiplicity,
-          boxNumber: item.boxNumber,
+          multiplicity: item.itemsSuppliers.length ? item.itemsSuppliers[0].multiplicity : null,
+          boxNumber: item.itemsSuppliers.length ? item.itemsSuppliers[0].boxNumber : null,
           dimensionsFact: item.dimensionsFact,
           volume: item.volume,
           wbCreatedAt: item.wbCreatedAt,
-          costInYuan: item.costInYuan,
+          costInYuan: item.itemsSuppliers.length ? item.itemsSuppliers[0].costInYuan : null,
           costInRub: item.costInRub,
           replenishmentPeriod: item.replenishmentPeriod,
           remainingBalance: item.remainingBalance,
@@ -120,19 +141,21 @@ export class ItemsService {
           density: item.density,
           tariffWeight: item.tariffWeight,
           createdForCalculation: item.createdForCalculation,
-          costInYuanWhite: item.costInYuanWhite,
+          costInYuanWhite: item.itemsSuppliers.length ? item.itemsSuppliers[0].costInYuanWhite : null,
           codeTNVED: item.codeTNVED,
           dimensionsMasterBox: item.dimensionsMasterBox,
           volumeMasterBox: item.volumeMasterBox,
           consolidation: item.consolidation,
           payment: item.payment,
-          assembling: item.assembling,
+          assembling: item.itemsSuppliers.length ? item.itemsSuppliers[0].assembling : null,
           fullfillmentAcceptance: item.fullfillmentAcceptance,
           marketplaceAcceptance: item.marketplaceAcceptance,
-          production: item.production,
+          production: item.itemsSuppliers.length ? item.itemsSuppliers[0].production : null,
           buffer: item.buffer,
           daysDeliveryToRussia: item.daysDeliveryToRussia,
-          supplierMinimumOrder: item.supplierMinimumOrder,
+          supplierMinimumOrder: item.itemsSuppliers.length
+            ? item.itemsSuppliers[0].supplierMinimumOrder
+            : null,
           virality: item.virality,
           costCalculationType: item.costCalculationType,
           calculationType: item.calculationType,
@@ -344,14 +367,7 @@ export class ItemsService {
             virality: item.virality,
             costCalculationType: item.costCalculationType,
             calculationType: item.calculationType,
-            downloadCalculationMethod: item.downloadCalculationMethod,
-            multiplicity: item.multiplicity,
-            boxNumber: item.boxNumber,
-            costInYuan: item.costInYuan,
-            costInYuanWhite: item.costInYuanWhite,
-            assembling: item.assembling,
-            production: item.production,
-            supplierMinimumOrder: item.supplierMinimumOrder
+            downloadCalculationMethod: item.downloadCalculationMethod
           }
         );
         for (const mpItem of findItem.marketplaceItems) {

@@ -43,10 +43,6 @@ export class Items {
   @Column({ type: 'int', nullable: false, default: 10 })
   payment: number;
 
-  //Сборка груза
-  @Column({ type: 'int', nullable: false, default: 5 })
-  assembling: number;
-
   //Приемка груза фулфилмент
   @Column({ type: 'int', nullable: false, default: 5, name: 'fullfillment_acceptance' })
   fullfillmentAcceptance: number;
@@ -54,10 +50,6 @@ export class Items {
   //Приемка груза маркетплейс
   @Column({ type: 'int', nullable: false, default: 10, name: 'marketplace_acceptance' })
   marketplaceAcceptance: number;
-
-  //Производство товара
-  @Column({ type: 'int', nullable: false, default: 10 })
-  production: number;
 
   //Буфер
   @Column({ type: 'int', nullable: false, default: 10 })
@@ -70,14 +62,6 @@ export class Items {
   //Классификация товара
   @Column({ type: 'varchar', nullable: true })
   classification: string;
-
-  //Кратность товара
-  @Column({ type: 'varchar', nullable: true })
-  multiplicity: string;
-
-  //Номер короба
-  @Column({ type: 'varchar', nullable: true, name: 'box_number' })
-  boxNumber: string;
 
   //Размеры факт
   @Column({ type: 'varchar', nullable: true, name: 'dimensions_fact' })
@@ -102,14 +86,6 @@ export class Items {
     name: 'is_archive'
   })
   isArchive: boolean;
-
-  //Себестоимость в юанях
-  @Column({ type: 'float', name: 'cost_in_yuan', nullable: true })
-  costInYuan: number;
-
-  //Себестоимость в юанях белая
-  @Column({ type: 'float', name: 'cost_in_yuan_white', nullable: true })
-  costInYuanWhite: number;
 
   //Себестоимость в рублях
   @Column({ type: 'float', name: 'cost_in_rub', nullable: true })
@@ -162,14 +138,6 @@ export class Items {
   //Виральность товара
   @Column({ type: 'varchar', nullable: true })
   virality: string;
-
-  //Минимальный заказ у поставщика
-  @Column({
-    type: 'int',
-    name: 'supplier_minimum_order',
-    nullable: true
-  })
-  supplierMinimumOrder: number;
 
   @Column({
     type: 'boolean',
