@@ -51,4 +51,12 @@ export class ItemsController {
   async getItemsErpList(@Headers('api-key') apiKey: string, @Query() getErpItemsListDto: GetErpItemsListDto) {
     return this.itemsService.getItemsErpList(getErpItemsListDto);
   }
+
+  @Get('erp/suppliers-items/list')
+  async getItemsSuppliersList(
+    @Headers('api-key') apiKey: string,
+    @Query() getErpItemsListDto: GetErpItemsListDto
+  ) {
+    return this.itemsService.getSuppliersItemsErpList(getErpItemsListDto);
+  }
 }

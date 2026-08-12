@@ -45,7 +45,7 @@ Sheets **не должна** знать схему БД. API отдаёт ста
 | Items | `items` | marketplace-independent; `isArchive` = product hide; `title` / `category` (product-level, backfill WB — `1789209600000`) |
 | MarketplaceItems | `marketplace_items` | listing, prices, `send_status_id`, `deleted_at` |
 | Suppliers | `suppliers` (+ `banks` via `bank_id`) | справочник; поле `contract` — `1789212000000` |
-| Supplier ↔ Item | `items_suppliers` | M2M; unique `(item_id, supplier_id)`; только FK ids |
+| Supplier ↔ Item | `items_suppliers` | M2M; unique `(item_id, supplier_id)`; **Phase 1:** supplier-fields дублируются на связи (миграция `1789300000000`); read/write directory — пока `items` |
 | Counterparties | `contaminants` (+ `banks`) | в docs/UI — «контрагенты»; связь с suppliers **нет** |
 | Orders | `orders_v2` | source of truth; legacy `orders` удалён |
 | Stocks | `stocks` | дневные снимки; FK `marketplace_item_id`, `warehouse_id`, `marketplace_id` |
@@ -61,6 +61,7 @@ Sheets **не должна** знать схему БД. API отдаёт ста
 | GET | `/api/info/contaminants` | info | список контрагентов + bank |
 | GET | `/api/items/directory/list` | items | справочник товаров + `marketplacesInfo[]` |
 | GET | `/api/items/erp/list` | items | ERP/Sheets: items + WB image/color/barcode |
+| GET | `/api/items/erp/suppliers-items/list` | items | ERP/Sheets: связи item↔supplier + supplier-fields с `items_suppliers` |
 | PATCH | `/api/items/directory/info` | items | обновление directory (в т.ч. один supplier по title) |
 | GET | `/api/items/v2/stop-list` | items | stop-list (операционный) |
 | PATCH | `/api/items/stop-list` | items | обновление send status |
@@ -88,12 +89,13 @@ Sheets **не должна** знать схему БД. API отдаёт ста
 | Domain | Existing endpoint | Source tables | Можно использовать | Нужно изменить |
 |--------|-------------------|---------------|--------------------|----------------|
 | Items | `GET /api/items/directory/list` | `items`, `marketplace_items`, `marketplaces`, `items_suppliers`, `suppliers` | Частично: полный каталог + mp nested | Нет pagination; один `supplierTitle`; нет `updatedAt`/incremental; нет archived; `send_status` не отдаётся |
-| Items | `GET /api/items/erp/list` | `items` + WB `marketplace_items` | **Да** для ERP/Sheets (~400 items, pagination не нужна) | Пока без incremental; image/color/barcode только с WB |
-| Items | `GET /api/items/v2/stop-list` | `marketplace_items`, `items`, stocks/orders aggregates | Нет как общий каталог | Операционный stop-list, не directory export |
-| Items | `PATCH /api/items/directory/info` | `items`, `marketplace_items`, `items_suppliers` | Write-back из Sheets (уже есть) | Write трактует supplier как 1:1, не M2M |
+| Items | `GET /api/items/erp/list` | `items` + WB `marketplace_items` | **Да** для ERP/Sheets (~400 items) | Пока без incremental; image/color/barcode только с WB |
+| Items | `GET /api/items/erp/suppliers-items/list` | `items_suppliers`, `items`, `suppliers` | **Да** для таблицы item↔supplier | Только строки с существующей связью; ~50 items без link — данных нет в этом endpoint |
+| Items | `GET /api/items/v2/stop-list` | `marketplace_items`, `items`, stocks/orders aggregates | Нет как общий каталог | Операционный stop-list |
+| Items | `PATCH /api/items/directory/info` | `items`, `marketplace_items`, `items_suppliers` | Write-back из Sheets | Supplier-fields пишутся на **`items`** (legacy); link — только `supplierId` на `items_suppliers` |
 | Suppliers | `GET /api/info/suppliers` | `suppliers`, `banks` | Да для полного справочника | Нет audit timestamps в API |
 | Suppliers | `PATCH /api/info/suppliers/:id` | `suppliers` | Да (partial update) | `bank` → `bankId` write отложен; GAS должен слать PATCH |
-| Supplier↔Item | — | `items_suppliers` | **Нет endpoint** | Нужен read API |
+| Supplier↔Item | `GET /api/items/erp/suppliers-items/list` | `items_suppliers`, `items`, `suppliers` | **Да** для ERP/Sheets | Dual storage: directory/PATCH ещё на `items`; sync items→link — только через миграцию/backfill |
 | Counterparties | `GET /api/info/contaminants` | `contaminants`, `banks` | Да для полного списка | Не фильтрует `deleted_at`; NPE risk если `bank` null; нет incremental |
 | Orders | `GET /api/orders/dynamic` | `orders_v2` + stocks via service | Нет для «накопления заказов» — это analytics | Нужен raw/list export |
 | Stocks | `GET /api/stocks/v2/current` | `marketplace_items`, `stocks`, `warehouses`, suppliers | Частично: snapshot «сегодня» по MP | Агрегат без warehouse rows; нет history API (v1 by-date off) |
@@ -192,33 +194,25 @@ PATCH /api/info/suppliers/:id
 
 ### Supplier ↔ Item
 
-**Источник:** `items_suppliers` (FACT). Поля связи: `id`, `itemId`, `supplierId`. Дополнительных атрибутов на связи **нет**.
+**Источник:** `items_suppliers` + join `items`, `suppliers`.
 
-**Существующего list endpoint нет.** Directory и PATCH directory используют связь, но:
+**Phase 1 (FACT, 2026-08-12):** supplier-specific поля на связи:
+`supplierMinimumOrder`, `boxNumber`, `costInYuan`, `costInYuanWhite`, `multiplicity`, `assembling`, `production`.
 
-- read: только первый supplier title;
-- write: обновляет все rows item → один `supplierId` (фактически 1:1 UX при M2M схеме).
+Миграция `1789300000000`: ADD колонки + backfill из `items` для существующих связей. Колонки на `items` **не удалены**.
 
-```text
-GET /api/sheets/item-suppliers
-  (или /api/info/item-suppliers)
+**Dual storage (DECISION, временно):**
+- `GET /api/items/directory/list`, `PATCH /api/items/directory/info` — read/write supplier-fields с **`items`**
+- `GET /api/items/erp/suppliers-items/list` — read с **`items_suppliers`**
+- ~50 items без `items_suppliers` — данные только на `items`, в ERP suppliers-items list не попадают
 
-Назначение: плоская таблица связей для Sheets.
+**GET `/api/items/erp/suppliers-items/list` (FACT):**
 
-Источник: items_suppliers (+ optional join article / supplier.title для UX).
+Response: `itemId`, `supplierId`, `article`, `title`, `category`, `supplierTitle`, `supplierMinimumOrder`, `boxNumber`, `costInYuan`, `costInYuanWhite`, `multiplicity`, `assembling`, `production`.
 
-Фильтры: itemIds?, supplierIds?, updatedSince? (на join tables — timestamps на связи нет!).
+Filter: `isArchive = false`; optional `withTestArticles=false`.
 
-Основные поля: relationId, itemId, article?, supplierId, supplierTitle?
-
-Пагинация: да, если связей много.
-
-Сортировка: id ASC.
-
-Особенности: на связи нет created_at/updated_at → incremental только full reload
-  или по ids (NEEDS DECISION: добавлять audit columns позже — отдельная миграция,
-  не делать без подтверждения).
-```
+**Phase 2 (отложено):** drop колонок с `items`; переключить directory/PATCH на `items_suppliers`; backfill/create links для orphan items.
 
 ### Counterparties
 
@@ -386,9 +380,10 @@ GET /api/sheets/stocks
 - [x] Suppliers: поле `contract`; PATCH DTO + `@IsOptional` — FACT; миграция `1789212000000`.
 - [x] Suppliers: HTTP method `PATCH /api/info/suppliers/:id`.
 - [x] Items ERP list: `GET /api/items/erp/list` (WB image/color/barcode).
+- [x] Supplier↔Item Phase 1: колонки + backfill `1789300000000`; ERP read `GET /api/items/erp/suppliers-items/list`.
+- [ ] Supplier↔Item Phase 2: drop columns on `items`; directory/PATCH → `items_suppliers`; orphan ~50 items.
 - [ ] Suppliers: запись `bankId` из `bank` title (сейчас только validate).
 - [ ] Counterparties: filter `deleted_at`, null-safe bank.
-- [ ] Создать read API `item-suppliers` (без новой entity).
 - [ ] Создать paginated orders list (raw `orders_v2`), не ломая `/orders/dynamic`.
 - [ ] Создать stocks export (date + marketplace; grain — по decision).
 - [ ] Единый api-key guard на Sheets routes.
@@ -407,18 +402,17 @@ GET /api/sheets/stocks
 - [x] Создание `docs/roadmap/google-sheets-api.md`.
 - [x] Suppliers schema + GET/PATCH API (без bankId write).
 - [x] Items `title`/`category` + ERP list endpoint.
+- [x] Supplier↔Item Phase 1 (schema + backfill + ERP read endpoint).
 
 ## BLOCKERS
 
-- Нет подтверждённого списка полей, которые Sheets реально должны показывать (кроме того, что уже в directory/info APIs) — **NEEDS DECISION** с владельцем процесса.
-- Нет доступа к коду GAS в этом репозитории — какие endpoints уже используются: **NEEDS VERIFICATION**.
-- Объёмы prod таблиц не измерены в этом исследовании — **NEEDS VERIFICATION**.
-- Несогласованность M2M `items_suppliers` vs 1-supplier UX в directory PATCH.
+- Dual storage items vs items_suppliers до Phase 2 — directory/PATCH и ERP suppliers-items могут расходиться после правок только на `items`.
+- ~50 items без `items_suppliers` — не в ERP suppliers-items list; данные только на `items`.
 - Transition M6 параллельно: нельзя ломать `marketplace_item_id` / dual archive semantics.
 
 ## NEXT STEP
 
-**Deploy to prod:** миграции `1789209600000` (уже в истории) + `1789212000000` (`contract`); закоммитить untracked `get-erp-items-list.dto.ts`. После выкладки — GAS на `GET /api/items/erp/list` и `PATCH /api/info/suppliers/:id`. Следующая фича: `GET item-suppliers` или `bankId` write.
+**Deploy:** миграция `1789300000000` (backfill на `items_suppliers`, колонки на `items` остаются). GAS: `GET /api/items/erp/suppliers-items/list` для таблицы связей. Phase 2 — после закрытия ~50 orphan items.
 
 ---
 
@@ -428,6 +422,7 @@ GET /api/sheets/stocks
 |-----|-----|
 | `InfoService.getSuppliersList` / `updateSupplier` | ✔ read + partial PATCH |
 | `ItemsService.getItemsErpList` | ✔ ERP/Sheets items + WB listing fields |
+| `ItemsService.getSuppliersItemsErpList` | ✔ ERP/Sheets item↔supplier (read from `items_suppliers`) |
 | `InfoService.getContaminantsList` | Harden + soft-delete filter |
 | `ItemsService.getItemsDirectoryList` | Эталон полей item + `marketplacesInfo`; либо обёртка Sheets |
 | `StocksService.getStocks` / `getCurrentStocksV2` | Логика join mp+item+stocks+suppliers; grain другой |
@@ -457,7 +452,8 @@ GET /api/sheets/stocks
 | Большие таблицы orders/stocks | Full dump убьёт API и Sheets quotas |
 | Нет pagination на directory | Уже full scan + joins |
 | N+1 / тяжёлые JOIN | directory уже грузит relations; stocks current — all mp items |
-| Дублирование | dynamic orders ≠ raw; directory supplier ≠ full M2M |
+| Dual storage items / items_suppliers | Directory пишет `items`, ERP suppliers-items читает `items_suppliers` — рассинхрон до Phase 2 |
+| ~50 orphan items | Нет строки в `items_suppliers` — не попадают в ERP suppliers-items list |
 | Hardcoded excludeWarehouses | В stocks/stop-list; копировать вслепую опасно |
 | Contaminants.bank null | Runtime error |
 | Неполная api-key проверка | Security |
@@ -483,4 +479,5 @@ GET /api/sheets/stocks
 
 | Дата | Итог |
 |------|------|
-| 2026-08-11 | Suppliers schema + GET/PATCH; contract migration; ERP items list (`/api/items/erp/list`); docs updated for prod |
+| 2026-08-12 | Supplier↔Item Phase 1: migration backfill `1789300000000`; ERP `GET /api/items/erp/suppliers-items/list`; directory/PATCH остаются на `items` |
+| 2026-08-11 | Suppliers schema + GET/PATCH; ERP items list; docs updated for prod |
