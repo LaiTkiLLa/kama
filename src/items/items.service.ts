@@ -216,6 +216,47 @@ export class ItemsService {
     }
   }
 
+  async getSuppliersItemsErpList(getErpItemsListDto: GetErpItemsListDto) {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    try {
+      const queryBuilder = queryRunner.manager
+        .createQueryBuilder(ItemsSuppliers, 'itemsSuppliers')
+        .leftJoinAndSelect('itemsSuppliers.item', 'item')
+        .leftJoinAndSelect('itemsSuppliers.supplier', 'supplier')
+        .where('item.isArchive = :isArchive', { isArchive: false });
+      if (getErpItemsListDto.withTestArticles === false) {
+        queryBuilder.andWhere('item.createdForCalculation = :createdForCalculation', {
+          createdForCalculation: false
+        });
+      }
+      const findItemsSuppliers = await queryBuilder.orderBy('item.id', 'ASC').getMany();
+      return findItemsSuppliers.map(itemsSupplier => {
+        return {
+          itemId: itemsSupplier.itemId,
+          supplierId: itemsSupplier.supplierId,
+          supplierMinimumOrder: itemsSupplier.supplierMinimumOrder,
+          article: itemsSupplier.item.article,
+          title: itemsSupplier.item.title,
+          category: itemsSupplier.item.category,
+          supplierTitle: itemsSupplier.supplier.title,
+          boxNumber: itemsSupplier.boxNumber,
+          costInYuan: itemsSupplier.costInYuan,
+          costInYuanWhite: itemsSupplier.costInYuanWhite,
+          multiplicity: itemsSupplier.multiplicity,
+          assembling: itemsSupplier.assembling,
+          production: itemsSupplier.production
+        };
+      });
+    } catch (error) {
+      this.logger.error(error);
+      this.logger.error('Не смог получить ERP-список товаров-поставщиков');
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
   async updateArrayDirectoryItemsInfoV2(updateArrayDirectoryItemsInfoDto: UpdateArrayDirectoryItemsInfoDto) {
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
@@ -249,12 +290,28 @@ export class ItemsService {
             await queryRunner.manager.update(
               ItemsSuppliers,
               { itemId: findItem.id },
-              { supplierId: findSupplier.id }
+              {
+                supplierId: findSupplier.id,
+                multiplicity: item.multiplicity,
+                boxNumber: item.boxNumber,
+                costInYuan: item.costInYuan,
+                costInYuanWhite: item.costInYuanWhite,
+                assembling: item.assembling,
+                production: item.production,
+                supplierMinimumOrder: item.supplierMinimumOrder
+              }
             );
           } else {
             await queryRunner.manager.insert(ItemsSuppliers, {
               supplierId: findSupplier.id,
-              itemId: findItem.id
+              itemId: findItem.id,
+              multiplicity: item.multiplicity,
+              boxNumber: item.boxNumber,
+              costInYuan: item.costInYuan,
+              costInYuanWhite: item.costInYuanWhite,
+              assembling: item.assembling,
+              production: item.production,
+              supplierMinimumOrder: item.supplierMinimumOrder
             });
           }
         }
@@ -264,12 +321,9 @@ export class ItemsService {
           {
             ownCategory: item.ownCategory,
             classification: item.classification,
-            multiplicity: item.multiplicity,
-            boxNumber: item.boxNumber,
             dimensionsFact: item.dimensionsFact,
             volume: item.volume,
             articleOld: item.articleOld,
-            costInYuan: item.costInYuan,
             costInRub: item.costInRub,
             replenishmentPeriod: item.replenishmentPeriod,
             remainingBalance: item.remainingBalance,
@@ -279,22 +333,25 @@ export class ItemsService {
             transportRateUsd: item.transportRateUsd,
             dutyPercentage: item.dutyPercentage,
             tariffWeight: item.tariffWeight,
-            costInYuanWhite: item.costInYuanWhite,
             codeTNVED: item.codeTNVED,
             dimensionsMasterBox: item.dimensionsMasterBox,
             consolidation: item.consolidation,
             payment: item.payment,
-            assembling: item.assembling,
             fullfillmentAcceptance: item.fullfillmentAcceptance,
             marketplaceAcceptance: item.marketplaceAcceptance,
-            production: item.production,
             buffer: item.buffer,
             daysDeliveryToRussia: item.daysDeliveryToRussia,
-            supplierMinimumOrder: item.supplierMinimumOrder,
             virality: item.virality,
             costCalculationType: item.costCalculationType,
             calculationType: item.calculationType,
-            downloadCalculationMethod: item.downloadCalculationMethod
+            downloadCalculationMethod: item.downloadCalculationMethod,
+            multiplicity: item.multiplicity,
+            boxNumber: item.boxNumber,
+            costInYuan: item.costInYuan,
+            costInYuanWhite: item.costInYuanWhite,
+            assembling: item.assembling,
+            production: item.production,
+            supplierMinimumOrder: item.supplierMinimumOrder
           }
         );
         for (const mpItem of findItem.marketplaceItems) {
