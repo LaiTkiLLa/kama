@@ -2,6 +2,8 @@ import { Controller, ForbiddenException, Get, Headers, Query } from '@nestjs/com
 import { StocksService } from './stocks.service';
 import { GetCurrentStocksDto } from './dto/get-current-stocks.dto';
 import { GetCurrentStocks } from './interfaces/get-current-stocks.interface';
+import { GetStocksByWarehousesDto } from './dto/get-stocks-by-warehouses.dto';
+import { GetStocksByWarehouses } from './interfaces/get-stocks-by-warehouses.interface';
 
 @Controller('stocks')
 export class StocksController {
@@ -22,7 +24,7 @@ export class StocksController {
   async getStocksByWarehouse(
     @Headers('api-key') apiKey: string,
     @Query() getStocksByWarehouseDto: GetStocksByWarehousesDto
-  ): Promise<GetStocksByWarehouse[]> {
+  ): Promise<GetStocksByWarehouses[]> {
     if (!apiKey || apiKey !== process.env.apiKey) {
       throw new ForbiddenException('Отсутствует токен');
     }
