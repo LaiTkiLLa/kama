@@ -17,6 +17,11 @@ export class InfoController {
     return this.infoService.getSuppliersList();
   }
 
+  @Get('warehouses')
+  async getWarehousesList(@Headers('api-key') apiKey: string) {
+    return this.infoService.getWarehousesList();
+  }
+
   @Patch('suppliers/:id')
   async updateSupplier(
     @Headers('api-key') apiKey: string,

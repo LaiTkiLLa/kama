@@ -152,6 +152,35 @@ export class InfoService {
     }
   }
 
+  async getWarehousesList() {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    try {
+      const findWarehouses = await queryRunner.manager
+        .createQueryBuilder(Warehouses, 'warehouses')
+        .leftJoinAndSelect('warehouses.marketplace', 'marketplace')
+        .getMany();
+      if (!findWarehouses.length) {
+        return [];
+      }
+      return findWarehouses.map(warehouse => ({
+        id: warehouse.id,
+        title: warehouse.title,
+        type: warehouse.type,
+        marketplace: {
+          id: warehouse.marketplace.id,
+          title: warehouse.marketplace.title
+        }
+      }));
+    } catch (error) {
+      this.logger.error(error);
+      this.logger.error('Не смог получить список поставщиков');
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
   async updateSupplier(id: number, updateSupplierDto: UpdateSupplierDto) {
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
