@@ -51,6 +51,6 @@ export class Marketplaces {
   @OneToMany(() => OrdersV2, orders => orders.marketplace)
   orders: OrdersV2[];
 
-  @OneToMany(() => Warehouses, warehouses => warehouses.marketplace)
+  @OneToMany(() => Warehouses, warehouse => warehouse.marketplace)
   warehouses: Warehouses[];
 }
