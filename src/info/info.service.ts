@@ -159,6 +159,7 @@ export class InfoService {
       const findWarehouses = await queryRunner.manager
         .createQueryBuilder(Warehouses, 'warehouses')
         .leftJoinAndSelect('warehouses.marketplace', 'marketplace')
+        .where('warehouses.marketplaceId IS NOT NULL')
         .getMany();
       if (!findWarehouses.length) {
         return [];
