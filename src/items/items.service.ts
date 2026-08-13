@@ -37,6 +37,8 @@ export class ItemsService {
     await queryRunner.startTransaction();
     try {
       const findWbMp = await this.infoService.findMarketplace({ title: 'WB' });
+      const findOzonMp = await this.infoService.findMarketplace({ title: 'Ozon' });
+      const findYandexMp = await this.infoService.findMarketplace({ title: 'Yandex' });
       const createItem = queryRunner.manager.create(Items, {
         createdForCalculation: true,
         article: 'тестовый артикул'
@@ -51,16 +53,36 @@ export class ItemsService {
           title: `тестовое название ${createItem.id}`
         }
       );
-      const createMarketplaceItem = queryRunner.manager.create(MarketplaceItems, {
+      const createMarketplaceItemWb = queryRunner.manager.create(MarketplaceItems, {
         itemId: createItem.id,
         marketplaceId: findWbMp.id,
         category: 'тестовая категория',
         title: `тестовое название ${createItem.id}`,
-        barcode: `тестовый баркод ${createItem.id}`,
-        sku: `тестовый ску ${createItem.id}`,
-        marketplaceIdentifier: `тестовый идентификатор ${createItem.id}`
+        barcode: `тестовый баркод ${createItem.id} ${findWbMp.id}`,
+        sku: `тестовый ску ${createItem.id} ${findWbMp.id}`,
+        marketplaceIdentifier: `тестовый идентификатор ${createItem.id} ${findWbMp.id}`
       });
-      await queryRunner.manager.save(MarketplaceItems, createMarketplaceItem);
+      await queryRunner.manager.save(MarketplaceItems, createMarketplaceItemWb);
+      const createMarketplaceItemOzon = queryRunner.manager.create(MarketplaceItems, {
+        itemId: createItem.id,
+        marketplaceId: findOzonMp.id,
+        category: 'тестовая категория',
+        title: `тестовое название ${createItem.id}`,
+        barcode: `тестовый баркод ${createItem.id} ${findOzonMp.id}`,
+        sku: `тестовый ску ${createItem.id} ${findOzonMp.id}`,
+        marketplaceIdentifier: `тестовый идентификатор ${createItem.id} ${findOzonMp.id}`
+      });
+      await queryRunner.manager.save(MarketplaceItems, createMarketplaceItemOzon);
+      const createMarketplaceItemYandex = queryRunner.manager.create(MarketplaceItems, {
+        itemId: createItem.id,
+        marketplaceId: findYandexMp.id,
+        category: 'тестовая категория',
+        title: `тестовое название ${createItem.id}`,
+        barcode: `тестовый баркод ${createItem.id} ${findYandexMp.id}`,
+        sku: `тестовый ску ${createItem.id} ${findYandexMp.id}`,
+        marketplaceIdentifier: `тестовый идентификатор ${createItem.id} ${findYandexMp.id}`
+      });
+      await queryRunner.manager.save(MarketplaceItems, createMarketplaceItemYandex);
       const findSupplier = await queryRunner.manager.findOne(Suppliers, {
         where: {
           title: 'Системный поставщик'
