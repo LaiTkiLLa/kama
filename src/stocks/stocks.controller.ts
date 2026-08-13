@@ -17,4 +17,15 @@ export class StocksController {
     }
     return this.stocksService.getCurrentStocksV2(getCurrentStocksDto);
   }
+
+  @Get('/by-warehouses')
+  async getStocksByWarehouse(
+    @Headers('api-key') apiKey: string,
+    @Query() getStocksByWarehouseDto: GetStocksByWarehousesDto
+  ): Promise<GetStocksByWarehouse[]> {
+    if (!apiKey || apiKey !== process.env.apiKey) {
+      throw new ForbiddenException('Отсутствует токен');
+    }
+    return this.stocksService.getStocksByWarehouse(getStocksByWarehouseDto);
+  }
 }

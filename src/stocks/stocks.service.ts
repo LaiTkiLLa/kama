@@ -14,6 +14,8 @@ import { GetYandexStocks, ItemTypes } from './interfaces/yandex-stocks.interface
 import { Warehouses } from '../info/entities/warehouses.entity';
 import { Marketplaces } from '../info/entities/marketplaces.entity';
 import { MarketplaceItems } from '../items/entities/marketplace-items.entity';
+import { GetStocksByWarehousesDto } from './dto/get-stocks-by-warehouses.dto';
+import { GetStocksByWarehouses } from './interfaces/get-stocks-by-warehouses.interface';
 
 @Injectable()
 export class StocksService {
@@ -95,7 +97,8 @@ export class StocksService {
         quantityFull: stocksResult.quantityFull,
         sku: mpItem.sku,
         wbOwnWarehouses: stocksResult.wbOwnWarehouses,
-        mpItem: mpItem.id
+        mpItem: mpItem.id,
+        title: mpItem.title
       };
     });
   }
@@ -111,6 +114,57 @@ export class StocksService {
       throw error;
     } finally {
       await queryRunner.release();
+    }
+  }
+
+  async getStocksByWarehouse(
+    getStocksByWarehouseDto: GetStocksByWarehousesDto
+  ): Promise<GetStocksByWarehouses[]> {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    try {
+      const findStocksByWarehouses = await queryRunner.manager
+        .createQueryBuilder(MarketplaceItems, 'mpItems')
+        .leftJoinAndSelect('mpItems.marketplace', 'marketplace')
+        .leftJoinAndSelect('mpItems.item', 'item')
+        .leftJoinAndSelect(
+          'mpItems.stocks',
+          'stocks',
+          "stocks.created_at >= CURRENT_DATE AND stocks.created_at < CURRENT_DATE + INTERVAL '1 day'"
+        )
+        .leftJoinAndSelect('stocks.warehouse', 'warehouse')
+        .where('marketplace.title = :marketplace', { marketplace: getStocksByWarehouseDto.marketplace })
+        .andWhere('item.isArchive = :isArchive', { isArchive: false })
+        .andWhere('mpItems.deletedAt IS NULL')
+        .andWhere('item.createdForCalculation = :createdForCalculation', {
+          createdForCalculation: false
+        })
+        .getMany();
+      return findStocksByWarehouses.map<GetStocksByWarehouses>(mpItem => {
+        return {
+          id: mpItem.id,
+          itemId: mpItem.item.id,
+          article: mpItem.item.article,
+          chrtId: Number(mpItem.chrtId ?? 0),
+          title: mpItem.title,
+          stocks: mpItem.stocks.map(stock => {
+            return {
+              warehouse: {
+                id: stock.warehouse.marketplaceInternalNumber,
+                title: stock.warehouse.title,
+                type: stock.warehouse.type
+              },
+              inWayToClient: stock.reserved,
+              inWayFromClient: stock.promised,
+              quantityFull: stock.currentValue
+            };
+          })
+        };
+      });
+    } catch (error) {
+      this.logger.error(error);
+      this.logger.error('Не смог получить текущий список остатков');
+      throw error;
     }
   }
 
