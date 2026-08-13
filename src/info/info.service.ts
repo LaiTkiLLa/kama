@@ -175,7 +175,7 @@ export class InfoService {
       }));
     } catch (error) {
       this.logger.error(error);
-      this.logger.error('Не смог получить список поставщиков');
+      this.logger.error('Не смог получить список складов');
       throw error;
     } finally {
       await queryRunner.release();

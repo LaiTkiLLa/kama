@@ -124,7 +124,7 @@ Milestone 5 завершает переход с модели «1 `items` row = 
 | Ozon Tamov | cards/stocks/orders/warehouses ✔; prices/trash/stop-list □ |
 | Warehouses multi-cabinet | lookup всегда с `marketplaceId`; Ozon stocks без auto-create |
 | Yandex Tamov gaps | stop-list PATCH, trash sync |
-| Stocks API v1 | закомментирован в controller |
+| Stocks API v1 | v1 by-date код удалён (2026-08-13); Sheets: `GET /api/stocks/by-warehouses` |
 | Price crons pagination | optional, limit 1000 |
 
 ---

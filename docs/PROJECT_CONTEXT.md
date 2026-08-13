@@ -61,7 +61,7 @@ PostgreSQL
 | Подсистема                                 | Модуль       | Роль                                             |
 | ------------------------------------------ | ------------ | ------------------------------------------------ |
 | Ассортимент / directory / stop-list / цены | `src/items`  | ядро; listing/prices/status на `marketplace_items` |
-| Остатки                                    | `src/stocks` | sync снимков + API current / by-date             |
+| Остатки                                    | `src/stocks` | sync снимков + API current / by-warehouses       |
 | Заказы                                     | `src/orders` | sync в `orders_v2` + API динамики                |
 | Справочники и склады                       | `src/info`   | marketplaces, warehouses, statuses, suppliers, … |
 

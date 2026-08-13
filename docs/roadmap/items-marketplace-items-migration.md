@@ -2,7 +2,7 @@
 
 > [`../domain/items-and-marketplace-items.md`](../domain/items-and-marketplace-items.md) · [`../AI_CONTEXT.md`](../AI_CONTEXT.md)
 
-Последнее обновление: 2026-08-10.
+Последнее обновление: 2026-08-13.
 
 ---
 
@@ -53,7 +53,7 @@ Changelog M5: [`../migrations/m5-consolidation-changelog.md`](../migrations/m5-c
 - [ ] `items_sizes` — связь с mp (TBD) — **next**
 - [ ] Ozon Tamov: prices, trash, stop-list/directory PATCH
 - [ ] Yandex Tamov: stop-list PATCH, trash sync
-- [ ] Stocks API v1 — retire или восстановить
+- [ ] Stocks API v1 — commented by-date **удалён** (2026-08-13); restore не делали. Sheets warehouse-level: `GET /api/stocks/by-warehouses`
 - [ ] Cleanup orphan DTO / dead stop-list fields
 - [ ] Price crons pagination >1000 (optional)
 
@@ -65,7 +65,7 @@ Changelog M5: [`../migrations/m5-consolidation-changelog.md`](../migrations/m5-c
 |---|--------|--------|
 | 1 | `items_sizes` redesign | □ next |
 | 2 | Ozon / Yandex Tamov gaps | □ |
-| 3 | Stocks v1 decision | □ later |
+| 3 | Stocks v1 decision | □ later (v1 by-date код удалён; by-warehouses — Sheets, не v1) |
 | 4 | Cleanup | □ |
 
 ---

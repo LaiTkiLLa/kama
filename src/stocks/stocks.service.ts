@@ -168,8 +168,10 @@ export class StocksService {
       });
     } catch (error) {
       this.logger.error(error);
-      this.logger.error('Не смог получить текущий список остатков');
+      this.logger.error('Не смог получить остатки по складам');
       throw error;
+    } finally {
+      await queryRunner.release();
     }
   }
 
