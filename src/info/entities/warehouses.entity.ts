@@ -4,7 +4,8 @@ import {
   Entity,
   OneToMany,
   PrimaryGeneratedColumn,
-  UpdateDateColumn
+  UpdateDateColumn,
+  JoinColumn
 } from 'typeorm';
 import { Stocks } from '../../stocks/entities/stocks.entity';
 import { Marketplaces } from './marketplaces.entity';
@@ -55,6 +56,7 @@ export class Warehouses {
   stocks: Stocks[];
 
   @OneToMany(() => Marketplaces, marketplace => marketplace.warehouses)
+  @JoinColumn({ name: 'marketplace_id' })
   marketplace: Marketplaces;
 
   @OneToMany(() => OrdersV2, orders => orders.warehouse)
