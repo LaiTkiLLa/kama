@@ -145,7 +145,7 @@ export class StocksService {
           id: mpItem.id,
           itemId: mpItem.item.id,
           article: mpItem.item.article,
-          chrtId: Number(mpItem.chrtId),
+          chrtId: Number(mpItem.chrtId ?? 0),
           title: mpItem.title,
           stocks: mpItem.stocks.map(stock => {
             return {
