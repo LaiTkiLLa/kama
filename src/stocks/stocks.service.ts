@@ -26,40 +26,6 @@ export class StocksService {
 
   private logger: Logger = new Logger(StocksService.name);
 
-  // async getCurrentStocks(getCurrentStocksDto: GetCurrentStocksDto): Promise<GetCurrentStocks[]> {
-  //   const today = new Date();
-  //   const findStocks = await this.dataSource.manager
-  //     .createQueryBuilder(Stocks, 'stocks')
-  //     .leftJoinAndSelect('stocks.marketplace', 'marketplace')
-  //     .leftJoinAndSelect('stocks.item', 'item')
-  //     .leftJoinAndSelect('item.itemsSuppliers', 'itemsSuppliers')
-  //     .leftJoinAndSelect('itemsSuppliers.supplier', 'supplier')
-  //     .where('marketplace.title = :marketplace', { marketplace: getCurrentStocksDto.marketplace })
-  //     .andWhere('item.isArchive = :isArchive', { isArchive: false })
-  //     .andWhere('Date(stocks.createdAt) = Date(:today)', { today })
-  //     .getMany();
-  //   return findStocks.reduce((acc: GetCurrentStocks[], stock) => {
-  //     const findItem = acc.find(item => stock.itemId === item.id);
-  //     if (findItem) {
-  //       findItem.quantityFull += stock.currentValue;
-  //       findItem.inWayToClient += stock.reserved;
-  //       findItem.inWayFromClient += stock.promised;
-  //     } else {
-  //       acc.push({
-  //         id: stock.item.id,
-  //         nmId: Number(stock.item.marketplaceIdentifier),
-  //         supplierArticle: stock.item.article,
-  //         barcode: Number(stock.item.barcode),
-  //         inWayToClient: stock.reserved,
-  //         inWayFromClient: stock.promised,
-  //         quantityFull: stock.currentValue,
-  //         sku: stock.item.sku
-  //       });
-  //     }
-  //     return acc;
-  //   }, []);
-  // }
-
   async getStocks(getCurrentStocksDto: GetCurrentStocksDto, queryRunner: QueryRunner) {
     const queryBuilder = queryRunner.manager
       .createQueryBuilder(MarketplaceItems, 'mpItems')
