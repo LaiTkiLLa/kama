@@ -203,7 +203,7 @@ export class ItemsService {
           `marketplaceItems.deletedAt IS NULL AND marketplaceItems.marketplaceId = (
             SELECT m.id FROM marketplaces m WHERE m.title = :marketplaceTitle LIMIT 1
           )`,
-          { marketplaceTitle: 'WB' }
+          { marketplaceTitle: getErpItemsListDto.marketplace }
         )
         .where('items.isArchive = :isArchive', { isArchive: false });
       if (getErpItemsListDto.withTestArticles === false) {
@@ -222,7 +222,8 @@ export class ItemsService {
           ownCategory: item.ownCategory,
           image: wbListing?.imageUrl ?? '',
           color: wbListing?.color ?? '',
-          barcode: wbListing?.barcode ?? ''
+          barcode: wbListing?.barcode ?? '',
+          chrtId: wbListing?.chrtId ?? 0
         };
       });
     } catch (error) {
