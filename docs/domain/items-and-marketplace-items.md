@@ -28,7 +28,11 @@ Item (marketplace-independent, 1 на article)
 
 ### Поля на `items` (DECISION, 2026-08-10)
 
-Marketplace-independent: `id`, `article`, `articleOld`, `ownCategory`, classification/virality/planning, логистика/сроки, себестоимость/таможня, общие габариты/объём (`dimensionsFact`, `dimensionsMasterBox`, `volume`, …), `ownImagesUrl`, `downloadCalculationMethod`, `wbCreatedAt`, audit.
+Marketplace-independent: `id`, `article`, `articleOld`, `ownCategory`, classification/virality/planning, логистика/сроки (`consolidation`, `fullfillmentAcceptance`, `marketplaceAcceptance`, `buffer`, `daysDeliveryToRussia`, …), себестоимость/таможня (`costInRub`, `codeTNVED`, …), `ownImagesUrl`, `downloadCalculationMethod`, `wbCreatedAt`, audit.
+
+**На `items_suppliers` (supplier-link, не item-level):** Phase 2 — `supplierMinimumOrder`, `boxNumber`, `costInYuan`, `costInYuanWhite`, `multiplicity`, `assembling`, `production`. Phase 3 (2026-08-13, dual-write) — `payment`, `dimensionsFact`, `dimensionsMasterBox`, `volume`. Колонки Phase 3 на `items` пока остаются.
+
+**Остаются на `items`, drop после cutover (не на связи):** `volumeMasterBox`, `volumePerUnit`, `weightPerUnit`, `density`.
 
 **Drop с `items` (M5, prod):** MP listing/identity/габариты/цены/`send_status_id`/`direction_id`.
 
@@ -92,7 +96,7 @@ Marketplace-independent: `id`, `article`, `articleOld`, `ownCategory`, classific
 | `items.isArchive` | **оставляем** — product hide; не путать с mp `deleted_at` |
 | `items_sizes` | sync закомментирован; redesign — next |
 | Yandex / Ozon Tamov | stop-list PATCH, trash; Ozon Tamov ещё prices |
-| Stocks API v1 | controller закомментирован |
+| Stocks API v1 | v1 by-date код удалён (2026-08-13); `GET /api/stocks/by-warehouses` — Sheets warehouse-level |
 | Price pagination | API limit 1000 без cursor |
 
 ---

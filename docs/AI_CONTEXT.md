@@ -21,6 +21,8 @@
 - **1 item на article** (кроме `created_for_calculation = true`).
 - Marketplace-specific на `marketplace_items`: identity, listing, prices (`discount` = %), `send_status_id`, `deleted_at`.
 - Marketplace-independent на `items`: article, логистика/себестоимость/classification, `wbCreatedAt`, `ownImagesUrl`, **`isArchive`**.
+- Supplier-link на `items_suppliers`: Phase 2 supplier-fields; Phase 3 (dual-write) `payment`, `dimensionsFact`, `dimensionsMasterBox`, `volume`. Drop с `items` — отдельно.
+- На `items` до отдельного drop: `volumeMasterBox`, `volumePerUnit`, `weightPerUnit`, `density` (не на связи).
 - **Два уровня скрытия (DECISION, 2026-08-10):**
   - `marketplace_items.deleted_at` — архив **listing**.
   - `items.isArchive` — скрытие **товара** в directory. Optional rename → `isDeleted` позже.
@@ -54,9 +56,9 @@
 | `items_sizes` sync redesign (связь с mp) | □ **next** |
 | Ozon Tamov gaps: price cron, trash, stop-list PATCH, directory PATCH | □ |
 | Yandex Tamov: stop-list PATCH, trash sync | □ отложено |
-| Stocks API v1 | □ решение TBD |
+| Stocks API v1 | □ решение TBD (v1 by-date код удалён 2026-08-13; это не restore). Sheets: `GET /api/stocks/by-warehouses` |
 | Price crons pagination >1000 | □ optional |
-| Cleanup orphan DTO / мёртвые поля stop-list | □ |
+| Cleanup orphan DTO / мёртвые поля stop-list | □ частично: `get-change-price-history.dto.ts` и `create-low-days-stocks.dto.ts` удалены (2026-08-13) |
 | Rename `isArchive` → `isDeleted` | □ optional later |
 
 ---
@@ -71,13 +73,12 @@
 | Stop-list / directory PATCH | только WB / `Озон` / Yandex — без Tamov кабинетов |
 | Price API limit 1000 | без cursor/offset хвост не обновляется |
 | Card sync find by article | без `created_for_calculation = false` — риск test item |
-| Orphan DTO | `get-change-price-history.dto.ts` |
 
 ---
 
 ## Не менять без плана
 
-Drop `marketplace_id` на `stocks`/`orders_v2`; force cutover без миграции; включение stocks API v1 без плана GAS; секреты в репо; drop/rename `items.isArchive` без явного решения.
+Drop `marketplace_id` на `stocks`/`orders_v2`; force cutover без миграции; включение stocks API v1 без плана GAS; секреты в репо; drop/rename `items.isArchive` без явного решения; drop с `items` колонок Phase 3 (`payment`, `dimensionsFact`, `dimensionsMasterBox`, `volume`) и устаревших (`volumeMasterBox`, `volumePerUnit`, `weightPerUnit`, `density`) без подтверждения.
 
 ---
 
@@ -88,3 +89,4 @@ Drop `marketplace_id` на `stocks`/`orders_v2`; force cutover без мигра
 | 2026-08-06 | AI-ready docs; Sheets; field split; stop-list v1 off |
 | 2026-08-07 | M1–M4; send_status mp-centric; Yandex Tamov card/stocks/orders |
 | 2026-08-10 | M5 prod; price crons → mp; Ozon Tamov; warehouses/stocks scoped by `marketplaceId` |
+| 2026-08-13 | Sheets: warehouses + stocks by-warehouses; ERP `marketplace`+`chrtId`; Phase 3 → `items_suppliers`: `payment`/`dimensionsFact`/`dimensionsMasterBox`/`volume` (`1789320000000`, dual-write) |

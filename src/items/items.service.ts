@@ -37,7 +37,7 @@ export class ItemsService {
     await queryRunner.startTransaction();
     try {
       const findWbMp = await this.infoService.findMarketplace({ title: 'WB' });
-      const findOzonMp = await this.infoService.findMarketplace({ title: 'Ozon' });
+      const findOzonMp = await this.infoService.findMarketplace({ title: 'Озон' });
       const findYandexMp = await this.infoService.findMarketplace({ title: 'Yandex' });
       const createItem = queryRunner.manager.create(Items, {
         createdForCalculation: true,
@@ -143,27 +143,23 @@ export class ItemsService {
           classification: item.classification,
           multiplicity: item.itemsSuppliers.length ? item.itemsSuppliers[0].multiplicity : null,
           boxNumber: item.itemsSuppliers.length ? item.itemsSuppliers[0].boxNumber : null,
-          dimensionsFact: item.dimensionsFact,
-          volume: item.volume,
+          dimensionsFact: item.itemsSuppliers.length ? item.itemsSuppliers[0].dimensionsFact : null,
+          volume: item.itemsSuppliers.length ? item.itemsSuppliers[0].volume : null,
           wbCreatedAt: item.wbCreatedAt,
           costInYuan: item.itemsSuppliers.length ? item.itemsSuppliers[0].costInYuan : null,
           costInRub: item.costInRub,
           replenishmentPeriod: item.replenishmentPeriod,
           remainingBalance: item.remainingBalance,
           ownImagesUrl: item.ownImagesUrl,
-          volumePerUnit: item.volumePerUnit,
-          weightPerUnit: item.weightPerUnit,
           transportRateUsd: item.transportRateUsd,
           dutyPercentage: item.dutyPercentage,
-          density: item.density,
           tariffWeight: item.tariffWeight,
           createdForCalculation: item.createdForCalculation,
           costInYuanWhite: item.itemsSuppliers.length ? item.itemsSuppliers[0].costInYuanWhite : null,
           codeTNVED: item.codeTNVED,
-          dimensionsMasterBox: item.dimensionsMasterBox,
-          volumeMasterBox: item.volumeMasterBox,
+          dimensionsMasterBox: item.itemsSuppliers.length ? item.itemsSuppliers[0].dimensionsMasterBox : null,
           consolidation: item.consolidation,
-          payment: item.payment,
+          payment: item.itemsSuppliers.length ? item.itemsSuppliers[0].payment : null,
           assembling: item.itemsSuppliers.length ? item.itemsSuppliers[0].assembling : null,
           fullfillmentAcceptance: item.fullfillmentAcceptance,
           marketplaceAcceptance: item.marketplaceAcceptance,
@@ -287,7 +283,11 @@ export class ItemsService {
           costInYuanWhite: itemsSupplier.costInYuanWhite,
           multiplicity: itemsSupplier.multiplicity,
           assembling: itemsSupplier.assembling,
-          production: itemsSupplier.production
+          production: itemsSupplier.production,
+          payment: itemsSupplier.payment,
+          dimensionsFact: itemsSupplier.dimensionsFact,
+          dimensionsMasterBox: itemsSupplier.dimensionsMasterBox,
+          volume: itemsSupplier.volume
         };
       });
     } catch (error) {
@@ -314,6 +314,24 @@ export class ItemsService {
         if (!findItem) {
           throw new NotFoundException('Артикул не найден');
         }
+        const supplierLinkFields = {
+          multiplicity: item.multiplicity,
+          boxNumber: item.boxNumber,
+          costInYuan: item.costInYuan,
+          costInYuanWhite: item.costInYuanWhite,
+          assembling: item.assembling,
+          production: item.production,
+          supplierMinimumOrder: item.supplierMinimumOrder,
+          payment: item.payment,
+          dimensionsFact: item.dimensionsFact,
+          dimensionsMasterBox: item.dimensionsMasterBox,
+          volume: item.volume
+        };
+        const findItemsSupplier = await queryRunner.manager.find(ItemsSuppliers, {
+          where: {
+            itemId: findItem.id
+          }
+        });
         if (item.supplier) {
           const findSupplier = await queryRunner.manager.findOne(Suppliers, {
             where: {
@@ -323,39 +341,24 @@ export class ItemsService {
           if (!findSupplier) {
             throw new NotFoundException('Поставщик не найден');
           }
-          const findItemsSupplier = await queryRunner.manager.find(ItemsSuppliers, {
-            where: {
-              itemId: findItem.id
-            }
-          });
           if (findItemsSupplier.length) {
             await queryRunner.manager.update(
               ItemsSuppliers,
               { itemId: findItem.id },
               {
                 supplierId: findSupplier.id,
-                multiplicity: item.multiplicity,
-                boxNumber: item.boxNumber,
-                costInYuan: item.costInYuan,
-                costInYuanWhite: item.costInYuanWhite,
-                assembling: item.assembling,
-                production: item.production,
-                supplierMinimumOrder: item.supplierMinimumOrder
+                ...supplierLinkFields
               }
             );
           } else {
             await queryRunner.manager.insert(ItemsSuppliers, {
               supplierId: findSupplier.id,
               itemId: findItem.id,
-              multiplicity: item.multiplicity,
-              boxNumber: item.boxNumber,
-              costInYuan: item.costInYuan,
-              costInYuanWhite: item.costInYuanWhite,
-              assembling: item.assembling,
-              production: item.production,
-              supplierMinimumOrder: item.supplierMinimumOrder
+              ...supplierLinkFields
             });
           }
+        } else if (findItemsSupplier.length) {
+          await queryRunner.manager.update(ItemsSuppliers, { itemId: findItem.id }, supplierLinkFields);
         }
         await queryRunner.manager.update(
           Items,

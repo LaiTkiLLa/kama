@@ -58,6 +58,22 @@ export class ItemsSuppliers {
   @Column({ type: 'int', nullable: true })
   production: number;
 
+  //Оплата груза
+  @Column({ type: 'int', nullable: true })
+  payment: number;
+
+  //Размеры факт
+  @Column({ type: 'varchar', nullable: true, name: 'dimensions_fact' })
+  dimensionsFact: string;
+
+  //Размеры Мастер короба д/ш/в/вес
+  @Column({ type: 'varchar', nullable: true, name: 'dimensions_master_box' })
+  dimensionsMasterBox: string;
+
+  //Объем товара
+  @Column({ type: 'varchar', nullable: true })
+  volume: string;
+
   @ManyToOne(() => Items, item => item.itemsSuppliers, {
     onDelete: 'CASCADE'
   })
