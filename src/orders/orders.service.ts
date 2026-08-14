@@ -462,6 +462,7 @@ export class OrdersService {
           where: { title: order.warehouseName }
         });
         if (!findWarehouse) {
+          console.log('wb !findWarehouse', order.warehouseName);
           continue;
         }
         const findMarketplaceItem = await queryRunner.manager
