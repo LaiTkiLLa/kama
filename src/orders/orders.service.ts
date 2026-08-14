@@ -437,7 +437,7 @@ export class OrdersService {
 
   @Cron('0 45 * * * *')
   async getOrdersWbV2() {
-    const tenDaysAgo = new Date(new Date().setDate(new Date().getDate() - 43));
+    const tenDaysAgo = new Date(new Date().setDate(new Date().getDate() - 90));
     const apiToken = this.configService.get<string>('wbToken');
     const urlOrders = 'https://statistics-api.wildberries.ru/api/v1/supplier/orders';
     const response = await axios.get<GetOrdersWb[]>(urlOrders, {
