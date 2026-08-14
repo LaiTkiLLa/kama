@@ -241,7 +241,16 @@ export class ItemsService {
           image: wbListing?.imageUrl ?? '',
           color: wbListing?.color ?? '',
           barcode: wbListing?.barcode ?? '',
-          chrtId: wbListing?.chrtId ?? 0
+          chrtId: wbListing?.chrtId ?? 0,
+          consolidation: item.consolidation,
+          fullfillmentAcceptance: item.fullfillmentAcceptance,
+          marketplaceAcceptance: item.marketplaceAcceptance,
+          daysDeliveryToRussia: item.daysDeliveryToRussia,
+          transportRateUsd: item.transportRateUsd,
+          dutyPercentage: item.dutyPercentage,
+          costCalculationType: item.costCalculationType,
+          calculationType: item.calculationType,
+          downloadCalculationMethod: item.downloadCalculationMethod
         };
       });
     } catch (error) {
