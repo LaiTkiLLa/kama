@@ -19,8 +19,8 @@
 | Слой | Статус |
 |------|--------|
 | M1–M5 Consolidation + price crons (main) | ✔ prod |
-| Ozon Tamov cards / stocks / orders_v2 | ✔ |
-| M6 Cutover (sizes, Tamov gaps, stocks v1) | □ |
+| Ozon Tamov cards / stocks / orders_v2 / prices / trash / stop-list | ✔ |
+| M6 Cutover (sizes ✔; Tamov directory PATCH / Yandex trash; MP characteristics) | □ |
 
 Changelog M5: [`../migrations/m5-consolidation-changelog.md`](../migrations/m5-consolidation-changelog.md).
 
@@ -31,14 +31,15 @@ Changelog M5: [`../migrations/m5-consolidation-changelog.md`](../migrations/m5-c
 | Область | Статус |
 |---------|--------|
 | 1 item на article; stocks/orders без `item_id` | ✔ |
-| Price crons WB + основной Озон | ✔ |
+| Price crons WB + Озон + **Ozon Tamov** | ✔ (pagination не нужна: ≤~400 SKU) |
 | Product hide `items.isArchive` / listing `deleted_at` | ✔ оба уровня |
-| **Ozon Tamov** (`ozonTamov*`) | ✔ cards/stocks/orders/warehouses; DTO + dynamic orders |
+| **Ozon Tamov** (`ozonTamov*`) | ✔ cards/stocks/orders/warehouses/prices/trash/stop-list; DTO + dynamic orders |
 | Warehouse resolve (multi-cabinet) | ✔ всегда с `marketplaceId` (Ozon stocks: title+mp; orders: internalNumber+mp) |
-| Ozon Tamov prices / trash / stop-list | □ gaps |
-| Yandex Tamov sync | ✔ cards/stocks/orders; stop-list/trash □ |
+| Ozon Tamov directory PATCH | □ gap |
+| Yandex Tamov sync | ✔ cards/stocks/orders/stop-list PATCH; trash □ |
+| Stocks Sheets | ✔ `GET /api/stocks/by-warehouses`; by-date **не возвращаем** |
 
-**Фокус спринта (M6):** backfill размеров в `item_characteristics` + API → Tamov gaps → stocks v1 → cleanup.
+**Фокус спринта (M6):** MP characteristics sync → directory PATCH / Yandex trash → cleanup leftovers.
 
 ---
 
@@ -54,13 +55,15 @@ Changelog M5: [`../migrations/m5-consolidation-changelog.md`](../migrations/m5-c
 - [x] marketplace characteristics schema (`1789340000000`): `marketplace_characteristics` / `marketplace_item_characteristics` / `marketplace_item_sizes` / `marketplace_characteristic_mappings`
 - [x] WB sizes → `marketplace_item_sizes` (`chrtID` / `techSize` / `wbSize` / `metadata.skus`)
 - [x] directory/list → `marketPlaceItemsSizes` from mp sizes; drop `items_sizes` (`1789350000000`)
+- [x] Ozon Tamov: prices cron + trash cron (First=`Озон` / Second=`Ozon Tamov`)
+- [x] stop-list PATCH + GET filter: Ozon Tamov / Yandex Tamov; directory/ERP sizes grouped by `marketplaceTitle`
+- [x] Stocks: by-date/v1 **не возвращаем**; Sheets = `GET /api/stocks/by-warehouses`
+- [x] Price crons pagination >1000 **не нужна** (≤~400 SKU/кабинет)
+- [x] Cleanup orphan DTO / dead stop-list fields (`get-items-list.dto`, legacy `GetStopListFromDb` / `direction*`)
 - [ ] backfill размеров в `item_characteristics` (если ещё нужен product-level) — later
 - [ ] sync marketplace characteristics из WB/Ozon; Ozon sizes; soft-delete пропавших sizes
-- [ ] Ozon Tamov: prices, trash, stop-list/directory PATCH
-- [ ] Yandex Tamov: stop-list PATCH, trash sync
-- [ ] Stocks API v1 — commented by-date **удалён** (2026-08-13); restore не делали. Sheets warehouse-level: `GET /api/stocks/by-warehouses`
-- [ ] Cleanup orphan DTO / dead stop-list fields
-- [ ] Price crons pagination >1000 (optional)
+- [ ] directory PATCH для Tamov (если нужен listing update 2-го кабинета)
+- [ ] Yandex Tamov: trash sync
 
 ---
 
@@ -68,10 +71,10 @@ Changelog M5: [`../migrations/m5-consolidation-changelog.md`](../migrations/m5-c
 
 | # | Задача | Статус |
 |---|--------|--------|
-| 1 | characteristics / sizes | ✔ `178933` + mp `178934` + drop `items_sizes` `178935`; WB sizes + directory API ✔; MP characteristics sync — next |
-| 2 | Ozon / Yandex Tamov gaps | □ |
-| 3 | Stocks v1 decision | □ later (v1 by-date код удалён; by-warehouses — Sheets, не v1) |
-| 4 | Cleanup | □ |
+| 1 | characteristics / sizes | ✔ schema + WB sizes + directory/ERP; MP characteristics sync — next |
+| 2 | Ozon / Yandex Tamov gaps | ✔ prices+trash+stop-list; □ directory PATCH; Yandex trash □ |
+| 3 | Stocks / prices backlog | ✔ closed (by-date нет; pagination не нужна) |
+| 4 | Cleanup orphan DTO | ✔ |
 
 ---
 
@@ -79,7 +82,6 @@ Changelog M5: [`../migrations/m5-consolidation-changelog.md`](../migrations/m5-c
 
 | Gap | Влияние |
 |-----|---------|
-| Tamov stop-list / directory PATCH | GAS не обновит статусы/listing 2-го кабинета |
-| Ozon Tamov prices / trash | только основной `Озон` |
-| Price API limit 1000 | хвост каталога |
-| `items_sizes` на item | не целевая модель |
+| Tamov directory PATCH | GAS может не обновить listing-поля 2-го кабинета |
+| Yandex Tamov trash | архив listing 2-го Yandex не синхронится |
+| `items_sizes` на item | ✖ dropped (`178935`); runtime — `marketplace_item_sizes` |

@@ -40,14 +40,14 @@ Marketplace-independent: `id`, `article`, `articleOld`, `ownCategory`, classific
 
 ### Поля на `marketplace_items`
 
-| Группа | Поля |
-|--------|------|
+| Группа   | Поля                                                                    |
+| -------- | ----------------------------------------------------------------------- |
 | Identity | `marketplace_identifier`, `barcode`, `sku`, `marketplace_id`, `item_id` |
-| Listing | `category`, `title`, `color`, `image_url` (nullable) |
-| Prices | `price`, `discount` (**%**), `price_with_discount` |
-| Ops | `send_status_id`, `dimensions`, `volume`, `chrt_id`, `deleted_at` |
+| Listing  | `category`, `title`, `color`, `image_url` (nullable)                    |
+| Prices   | `price`, `discount` (**%**), `price_with_discount`                      |
+| Ops      | `send_status_id`, `dimensions`, `volume`, `chrt_id`, `deleted_at`       |
 
-**Prices sync (FACT):** WB cron пишет `price` / `discount` / `priceWithDiscount` (`discountedPrice`). Ozon — `price` / `priceWithDiscount` (`marketing_seller_price`) / `discount` = % от разницы price − marketing. Только `deletedAt IS NULL`.
+**Prices sync (FACT):** WB cron пишет `price` / `discount` / `priceWithDiscount` (`discountedPrice`). Ozon (оба кабинета) — `price` / `priceWithDiscount` (`marketing_seller_price`) / `discount` = % от разницы price − marketing. Только `deletedAt IS NULL`.
 
 ---
 
@@ -57,10 +57,19 @@ Marketplace-independent: `id`, `article`, `articleOld`, `ownCategory`, classific
 2. **Card sync:** find-or-create item by `article`; listing на mp по `{ id }`.
 3. **Directory:** `marketplacesInfo[]` с mp + prices; filter `items.isArchive = false` + join `mp.deletedAt IS NULL` (два уровня).
 4. **Stop-list / stocks:** listing archive через `mpItems.deletedAt IS NULL`.
-5. **Prices:** schema + hourly crons на mp для WB и основного `Озон` (prod). Ozon Tamov price cron — gap.
+5. **Prices:** schema + hourly crons на mp для WB, `Озон` и **Ozon Tamov** (First/Second).
 6. **DB:** 1 item на article; `stocks`/`orders_v2` без `item_id`.
-7. **Ozon Tamov:** cards/stocks/orders_v2/warehouses sync ✔; prices/trash/stop-list PATCH — gaps.
+7. **Ozon Tamov:** cards/stocks/orders_v2/warehouses/prices/trash sync ✔; stop-list/directory PATCH — gap.
 8. **Warehouses multi-cabinet (DECISION):** lookup/create всегда в scope `marketplaceId`. Ozon stocks: find по `title` + `marketplaceId`, без auto-create (нужен prior warehouses cron). Orders Ozon: `marketplaceInternalNumber` + `marketplaceId`.
+
+**Ozon multi-cabinet crons (FACT, 2026-08-15):** паттерн как у cards — wrapper First/Second + shared method `(token, clientId, mpTitle)`:
+
+| Cron                            | Основной (`Озон`, `ozon*`)   | Tamov (`Ozon Tamov`, `ozonTamov*`) |
+| ------------------------------- | ---------------------------- | ---------------------------------- |
+| Prices                          | `updateOzonItemsPricesFirst` | `updateOzonItemsPricesSecond`      |
+| Trash (ARCHIVED → `deleted_at`) | `getOzonTrashItemsFirst`     | `getOzonTrashItemsSecond`          |
+
+Обновление всегда scoped by `marketplaceId` найденного `marketplaces.title`.
 
 ### Характеристики товара (FACT, 2026-08-15)
 
@@ -72,11 +81,11 @@ items → item_characteristics → characteristics
                             characteristic_values (справочник)
 ```
 
-| Таблица | Роль |
-|---------|------|
-| `characteristics` | Справочник характеристик; `type`: varchar (`string` / `number` / `boolean` / `enum`) |
-| `characteristic_values` | Известные значения для характеристики (не обязательная ссылка для товара) |
-| `item_characteristics` | Фактическое `value` характеристики у товара |
+| Таблица                 | Роль                                                                                 |
+| ----------------------- | ------------------------------------------------------------------------------------ |
+| `characteristics`       | Справочник характеристик; `type`: varchar (`string` / `number` / `boolean` / `enum`) |
+| `characteristic_values` | Известные значения для характеристики (не обязательная ссылка для товара)            |
+| `item_characteristics`  | Фактическое `value` характеристики у товара                                          |
 
 **DECISION:** `item_characteristics.value` — источник истины; `characteristic_value_id` **нет**.  
 **DECISION:** у товара может быть **несколько** значений одной характеристики (размеры) — unique `(item_id, characteristic_id)` **не** вводим.  
@@ -108,12 +117,12 @@ marketplace_items
 marketplace_item_sizes
 ```
 
-| Таблица | Роль |
-|---------|------|
-| `marketplace_characteristics` | Описание характеристики в терминах МП; unique `(marketplace_id, marketplace_characteristic_id)` среди активных |
-| `marketplace_item_characteristics` | Фактические значения на listing; одно значение = одна строка; MP-specific id в `metadata` jsonb |
-| `marketplace_item_sizes` | Размеры listing (не характеристики); `marketplace_size_id` scoped by `marketplace_item_id` |
-| `marketplace_characteristic_mappings` | Связь `characteristics.id` ↔ `marketplace_characteristics.id` (по PK, не по name) |
+| Таблица                               | Роль                                                                                                           |
+| ------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `marketplace_characteristics`         | Описание характеристики в терминах МП; unique `(marketplace_id, marketplace_characteristic_id)` среди активных |
+| `marketplace_item_characteristics`    | Фактические значения на listing; одно значение = одна строка; MP-specific id в `metadata` jsonb                |
+| `marketplace_item_sizes`              | Размеры listing (не характеристики); `marketplace_size_id` scoped by `marketplace_item_id`                     |
+| `marketplace_characteristic_mappings` | Связь `characteristics.id` ↔ `marketplace_characteristics.id` (по PK, не по name)                             |
 
 **DECISION:** mapping только по внутренним PK, не по названию.  
 **DECISION:** размеры МП хранятся отдельно от характеристик.  
@@ -123,12 +132,12 @@ Migration `1789340000000`: только CREATE tables + FK + indexes. **Без**
 
 **WB sizes sync (FACT, 2026-08-15):** `getWbItems` пишет в `marketplace_item_sizes`:
 
-| Поле | Источник WB |
-|------|-------------|
-| `marketplace_size_id` | `sizes[].chrtID` (string) |
-| `name` | `sizes[].techSize` |
-| `value` | `sizes[].wbSize` |
-| `metadata.skus` | `sizes[].skus` (массив баркодов целиком) |
+| Поле                  | Источник WB                              |
+| --------------------- | ---------------------------------------- |
+| `marketplace_size_id` | `sizes[].chrtID` (string)                |
+| `name`                | `sizes[].techSize`                       |
+| `value`               | `sizes[].wbSize`                         |
+| `metadata.skus`       | `sizes[].skus` (массив баркодов целиком) |
 
 **DECISION:** `skus` не выносить в отдельную колонку и не схлопывать в один barcode. WB API допускает несколько баркодов на один размер (партии); на практике чаще 1 элемент, но храним массив в `metadata`. Listing-level `marketplace_items.barcode` / `chrt_id` по-прежнему берутся из `sizes[0]` (как раньше). Soft-delete исчезнувших размеров и sync характеристик — ещё нет.
 
@@ -142,59 +151,59 @@ Migration `1789340000000`: только CREATE tables + FK + indexes. **Без**
 
 ### Stop-list
 
-| Endpoint / код | Статус |
-|----------------|--------|
-| `GET …/v2/stop-list` | ✔ mp |
-| `PATCH …/stop-list` | ✔ mp-only |
+| Endpoint / код         | Статус     |
+| ---------------------- | ---------- |
+| `GET …/v2/stop-list`   | ✔ mp      |
+| `PATCH …/stop-list`    | ✔ mp-only |
 | `updateItemSendStatus` | ✔ mp root |
 
 ### Directory
 
-| Endpoint | Статус |
-|----------|--------|
-| `GET …/directory/list` | ✔ mp prices; `isArchive` (product) + `deleted_at` (listing) |
-| `PATCH …/directory/info` | ✔ V2 |
+| Endpoint                 | Статус                                                       |
+| ------------------------ | ------------------------------------------------------------ |
+| `GET …/directory/list`   | ✔ mp prices; `isArchive` (product) + `deleted_at` (listing) |
+| `PATCH …/directory/info` | ✔ V2                                                        |
 
 ---
 
 ## Milestones
 
-| # | Статус |
-|---|--------|
-| 1–4b | ✔ |
+| #                    | Статус      |
+| -------------------- | ----------- |
+| 1–4b                 | ✔          |
 | **5. Consolidation** | **✔ prod** |
-| **6. Cutover** | **□ next** |
+| **6. Cutover**       | **□ next**  |
 
 ---
 
 ## Legacy (M6)
 
-| Область | Статус |
-|---------|--------|
-| `items.isArchive` | **оставляем** — product hide; не путать с mp `deleted_at` |
-| `items_sizes` | ✖ dropped (`1789350000000`); замена — `marketplace_item_sizes` |
-| `characteristics` / `characteristic_values` / `item_characteristics` | ✔ schema (`1789330000000`); данных / API ещё нет |
-| marketplace characteristics / sizes / mappings | ✔ schema (`1789340000000`); WB sizes sync ✔; directory `marketPlaceItemsSizes` ✔; characteristics / Ozon — ещё нет |
-| Yandex / Ozon Tamov | stop-list PATCH, trash; Ozon Tamov ещё prices |
-| Stocks API v1 | v1 by-date код удалён (2026-08-13); `GET /api/stocks/by-warehouses` — Sheets warehouse-level |
-| Price pagination | API limit 1000 без cursor |
+| Область                                                              | Статус                                                                                                                |
+| -------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `items.isArchive`                                                    | **оставляем** — product hide; не путать с mp `deleted_at`                                                             |
+| `items_sizes`                                                        | ✖ dropped (`1789350000000`); замена — `marketplace_item_sizes`                                                       |
+| `characteristics` / `characteristic_values` / `item_characteristics` | ✔ schema (`1789330000000`); данных / API ещё нет                                                                     |
+| marketplace characteristics / sizes / mappings                       | ✔ schema (`1789340000000`); WB sizes sync ✔; directory `marketPlaceItemsSizes` ✔; characteristics / Ozon — ещё нет |
+| Yandex / Ozon Tamov | Ozon Tamov: prices+trash+stop-list ✔; directory PATCH □. Yandex Tamov: stop-list ✔; trash □ |
+| Stocks API | ✔ `by-warehouses` для Sheets; by-date/v1 **не возвращаем** (DECISION 2026-08-15) |
+| Price pagination | ✖ не нужна — ≤~400 SKU/кабинет (DECISION 2026-08-15) |
 
 ---
 
 ## Glossary
 
-| Термин | Значение |
-|--------|----------|
-| **Listing archive** | `marketplace_items.deleted_at` |
-| **Product hide** | `items.isArchive` (optional rename `isDeleted`) |
-| **Send status** | `marketplace_items.send_status_id` |
-| **Consolidation** | 1 article → 1 item; repoint mp/stocks/orders (M5 ✔) |
-| **Calculation item** | `created_for_calculation = true`, отдельные строки |
+| Термин               | Значение                                             |
+| -------------------- | ---------------------------------------------------- |
+| **Listing archive**  | `marketplace_items.deleted_at`                       |
+| **Product hide**     | `items.isArchive` (optional rename `isDeleted`)      |
+| **Send status**      | `marketplace_items.send_status_id`                   |
+| **Consolidation**    | 1 article → 1 item; repoint mp/stocks/orders (M5 ✔) |
+| **Calculation item** | `created_for_calculation = true`, отдельные строки   |
 
 ---
 
 ## Правило для изменений
 
-1. `AI_CONTEXT` + этот документ + roadmap.  
-2. Исследовать `src/` и migrations.  
+1. `AI_CONTEXT` + этот документ + roadmap.
+2. Исследовать `src/` и migrations.
 3. Plan → изменения → обновить docs.

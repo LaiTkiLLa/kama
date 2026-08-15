@@ -4,7 +4,7 @@ import { Transform } from 'class-transformer';
 export class GetItemsStopListDto {
   @IsString()
   @IsOptional()
-  @IsIn(['WB', 'Озон', 'Yandex'])
+  @IsIn(['WB', 'Озон', 'Yandex', 'Ozon Tamov', 'Yandex Tamov'])
   marketplaceTitle: string;
 
   @Transform(({ value }) => value === 'true' || value === true)

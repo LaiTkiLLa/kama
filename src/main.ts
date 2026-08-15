@@ -13,7 +13,10 @@ import * as bodyParser from 'body-parser';
   app.useGlobalPipes(new ValidationPipe({ transform: true, whitelist: true }));
   app.setGlobalPrefix('api');
   const configService = app.get(ConfigService);
-  const PORT = configService.get('serverPort');
+  const PORT = configService.get<number>('serverPort');
+  if (!PORT) {
+    throw new Error('PORT is not defined');
+  }
   app.enableCors();
   await app.listen(PORT, () => {
     console.warn(`Server started on port: ${PORT}`);

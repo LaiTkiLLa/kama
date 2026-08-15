@@ -11,7 +11,8 @@
 
 **Milestone 6 — Cutover (в работе).** M1–M5 закрыты на prod. Price crons → mp.  
 **DECISION:** `items.isArchive` **оставляем** (product-level hide). Listing archive = `marketplace_items.deleted_at`.  
-Второй кабинет Ozon: `marketplaces.title = 'Ozon Tamov'` (env `ozonTamov*`) — cards/stocks/orders sync ✔; gaps ниже.
+Второй кабинет Ozon: `marketplaces.title = 'Ozon Tamov'` (env `ozonTamov*`) — cards/stocks/orders/prices/trash/stop-list PATCH ✔; directory PATCH — gap.  
+Yandex Tamov: cards/stocks/orders + stop-list PATCH ✔; trash sync — gap.
 
 ---
 
@@ -31,6 +32,8 @@
 - `directions`, legacy `orders`, `change_prices_histories` — удалены.
 - UI — Google Sheets + GAS; frontend в репо не создавать.
 - Stop-list read — только `GET /api/items/v2/stop-list`.
+- **Stocks read for Sheets:** `GET /api/stocks/by-warehouses` (сегодня, warehouse-level). **DECISION (2026-08-15):** stocks by-date / v1 history **не возвращаем**.
+- **Price crons pagination:** **DECISION (2026-08-15):** не нужна — в кабинетах ≤ ~400 SKU (лимит API 1000 хватает).
 - **Вторые кабинеты (не хардкодить title, не смешивать с основным):**
   - Yandex — `marketplaces.title = 'Yandex Tamov'`; env `yandexTamov*`.
   - Ozon — `marketplaces.title = 'Ozon Tamov'`; env `ozonTamovToken` / `ozonTamovClientId`. Legacy name `Ozon Second` / `ozonSecond*` **снят**.
@@ -44,6 +47,7 @@
 | M1–M5 (schema + consolidation prod + price crons main WB/Ozon) | ✔ |
 | Dual archive model (`isArchive` + `deleted_at`) | ✔ DECISION |
 | Ozon Tamov: config + cards/stocks/orders_v2/warehouses cron | ✔ |
+| Ozon Tamov: prices + trash crons (`ozonTamov*`, title `Ozon Tamov`) | ✔ (2026-08-15) |
 | Warehouse identity scoped by `marketplaceId` (stocks/orders/warehouses) | ✔ |
 | API DTO marketplace: `Ozon Tamov` (не `Ozon Second`) | ✔ |
 
@@ -54,11 +58,11 @@
 | Область | Статус |
 |---------|--------|
 | `items_sizes` → characteristics / mp sizes | ✔ mp schema + WB sizes sync; `items_sizes` drop (`1789350000000`); item_characteristics backfill — позже |
-| Ozon Tamov gaps: price cron, trash, stop-list PATCH, directory PATCH | □ |
-| Yandex Tamov: stop-list PATCH, trash sync | □ отложено |
-| Stocks API v1 | □ решение TBD (v1 by-date код удалён 2026-08-13; это не restore). Sheets: `GET /api/stocks/by-warehouses` |
-| Price crons pagination >1000 | □ optional |
-| Cleanup orphan DTO / мёртвые поля stop-list | □ частично: `get-change-price-history.dto.ts` и `create-low-days-stocks.dto.ts` удалены (2026-08-13) |
+| Ozon Tamov gaps: directory PATCH | □ (prices + trash + stop-list PATCH ✔) |
+| Yandex Tamov: trash sync | □ (stop-list PATCH ✔) |
+| Stocks API v1 / by-date | ✖ **не делаем** — Sheets на `GET /api/stocks/by-warehouses` |
+| Price crons pagination >1000 | ✖ **не нужна** — ≤~400 SKU/кабинет |
+| Cleanup orphan DTO / dead stop-list fields | ✔ (2026-08-15): `get-items-list.dto` + legacy `GetStopListFromDb` / `direction*` |
 | Rename `isArchive` → `isDeleted` | □ optional later |
 
 ---
@@ -69,16 +73,17 @@
 |-------|------|
 | Ozon Tamov warehouses | ✔ First/Second cron; lookup `marketplaceInternalNumber` + `marketplaceId` |
 | Ozon stocks warehouse resolve | по `title` + `marketplaceId`; без find-or-create; skip если склада нет (нужен warehouses cron) |
-| Ozon Tamov prices / trash | crons только на основной `Озон` |
-| Stop-list / directory PATCH | только WB / `Озон` / Yandex — без Tamov кабинетов |
-| Price API limit 1000 | без cursor/offset хвост не обновляется |
+| Ozon Tamov prices / trash | ✔ First/Second crons; credentials `ozon*` / `ozonTamov*`; mp by title |
+| Stop-list PATCH | ✔ WB / `Озон` / Yandex / Ozon Tamov / Yandex Tamov |
+| Directory PATCH | ✔ для основных кабинетов; Tamov listing update — gap (см. `updateDirectory`) |
+| Price API limit 1000 | ✔ достаточно (≤~400 SKU/кабинет); pagination не делаем |
 | Card sync find by article | без `created_for_calculation = false` — риск test item |
 
 ---
 
 ## Не менять без плана
 
-Drop `marketplace_id` на `stocks`/`orders_v2`; force cutover без миграции; включение stocks API v1 без плана GAS; секреты в репо; drop/rename `items.isArchive` без явного решения; drop с `items` колонок Phase 3 (`payment`, `dimensionsFact`, `dimensionsMasterBox`, `volume`) и устаревших (`volumeMasterBox`, `volumePerUnit`, `weightPerUnit`, `density`) без подтверждения.
+Drop `marketplace_id` на `stocks`/`orders_v2`; force cutover без миграции; возврат stocks by-date/v1; секреты в репо; drop/rename `items.isArchive` без явного решения; drop с `items` колонок Phase 3 (`payment`, `dimensionsFact`, `dimensionsMasterBox`, `volume`) и устаревших (`volumeMasterBox`, `volumePerUnit`, `weightPerUnit`, `density`) без подтверждения.
 
 ---
 
@@ -93,3 +98,6 @@ Drop `marketplace_id` на `stocks`/`orders_v2`; force cutover без мигра
 | 2026-08-15 | Marketplace characteristics schema-only: `marketplace_characteristics` / `marketplace_item_characteristics` / `marketplace_item_sizes` / `marketplace_characteristic_mappings` (`1789340000000`); без sync/API |
 | 2026-08-15 | WB card sync → `marketplace_item_sizes` (+ `metadata.skus`); characteristics sync ещё нет |
 | 2026-08-15 | Drop `items_sizes` (`1789350000000`); directory/list → `marketPlaceItemsSizes` from mp sizes |
+| 2026-08-15 | Ozon Tamov: price cron + trash cron (паттерн First/Second, как cards) |
+| 2026-08-15 | directory/ERP `marketPlaceItemsSizes` по MP; stop-list PATCH + GET filter — Tamov кабинеты |
+| 2026-08-15 | DECISION: stocks by-date не возвращаем; price pagination не нужна (≤400 SKU); cleanup orphan stop-list DTO |

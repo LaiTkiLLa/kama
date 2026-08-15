@@ -180,16 +180,19 @@ export class ItemsService {
           calculationType: item.calculationType,
           downloadCalculationMethod: item.downloadCalculationMethod,
           marketplacesInfo: [] as MarketplaceInfo[],
-          marketPlaceItemsSizes: item.marketplaceItems.flatMap(mpItem =>
-            (mpItem.marketplaceItemSizes ?? []).map(el => {
-              return {
-                size: el.name,
-                skus: Array.isArray(el.metadata?.skus) ? el.metadata.skus : [],
-                chrtId: el.marketplaceSizeId,
-                value: el.value
-              };
-            })
-          )
+          marketPlaceItemsSizes: item.marketplaceItems.map(mpItem => {
+            return {
+              marketplaceTitle: mpItem.marketplace.title,
+              marketplaceItemSizes: (mpItem.marketplaceItemSizes ?? []).map(el => {
+                return {
+                  size: el.name,
+                  skus: Array.isArray(el.metadata?.skus) ? el?.metadata?.skus : [],
+                  chrtId: el.marketplaceSizeId,
+                  value: el.value
+                };
+              })
+            };
+          })
         };
       });
       for (const item of findItems) {
@@ -238,6 +241,12 @@ export class ItemsService {
           )`,
           { marketplaceTitle: getErpItemsListDto.marketplace }
         )
+        .leftJoinAndSelect(
+          'marketplaceItems.marketplaceItemSizes',
+          'marketplaceItemSizes',
+          'marketplaceItemSizes.deletedAt IS NULL'
+        )
+        .leftJoinAndSelect('marketplaceItems.marketplace', 'marketplace')
         .where('items.isArchive = :isArchive', { isArchive: false });
       if (getErpItemsListDto.withTestArticles === false) {
         queryBuilder.andWhere('items.createdForCalculation = :createdForCalculation', {
@@ -265,7 +274,20 @@ export class ItemsService {
           dutyPercentage: item.dutyPercentage,
           costCalculationType: item.costCalculationType,
           calculationType: item.calculationType,
-          downloadCalculationMethod: item.downloadCalculationMethod
+          downloadCalculationMethod: item.downloadCalculationMethod,
+          marketPlaceItemsSizes: item.marketplaceItems.map(mpItem => {
+            return {
+              marketplaceTitle: mpItem.marketplace.title,
+              marketplaceItemSizes: (mpItem.marketplaceItemSizes ?? []).map(el => {
+                return {
+                  size: el.name,
+                  skus: Array.isArray(el.metadata?.skus) ? el?.metadata?.skus : [],
+                  chrtId: el.marketplaceSizeId,
+                  value: el.value
+                };
+              })
+            };
+          })
         };
       });
     } catch (error) {
@@ -537,7 +559,6 @@ export class ItemsService {
       const mappedItems: StopListResponse[] = [];
       for (const item of result) {
         const findArticle = mappedItems.find(el => el.article === item.article);
-        // const raw = result.raw[index];
         const wbBarcode = item.marketplaceTitle === 'WB' ? item.barcode : undefined;
         const wbIdentifier = item.marketplaceTitle === 'WB' ? item.marketplaceIdentifier : undefined;
         const ozonIdentifier = item.marketplaceTitle === 'Озон' ? item.sku : undefined;
@@ -602,6 +623,8 @@ export class ItemsService {
       let wbStatus: string | undefined = undefined;
       let ozonStatus: string | undefined = undefined;
       let yandexStatus: string | undefined = undefined;
+      let yandexTamovStatus: string | undefined = undefined;
+      let ozonTamovStatus: string | undefined = undefined;
       item.statuses.forEach(status => {
         if (status.marketplace === 'WB') {
           wbStatus = status.status;
@@ -612,12 +635,20 @@ export class ItemsService {
         if (status.marketplace === 'Yandex') {
           yandexStatus = status.status;
         }
+        if (status.marketplace === 'Yandex Tamov') {
+          yandexTamovStatus = status.status;
+        }
+        if (status.marketplace === 'Ozon Tamov') {
+          ozonTamovStatus = status.status;
+        }
       });
       return {
         article: item.itemArticle,
         wbStatus,
         yandexStatus,
-        ozonStatus
+        ozonStatus,
+        yandexTamovStatus,
+        ozonTamovStatus
       };
     });
     const queryRunner = this.dataSource.createQueryRunner();
@@ -638,6 +669,12 @@ export class ItemsService {
         const findOzonItem = findItem?.marketplaceItems.find(el => el.marketplace.title === 'Озон');
         const findWbItem = findItem?.marketplaceItems.find(el => el.marketplace.title === 'WB');
         const findYandexItem = findItem?.marketplaceItems.find(el => el.marketplace.title === 'Yandex');
+        const findYandexTamovItem = findItem?.marketplaceItems.find(
+          el => el.marketplace.title === 'Yandex Tamov'
+        );
+        const findOzonTamovItem = findItem?.marketplaceItems.find(
+          el => el.marketplace.title === 'Ozon Tamov'
+        );
         if (item.ozonStatus && findOzonItem) {
           const findStatusOzon = await queryRunner.manager.findOne(Statuses, {
             where: {
@@ -648,6 +685,32 @@ export class ItemsService {
           if (findStatusOzon) {
             await queryRunner.manager.update(MarketplaceItems, findOzonItem.id, {
               sendStatusId: findStatusOzon.id
+            });
+          }
+        }
+        if (item.ozonTamovStatus && findOzonTamovItem) {
+          const findStatusOzonTamov = await queryRunner.manager.findOne(Statuses, {
+            where: {
+              title: item.ozonTamovStatus,
+              type: StatusesTypes.Отправка
+            }
+          });
+          if (findStatusOzonTamov) {
+            await queryRunner.manager.update(MarketplaceItems, findOzonTamovItem.id, {
+              sendStatusId: findStatusOzonTamov.id
+            });
+          }
+        }
+        if (item.yandexTamovStatus && findYandexTamovItem) {
+          const findStatusYandexTamov = await queryRunner.manager.findOne(Statuses, {
+            where: {
+              title: item.yandexTamovStatus,
+              type: StatusesTypes.Отправка
+            }
+          });
+          if (findStatusYandexTamov) {
+            await queryRunner.manager.update(MarketplaceItems, findYandexTamovItem.id, {
+              sendStatusId: findStatusYandexTamov.id
             });
           }
         }
@@ -927,16 +990,31 @@ export class ItemsService {
     }
   }
 
-  @Cron('0 */50 * * * *')
-  async getOzonTrashItems() {
+  @Cron('0 */51 * * * *')
+  async getOzonTrashItemsFirst() {
     const ozonToken = this.configService.get<string>('ozonToken');
     const clientId = this.configService.get<string>('ozonClientId');
+    if (!ozonToken || !clientId) return;
+    await this.getOzonTrashItems(ozonToken, clientId, 'Озон');
+    return;
+  }
+
+  @Cron('0 */50 * * * *')
+  async getOzonTrashItemsSecond() {
+    const ozonToken = this.configService.get<string>('ozonTamovToken');
+    const clientId = this.configService.get<string>('ozonTamovClientId');
+    if (!ozonToken || !clientId) return;
+    await this.getOzonTrashItems(ozonToken, clientId, 'Ozon Tamov');
+    return;
+  }
+
+  async getOzonTrashItems(token: string, clientId: string, mpTitle: string) {
     const headers = {
       'Client-Id': clientId,
-      'Api-Key': ozonToken
+      'Api-Key': token
     };
     const ozonUrlItemsInfo = 'https://api-seller.ozon.ru/v4/product/info/attributes';
-    const ozonMarketplace = await this.infoService.findMarketplace({ title: 'Озон' });
+    const ozonMarketplace = await this.infoService.findMarketplace({ title: mpTitle });
     const { data }: { data: { result: OzonItemsInfo[] } } = await axios.post(
       ozonUrlItemsInfo,
       {
@@ -973,7 +1051,7 @@ export class ItemsService {
       return;
     } catch (error) {
       this.logger.error(error);
-      this.logger.error('Не смог получить архивные товары Ozon');
+      this.logger.error(`Не смог получить архивные товары ${mpTitle}`);
     } finally {
       await queryRunner.release();
     }
@@ -1539,15 +1617,30 @@ export class ItemsService {
   }
 
   @Cron(CronExpression.EVERY_HOUR)
-  async updateOzonItemsPrices() {
+  async updateOzonItemsPricesFirst() {
+    const ozonToken = this.configService.get<string>('ozonToken');
+    const clientId = this.configService.get<string>('ozonClientId');
+    if (!ozonToken || !clientId) return;
+    await this.updateOzonItemsPrices(ozonToken, clientId, 'Озон');
+    return;
+  }
+
+  @Cron(CronExpression.EVERY_HOUR)
+  async updateOzonItemsPricesSecond() {
+    const ozonToken = this.configService.get<string>('ozonTamovToken');
+    const clientId = this.configService.get<string>('ozonTamovClientId');
+    if (!ozonToken || !clientId) return;
+    await this.updateOzonItemsPrices(ozonToken, clientId, 'Ozon Tamov');
+    return;
+  }
+
+  async updateOzonItemsPrices(token: string, clientId: string, mpTitle: string) {
     let getItems: OzonItemsPrices = {
       items: []
     };
-    const ozonToken = this.configService.get<string>('ozonToken');
-    const clientId = this.configService.get<string>('ozonClientId');
     const headers = {
       'Client-Id': clientId,
-      'Api-Key': ozonToken
+      'Api-Key': token
     };
     const ozonPricesUrl = 'https://api-seller.ozon.ru/v5/product/info/prices';
     try {
@@ -1573,7 +1666,7 @@ export class ItemsService {
       if (!itemsId.length) {
         return;
       }
-      const findMarketplace = await this.infoService.findMarketplace({ title: 'Озон' });
+      const findMarketplace = await this.infoService.findMarketplace({ title: mpTitle });
       const findItems = await manager.find(MarketplaceItems, {
         where: {
           marketplaceIdentifier: In(itemsId),
@@ -1604,7 +1697,7 @@ export class ItemsService {
       }
     } catch (error) {
       this.logger.error(error);
-      this.logger.error('Не смог проставить цену товарам Ozon');
+      this.logger.error(`Не смог проставить цену товарам ${mpTitle}`);
     }
   }
 }
