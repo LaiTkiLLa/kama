@@ -2,7 +2,7 @@
 
 > [`../domain/items-and-marketplace-items.md`](../domain/items-and-marketplace-items.md) · [`../AI_CONTEXT.md`](../AI_CONTEXT.md)
 
-Последнее обновление: 2026-08-13.
+Последнее обновление: 2026-08-15.
 
 ---
 
@@ -38,7 +38,7 @@ Changelog M5: [`../migrations/m5-consolidation-changelog.md`](../migrations/m5-c
 | Ozon Tamov prices / trash / stop-list | □ gaps |
 | Yandex Tamov sync | ✔ cards/stocks/orders; stop-list/trash □ |
 
-**Фокус спринта (M6):** `items_sizes` → Tamov gaps (Ozon + Yandex) → stocks v1 → cleanup.
+**Фокус спринта (M6):** backfill размеров в `item_characteristics` + API → Tamov gaps → stocks v1 → cleanup.
 
 ---
 
@@ -50,7 +50,8 @@ Changelog M5: [`../migrations/m5-consolidation-changelog.md`](../migrations/m5-c
 
 - [x] `items.isArchive` оставляем (product hide)
 - [x] Ozon Tamov: rename from Ozon Second; cron cards/stocks/orders/warehouses
-- [ ] `items_sizes` — связь с mp (TBD) — **next**
+- [x] `items_sizes` — schema `characteristics` / `characteristic_values` / `item_characteristics` (`1789330000000`)
+- [ ] backfill размеров из `items_sizes` + API cutover; drop `items_sizes` — позже
 - [ ] Ozon Tamov: prices, trash, stop-list/directory PATCH
 - [ ] Yandex Tamov: stop-list PATCH, trash sync
 - [ ] Stocks API v1 — commented by-date **удалён** (2026-08-13); restore не делали. Sheets warehouse-level: `GET /api/stocks/by-warehouses`
@@ -63,7 +64,7 @@ Changelog M5: [`../migrations/m5-consolidation-changelog.md`](../migrations/m5-c
 
 | # | Задача | Статус |
 |---|--------|--------|
-| 1 | `items_sizes` redesign | □ next |
+| 1 | characteristics schema | ✔ `1789330000000`; backfill/API/drop `items_sizes` — next |
 | 2 | Ozon / Yandex Tamov gaps | □ |
 | 3 | Stocks v1 decision | □ later (v1 by-date код удалён; by-warehouses — Sheets, не v1) |
 | 4 | Cleanup | □ |

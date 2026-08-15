@@ -47,7 +47,7 @@ alwaysApply: true
 
 - Меняй только то, что требует задача. Без drive-by рефакторинга чужих модулей.
 - При шаге миграции Items/MP обновляй `docs/roadmap/items-marketplace-items-migration.md` после шага.
-- Текущая позиция roadmap: **Milestone 6 — Cutover**. M5 ✔ prod. `isArchive` оставляем. Next: `items_sizes` / Tamov gaps / stocks v1.
+- Текущая позиция roadmap: **Milestone 6 — Cutover**. M5 ✔ prod. `isArchive` оставляем. Next: backfill размеров в `item_characteristics` / Tamov gaps / stocks v1.
 - Вторые кабинеты — отдельные `marketplaces.title`, не смешивать с основным:
   - Yandex — `'Yandex Tamov'`; credentials `yandexTamov*`.
   - Ozon — `'Ozon Tamov'`; credentials `ozonTamov*`. Legacy `Ozon Second` / `ozonSecond*` не использовать.
