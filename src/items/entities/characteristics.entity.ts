@@ -6,7 +6,6 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn
 } from 'typeorm';
-import { CharacteristicType } from '../enum/characteristic-type.enum';
 import { CharacteristicValues } from './characteristic-values.entity';
 import { ItemCharacteristics } from './item-characteristics.entity';
 
@@ -23,7 +22,7 @@ export class Characteristics {
   name: string;
 
   @Column({ type: 'varchar', nullable: false })
-  type: CharacteristicType;
+  type: string;
 
   @CreateDateColumn({
     type: 'timestamptz',
