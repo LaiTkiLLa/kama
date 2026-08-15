@@ -13,6 +13,8 @@ import { Items } from './items.entity';
 import { Stocks } from '../../stocks/entities/stocks.entity';
 import { OrdersV2 } from '../../orders/entities/orders_v2.entity';
 import { Statuses } from 'src/info/entities/statuses.entity';
+import { MarketplaceItemCharacteristics } from './marketplace-item-characteristics.entity';
+import { MarketplaceItemSizes } from './marketplace-item-sizes.entity';
 
 @Entity({
   name: 'marketplace_items'
@@ -123,4 +125,13 @@ export class MarketplaceItems {
     name: 'send_status_id'
   })
   sendStatus: Statuses;
+
+  @OneToMany(
+    () => MarketplaceItemCharacteristics,
+    marketplaceItemCharacteristic => marketplaceItemCharacteristic.marketplaceItem
+  )
+  marketplaceItemCharacteristics: MarketplaceItemCharacteristics[];
+
+  @OneToMany(() => MarketplaceItemSizes, marketplaceItemSize => marketplaceItemSize.marketplaceItem)
+  marketplaceItemSizes: MarketplaceItemSizes[];
 }

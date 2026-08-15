@@ -33,7 +33,7 @@ export interface WbItem {
     weightBrutto: number;
   };
   photos?: { big: string }[];
-  characteristics?: [{ id: number; name: string; value: string[] }];
+  characteristics?: { id: number; name: string; value: string[] }[];
   sizes: {
     chrtID: number;
     techSize: string;
