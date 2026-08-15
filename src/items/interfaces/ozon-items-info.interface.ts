@@ -19,6 +19,14 @@ export interface OzonItemsInfo {
   color_image: string;
   sku: number;
   barcodes: string[];
+  attributes: {
+    id: number;
+    complex_id: number;
+    values: {
+      dictionary_value_id: number;
+      value: string;
+    }[];
+  }[];
 }
 
 export interface OzonCategoryData {

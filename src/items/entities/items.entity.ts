@@ -6,7 +6,6 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn
 } from 'typeorm';
-import { ItemsSizes } from './items-sizes.entity';
 import { ItemsSuppliers } from './items_suppliers.entity';
 import { MarketplaceItems } from './marketplace-items.entity';
 import { ItemCharacteristics } from './item-characteristics.entity';
@@ -178,9 +177,6 @@ export class Items {
     default: new Date()
   })
   updatedAt: Date;
-
-  @OneToMany(() => ItemsSizes, sizes => sizes.item)
-  sizes: ItemsSizes[];
 
   @OneToMany(() => ItemCharacteristics, itemCharacteristic => itemCharacteristic.item)
   itemCharacteristics: ItemCharacteristics[];

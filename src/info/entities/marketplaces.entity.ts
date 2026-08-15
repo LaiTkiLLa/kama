@@ -9,6 +9,8 @@ import {
 import { Stocks } from '../../stocks/entities/stocks.entity';
 import { Warehouses } from './warehouses.entity';
 import { MarketplaceItems } from '../../items/entities/marketplace-items.entity';
+import { MarketplaceCharacteristics } from '../../items/entities/marketplace-characteristics.entity';
+import { MarketplaceCharacteristicMappings } from '../../items/entities/marketplace-characteristic-mappings.entity';
 import { OrdersV2 } from 'src/orders/entities/orders_v2.entity';
 
 @Entity({
@@ -44,6 +46,15 @@ export class Marketplaces {
 
   @OneToMany(() => MarketplaceItems, items => items.marketplace)
   marketplaceItems: MarketplaceItems[];
+
+  @OneToMany(
+    () => MarketplaceCharacteristics,
+    marketplaceCharacteristic => marketplaceCharacteristic.marketplace
+  )
+  marketplaceCharacteristics: MarketplaceCharacteristics[];
+
+  @OneToMany(() => MarketplaceCharacteristicMappings, mapping => mapping.marketplace)
+  marketplaceCharacteristicMappings: MarketplaceCharacteristicMappings[];
 
   @OneToMany(() => Stocks, stocks => stocks.marketplace)
   stocks: Stocks[];

@@ -8,6 +8,7 @@ import {
 } from 'typeorm';
 import { CharacteristicValues } from './characteristic-values.entity';
 import { ItemCharacteristics } from './item-characteristics.entity';
+import { MarketplaceCharacteristicMappings } from './marketplace-characteristic-mappings.entity';
 
 @Entity({
   name: 'characteristics'
@@ -52,4 +53,7 @@ export class Characteristics {
 
   @OneToMany(() => ItemCharacteristics, itemCharacteristic => itemCharacteristic.characteristic)
   itemCharacteristics: ItemCharacteristics[];
+
+  @OneToMany(() => MarketplaceCharacteristicMappings, mapping => mapping.characteristic)
+  marketplaceCharacteristicMappings: MarketplaceCharacteristicMappings[];
 }

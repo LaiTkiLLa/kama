@@ -51,7 +51,11 @@ Changelog M5: [`../migrations/m5-consolidation-changelog.md`](../migrations/m5-c
 - [x] `items.isArchive` оставляем (product hide)
 - [x] Ozon Tamov: rename from Ozon Second; cron cards/stocks/orders/warehouses
 - [x] `items_sizes` — schema `characteristics` / `characteristic_values` / `item_characteristics` (`1789330000000`)
-- [ ] backfill размеров из `items_sizes` + API cutover; drop `items_sizes` — позже
+- [x] marketplace characteristics schema (`1789340000000`): `marketplace_characteristics` / `marketplace_item_characteristics` / `marketplace_item_sizes` / `marketplace_characteristic_mappings`
+- [x] WB sizes → `marketplace_item_sizes` (`chrtID` / `techSize` / `wbSize` / `metadata.skus`)
+- [x] directory/list → `marketPlaceItemsSizes` from mp sizes; drop `items_sizes` (`1789350000000`)
+- [ ] backfill размеров в `item_characteristics` (если ещё нужен product-level) — later
+- [ ] sync marketplace characteristics из WB/Ozon; Ozon sizes; soft-delete пропавших sizes
 - [ ] Ozon Tamov: prices, trash, stop-list/directory PATCH
 - [ ] Yandex Tamov: stop-list PATCH, trash sync
 - [ ] Stocks API v1 — commented by-date **удалён** (2026-08-13); restore не делали. Sheets warehouse-level: `GET /api/stocks/by-warehouses`
@@ -64,7 +68,7 @@ Changelog M5: [`../migrations/m5-consolidation-changelog.md`](../migrations/m5-c
 
 | # | Задача | Статус |
 |---|--------|--------|
-| 1 | characteristics schema | ✔ `1789330000000`; backfill/API/drop `items_sizes` — next |
+| 1 | characteristics / sizes | ✔ `178933` + mp `178934` + drop `items_sizes` `178935`; WB sizes + directory API ✔; MP characteristics sync — next |
 | 2 | Ozon / Yandex Tamov gaps | □ |
 | 3 | Stocks v1 decision | □ later (v1 by-date код удалён; by-warehouses — Sheets, не v1) |
 | 4 | Cleanup | □ |

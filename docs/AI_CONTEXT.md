@@ -53,7 +53,7 @@
 
 | Область | Статус |
 |---------|--------|
-| `items_sizes` → characteristics | □ schema ✔ (`1789330000000`); next: backfill размеров + API; drop `items_sizes` / mp-слой — позже |
+| `items_sizes` → characteristics / mp sizes | ✔ mp schema + WB sizes sync; `items_sizes` drop (`1789350000000`); item_characteristics backfill — позже |
 | Ozon Tamov gaps: price cron, trash, stop-list PATCH, directory PATCH | □ |
 | Yandex Tamov: stop-list PATCH, trash sync | □ отложено |
 | Stocks API v1 | □ решение TBD (v1 by-date код удалён 2026-08-13; это не restore). Sheets: `GET /api/stocks/by-warehouses` |
@@ -90,3 +90,6 @@ Drop `marketplace_id` на `stocks`/`orders_v2`; force cutover без мигра
 | 2026-08-07 | M1–M4; send_status mp-centric; Yandex Tamov card/stocks/orders |
 | 2026-08-10 | M5 prod; price crons → mp; Ozon Tamov; warehouses/stocks scoped by `marketplaceId` |
 | 2026-08-15 | Item characteristics schema-only: `characteristics` / `characteristic_values` / `item_characteristics` (`1789330000000`); без backfill/API |
+| 2026-08-15 | Marketplace characteristics schema-only: `marketplace_characteristics` / `marketplace_item_characteristics` / `marketplace_item_sizes` / `marketplace_characteristic_mappings` (`1789340000000`); без sync/API |
+| 2026-08-15 | WB card sync → `marketplace_item_sizes` (+ `metadata.skus`); characteristics sync ещё нет |
+| 2026-08-15 | Drop `items_sizes` (`1789350000000`); directory/list → `marketPlaceItemsSizes` from mp sizes |

@@ -83,7 +83,62 @@ items → item_characteristics → characteristics
 Soft delete: `deleted_at` (nullable `timestamptz`), как у `marketplace_items` — фильтр `deleted_at IS NULL` в запросах.
 
 Migration `1789330000000`: только CREATE tables + FK + indexes. **Без** seed «Размер» и **без** backfill из `items_sizes`.  
-Runtime API / directory / sync — по-прежнему на `items_sizes` (перенос данных и API cutover — позже).
+**FACT (2026-08-15):** legacy `items_sizes` **dropped** (`1789350000000`). Runtime sizes — `marketplace_item_sizes`; directory/list отдаёт `marketPlaceItemsSizes`.
+
+### Marketplace-характеристики (FACT, 2026-08-15)
+
+Отдельный listing-слой (не смешивать с каноническими `characteristics` / `item_characteristics`):
+
+```text
+characteristics
+       │
+       ▼
+marketplace_characteristic_mappings
+       │
+       ▼
+marketplace_characteristics
+       │
+       ▼
+marketplace_item_characteristics
+       ▲
+       │
+marketplace_items
+       │
+       ▼
+marketplace_item_sizes
+```
+
+| Таблица | Роль |
+|---------|------|
+| `marketplace_characteristics` | Описание характеристики в терминах МП; unique `(marketplace_id, marketplace_characteristic_id)` среди активных |
+| `marketplace_item_characteristics` | Фактические значения на listing; одно значение = одна строка; MP-specific id в `metadata` jsonb |
+| `marketplace_item_sizes` | Размеры listing (не характеристики); `marketplace_size_id` scoped by `marketplace_item_id` |
+| `marketplace_characteristic_mappings` | Связь `characteristics.id` ↔ `marketplace_characteristics.id` (по PK, не по name) |
+
+**DECISION:** mapping только по внутренним PK, не по названию.  
+**DECISION:** размеры МП хранятся отдельно от характеристик.  
+**DECISION:** `marketplace_characteristic_id` в mappings / item_characteristics — FK на `marketplace_characteristics.id`, не на внешний ID WB/Ozon.
+
+Migration `1789340000000`: только CREATE tables + FK + indexes. **Без** seed mappings.
+
+**WB sizes sync (FACT, 2026-08-15):** `getWbItems` пишет в `marketplace_item_sizes`:
+
+| Поле | Источник WB |
+|------|-------------|
+| `marketplace_size_id` | `sizes[].chrtID` (string) |
+| `name` | `sizes[].techSize` |
+| `value` | `sizes[].wbSize` |
+| `metadata.skus` | `sizes[].skus` (массив баркодов целиком) |
+
+**DECISION:** `skus` не выносить в отдельную колонку и не схлопывать в один barcode. WB API допускает несколько баркодов на один размер (партии); на практике чаще 1 элемент, но храним массив в `metadata`. Listing-level `marketplace_items.barcode` / `chrt_id` по-прежнему берутся из `sizes[0]` (как раньше). Soft-delete исчезнувших размеров и sync характеристик — ещё нет.
+
+**Directory API (FACT, 2026-08-15):** `GET …/directory/list` — поле `wbSizes: string[]` заменено на `marketPlaceItemsSizes[]`:
+
+```text
+{ size, value, chrtId, skus[] }
+```
+
+Источник: join `marketplace_items` → `marketplace_item_sizes` (`deleted_at IS NULL`), flatMap по всем активным listings товара.
 
 ### Stop-list
 
@@ -117,8 +172,9 @@ Runtime API / directory / sync — по-прежнему на `items_sizes` (п�
 | Область | Статус |
 |---------|--------|
 | `items.isArchive` | **оставляем** — product hide; не путать с mp `deleted_at` |
-| `items_sizes` | ✔ runtime source размеров; sync закомментирован; drop после cutover |
+| `items_sizes` | ✖ dropped (`1789350000000`); замена — `marketplace_item_sizes` |
 | `characteristics` / `characteristic_values` / `item_characteristics` | ✔ schema (`1789330000000`); данных / API ещё нет |
+| marketplace characteristics / sizes / mappings | ✔ schema (`1789340000000`); WB sizes sync ✔; directory `marketPlaceItemsSizes` ✔; characteristics / Ozon — ещё нет |
 | Yandex / Ozon Tamov | stop-list PATCH, trash; Ozon Tamov ещё prices |
 | Stocks API v1 | v1 by-date код удалён (2026-08-13); `GET /api/stocks/by-warehouses` — Sheets warehouse-level |
 | Price pagination | API limit 1000 без cursor |
