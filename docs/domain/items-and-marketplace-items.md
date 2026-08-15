@@ -62,6 +62,29 @@ Marketplace-independent: `id`, `article`, `articleOld`, `ownCategory`, classific
 7. **Ozon Tamov:** cards/stocks/orders_v2/warehouses sync ✔; prices/trash/stop-list PATCH — gaps.
 8. **Warehouses multi-cabinet (DECISION):** lookup/create всегда в scope `marketplaceId`. Ozon stocks: find по `title` + `marketplaceId`, без auto-create (нужен prior warehouses cron). Orders Ozon: `marketplaceInternalNumber` + `marketplaceId`.
 
+### Характеристики товара (FACT, 2026-08-15)
+
+Каноническая модель (marketplace-independent), schema-only:
+
+```text
+items → item_characteristics → characteristics
+                                    ↓
+                            characteristic_values (справочник)
+```
+
+| Таблица | Роль |
+|---------|------|
+| `characteristics` | Справочник характеристик; `type`: varchar (`string` / `number` / `boolean` / `enum`) |
+| `characteristic_values` | Известные значения для характеристики (не обязательная ссылка для товара) |
+| `item_characteristics` | Фактическое `value` характеристики у товара |
+
+**DECISION:** `item_characteristics.value` — источник истины; `characteristic_value_id` **нет**.  
+**DECISION:** у товара может быть **несколько** значений одной характеристики (размеры) — unique `(item_id, characteristic_id)` **не** вводим.  
+Soft delete: `deleted_at` (nullable `timestamptz`), как у `marketplace_items` — фильтр `deleted_at IS NULL` в запросах.
+
+Migration `1789330000000`: только CREATE tables + FK + indexes. **Без** seed «Размер» и **без** backfill из `items_sizes`.  
+Runtime API / directory / sync — по-прежнему на `items_sizes` (перенос данных и API cutover — позже).
+
 ### Stop-list
 
 | Endpoint / код | Статус |
@@ -94,7 +117,8 @@ Marketplace-independent: `id`, `article`, `articleOld`, `ownCategory`, classific
 | Область | Статус |
 |---------|--------|
 | `items.isArchive` | **оставляем** — product hide; не путать с mp `deleted_at` |
-| `items_sizes` | sync закомментирован; redesign — next |
+| `items_sizes` | ✔ runtime source размеров; sync закомментирован; drop после cutover |
+| `characteristics` / `characteristic_values` / `item_characteristics` | ✔ schema (`1789330000000`); данных / API ещё нет |
 | Yandex / Ozon Tamov | stop-list PATCH, trash; Ozon Tamov ещё prices |
 | Stocks API v1 | v1 by-date код удалён (2026-08-13); `GET /api/stocks/by-warehouses` — Sheets warehouse-level |
 | Price pagination | API limit 1000 без cursor |

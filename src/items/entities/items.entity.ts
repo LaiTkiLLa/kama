@@ -9,6 +9,7 @@ import {
 import { ItemsSizes } from './items-sizes.entity';
 import { ItemsSuppliers } from './items_suppliers.entity';
 import { MarketplaceItems } from './marketplace-items.entity';
+import { ItemCharacteristics } from './item-characteristics.entity';
 
 @Entity({
   name: 'items'
@@ -180,6 +181,9 @@ export class Items {
 
   @OneToMany(() => ItemsSizes, sizes => sizes.item)
   sizes: ItemsSizes[];
+
+  @OneToMany(() => ItemCharacteristics, itemCharacteristic => itemCharacteristic.item)
+  itemCharacteristics: ItemCharacteristics[];
 
   @OneToMany(() => ItemsSuppliers, itemsSuppliers => itemsSuppliers.item)
   itemsSuppliers: ItemsSuppliers[];
