@@ -91,8 +91,17 @@ items → item_characteristics → characteristics
 **DECISION:** у товара может быть **несколько** значений одной характеристики (размеры) — unique `(item_id, characteristic_id)` **не** вводим.  
 Soft delete: `deleted_at` (nullable `timestamptz`), как у `marketplace_items` — фильтр `deleted_at IS NULL` в запросах.
 
-Migration `1789330000000`: только CREATE tables + FK + indexes. **Без** seed «Размер» и **без** backfill из `items_sizes`.  
-**FACT (2026-08-15):** legacy `items_sizes` **dropped** (`1789350000000`). Runtime sizes — `marketplace_item_sizes`; directory/list отдаёт `marketPlaceItemsSizes`.
+Migration `1789330000000`: только CREATE tables + FK + indexes.  
+**FACT (2026-08-15):** legacy `items_sizes` **dropped** (`1789350000000`). Runtime sizes — `marketplace_item_sizes`.
+
+**Backfill размеров (FACT, 2026-08-17):** `1789360000000` + WB sync → `item_characteristics` (характеристика `Размер`, `type = string`):
+
+| Условие WB `techSize` (`marketplace_item_sizes.name`) | `item_characteristics` |
+|-------------------------------------------------------|------------------------|
+| `'0'` (one-size)                                      | не создаём строк (нет вариаций) |
+| иначе                                                 | одна строка на вариацию; `value` = `wbSize` или `techSize` |
+
+Источник backfill: активные `marketplace_item_sizes` всех listings; при дубле — приоритет WB.
 
 ### Marketplace-характеристики (FACT, 2026-08-15)
 
@@ -182,7 +191,7 @@ Migration `1789340000000`: только CREATE tables + FK + indexes. **Без**
 | -------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
 | `items.isArchive`                                                    | **оставляем** — product hide; не путать с mp `deleted_at`                                                             |
 | `items_sizes`                                                        | ✖ dropped (`1789350000000`); замена — `marketplace_item_sizes`                                                       |
-| `characteristics` / `characteristic_values` / `item_characteristics` | ✔ schema (`1789330000000`); данных / API ещё нет                                                                     |
+| `characteristics` / `characteristic_values` / `item_characteristics` | ✔ schema + backfill `Размер` из `marketplace_item_sizes` (`1789360000000`) |
 | marketplace characteristics / sizes / mappings                       | ✔ schema (`1789340000000`); WB sizes sync ✔; directory `marketPlaceItemsSizes` ✔; characteristics / Ozon — ещё нет |
 | Yandex / Ozon Tamov | Ozon Tamov: prices+trash+stop-list ✔; directory PATCH □. Yandex Tamov: stop-list ✔; trash □ |
 | Stocks API | ✔ `by-warehouses` для Sheets; by-date/v1 **не возвращаем** (DECISION 2026-08-15) |

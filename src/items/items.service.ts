@@ -1,6 +1,6 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { DataSource, In, IsNull } from 'typeorm';
+import { DataSource, EntityManager, In, IsNull } from 'typeorm';
 import axios from 'axios';
 import { InfoService } from '../info/info.service';
 import { ConfigService } from '@nestjs/config';
@@ -21,9 +21,14 @@ import { MarketplaceInfo } from './interfaces/get-items-directory-list.interface
 import { Statuses } from 'src/info/entities/statuses.entity';
 import { GetErpItemsListDto } from './dto/get-erp-items-list.dto';
 import { MarketplaceItemSizes } from './entities/marketplace-item-sizes.entity';
+import { Characteristics } from './entities/characteristics.entity';
+import { ItemCharacteristics } from './entities/item-characteristics.entity';
+import { CharacteristicValues } from './entities/characteristic-values.entity';
 
 @Injectable()
 export class ItemsService {
+  private readonly sizeCharacteristicName = 'Размер';
+
   constructor(
     private dataSource: DataSource,
     private infoService: InfoService,
@@ -31,6 +36,95 @@ export class ItemsService {
   ) {}
 
   private logger: Logger = new Logger(ItemsService.name);
+
+  private normalizeSizeValue(wbSize: string | null | undefined, techSize: string): string {
+    return (wbSize?.trim() || techSize?.trim() || '').trim();
+  }
+
+  /**
+   * Product-level размеры из WB sizes → item_characteristics.
+   * techSize = '0' → one-size, вариаций нет.
+   */
+  private async syncItemSizeCharacteristics(
+    manager: EntityManager,
+    itemId: number,
+    sizes: { techSize: string; wbSize: string }[]
+  ): Promise<void> {
+    if (!sizes?.length) {
+      return;
+    }
+
+    let sizeCharacteristic = await manager.findOne(Characteristics, {
+      where: { name: this.sizeCharacteristicName, deletedAt: IsNull() }
+    });
+    if (!sizeCharacteristic) {
+      sizeCharacteristic = await manager.save(
+        Characteristics,
+        manager.create(Characteristics, {
+          name: this.sizeCharacteristicName,
+          type: 'string'
+        })
+      );
+    }
+
+    const hasVariations = sizes.some(size => size.techSize !== '0');
+    const targetValues = hasVariations
+      ? Array.from(
+          new Set(
+            sizes
+              .filter(size => size.techSize !== '0')
+              .map(size => this.normalizeSizeValue(size.wbSize, size.techSize))
+              .filter(Boolean)
+          )
+        )
+      : [];
+
+    const existing = await manager.find(ItemCharacteristics, {
+      where: {
+        itemId,
+        characteristicId: sizeCharacteristic.id,
+        deletedAt: IsNull()
+      }
+    });
+
+    const targetSet = new Set(targetValues);
+
+    for (const value of targetValues) {
+      if (!existing.some(row => row.value === value)) {
+        await manager.save(
+          ItemCharacteristics,
+          manager.create(ItemCharacteristics, {
+            itemId,
+            characteristicId: sizeCharacteristic.id,
+            value
+          })
+        );
+      }
+
+      const dictionaryValue = await manager.findOne(CharacteristicValues, {
+        where: {
+          characteristicId: sizeCharacteristic.id,
+          value,
+          deletedAt: IsNull()
+        }
+      });
+      if (!dictionaryValue) {
+        await manager.save(
+          CharacteristicValues,
+          manager.create(CharacteristicValues, {
+            characteristicId: sizeCharacteristic.id,
+            value
+          })
+        );
+      }
+    }
+
+    for (const row of existing) {
+      if (!targetSet.has(row.value)) {
+        await manager.update(ItemCharacteristics, row.id, { deletedAt: new Date() });
+      }
+    }
+  }
 
   async createTestItem() {
     const queryRunner = this.dataSource.createQueryRunner();
@@ -276,6 +370,7 @@ export class ItemsService {
               marketplaceTitle: mpItem.marketplace.title,
               marketplaceItemSizes: (mpItem.marketplaceItemSizes ?? []).map(el => {
                 return {
+                  sizeId: el.id,
                   size: el.name,
                   skus: Array.isArray(el.metadata?.skus) ? el?.metadata?.skus : [],
                   chrtId: el.marketplaceSizeId,
@@ -303,6 +398,12 @@ export class ItemsService {
         .createQueryBuilder(ItemsSuppliers, 'itemsSuppliers')
         .leftJoinAndSelect('itemsSuppliers.item', 'item')
         .leftJoinAndSelect('itemsSuppliers.supplier', 'supplier')
+        .leftJoinAndSelect(
+          'item.itemCharacteristics',
+          'itemCharacteristics',
+          'itemCharacteristics.deletedAt IS NULL'
+        )
+        .leftJoinAndSelect('itemCharacteristics.characteristic', 'characteristic')
         .where('item.isArchive = :isArchive', { isArchive: false });
       if (getErpItemsListDto.withTestArticles === false) {
         queryBuilder.andWhere('item.createdForCalculation = :createdForCalculation', {
@@ -329,7 +430,14 @@ export class ItemsService {
           payment: itemsSupplier.payment,
           dimensionsFact: itemsSupplier.dimensionsFact,
           dimensionsMasterBox: itemsSupplier.dimensionsMasterBox,
-          volume: itemsSupplier.volume
+          volume: itemsSupplier.volume,
+          characteristics: itemsSupplier.item.itemCharacteristics.map(el => {
+            return {
+              name: el.characteristic.name,
+              value: el.value,
+              characteristicId: el.characteristicId
+            };
+          })
         };
       });
     } catch (error) {
@@ -857,6 +965,7 @@ export class ItemsService {
                 await queryRunner.manager.save(MarketplaceItemSizes, createSize);
               }
             }
+            await this.syncItemSizeCharacteristics(queryRunner.manager, itemId, item.sizes);
           }
         } else {
           await queryRunner.manager.update(
@@ -907,6 +1016,7 @@ export class ItemsService {
                 await queryRunner.manager.save(MarketplaceItemSizes, createSize);
               }
             }
+            await this.syncItemSizeCharacteristics(queryRunner.manager, findMpItem.itemId, item.sizes);
           }
         }
       }

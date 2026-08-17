@@ -60,7 +60,7 @@ Changelog M5: [`../migrations/m5-consolidation-changelog.md`](../migrations/m5-c
 - [x] Stocks: by-date/v1 **не возвращаем**; Sheets = `GET /api/stocks/by-warehouses`
 - [x] Price crons pagination >1000 **не нужна** (≤~400 SKU/кабинет)
 - [x] Cleanup orphan DTO / dead stop-list fields (`get-items-list.dto`, legacy `GetStopListFromDb` / `direction*`)
-- [ ] backfill размеров в `item_characteristics` (если ещё нужен product-level) — later
+- [x] backfill размеров в `item_characteristics` из `marketplace_item_sizes` (`1789360000000`; `name='0'` = one-size)
 - [ ] sync marketplace characteristics из WB/Ozon; Ozon sizes; soft-delete пропавших sizes
 - [ ] directory PATCH для Tamov (если нужен listing update 2-го кабинета)
 - [ ] Yandex Tamov: trash sync

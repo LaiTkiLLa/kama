@@ -57,7 +57,7 @@ Yandex Tamov: cards/stocks/orders + stop-list PATCH ✔; trash sync — gap.
 
 | Область | Статус |
 |---------|--------|
-| `items_sizes` → characteristics / mp sizes | ✔ mp schema + WB sizes sync; `items_sizes` drop (`1789350000000`); item_characteristics backfill — позже |
+| `items_sizes` → characteristics / mp sizes | ✔ mp sizes + backfill `item_characteristics` (`1789360000000`) + WB sync |
 | Ozon Tamov gaps: directory PATCH | □ (prices + trash + stop-list PATCH ✔) |
 | Yandex Tamov: trash sync | □ (stop-list PATCH ✔) |
 | Stocks API v1 / by-date | ✖ **не делаем** — Sheets на `GET /api/stocks/by-warehouses` |
@@ -100,4 +100,4 @@ Drop `marketplace_id` на `stocks`/`orders_v2`; force cutover без мигра
 | 2026-08-15 | Drop `items_sizes` (`1789350000000`); directory/list → `marketPlaceItemsSizes` from mp sizes |
 | 2026-08-15 | Ozon Tamov: price cron + trash cron (паттерн First/Second, как cards) |
 | 2026-08-15 | directory/ERP `marketPlaceItemsSizes` по MP; stop-list PATCH + GET filter — Tamov кабинеты |
-| 2026-08-15 | DECISION: stocks by-date не возвращаем; price pagination не нужна (≤400 SKU); cleanup orphan stop-list DTO |
+| 2026-08-17 | Backfill `item_characteristics` «Размер» из `marketplace_item_sizes`; WB sync поддерживает product-level sizes |
