@@ -48,59 +48,15 @@ export class UpdateDirectoryItemInfoDto {
 
   @IsNumber()
   @IsOptional()
-  planTime: number;
-
-  @IsNumber()
-  @IsOptional()
-  productionAndAssemblyTime: number;
-
-  @IsNumber()
-  @IsOptional()
-  deliveryTime: number;
-
-  @IsNumber()
-  @IsOptional()
-  shippingPeriod: number;
-
-  @IsNumber()
-  @IsOptional()
-  stocksInDays: number;
-
-  @IsNumber()
-  @IsOptional()
   costInYuan: number;
 
   @IsNumber()
   @IsOptional()
   costInRub: number;
 
-  @IsNumber()
-  @IsOptional()
-  replenishmentPeriod: number;
-
-  @IsNumber()
-  @IsOptional()
-  remainingBalance: number;
-
-  @IsNumber()
-  @IsOptional()
-  frequencyOfSendingCars: number;
-
-  @IsNumber()
-  @IsOptional()
-  dailyGrowthPercentage: number;
-
   @IsString()
   @IsOptional()
   ownImagesUrl: string;
-
-  @IsNumber()
-  @IsOptional()
-  volumePerUnit: number;
-
-  @IsNumber()
-  @IsOptional()
-  weightPerUnit: number;
 
   @IsNumber()
   @IsOptional()
@@ -109,10 +65,6 @@ export class UpdateDirectoryItemInfoDto {
   @IsNumber()
   @IsOptional()
   dutyPercentage: number;
-
-  @IsNumber()
-  @IsOptional()
-  density: number;
 
   @IsString()
   @IsOptional()
@@ -141,10 +93,6 @@ export class UpdateDirectoryItemInfoDto {
   @IsString()
   @IsOptional()
   dimensionsMasterBox: string;
-
-  @IsString()
-  @IsOptional()
-  volumeMasterBox: string;
 
   @IsNumber()
   @IsOptional()
@@ -181,10 +129,6 @@ export class UpdateDirectoryItemInfoDto {
   @IsNumber()
   @IsOptional()
   daysDeliveryToRussia: number;
-
-  @IsNumber()
-  @IsOptional()
-  plannedTurnover: number;
 
   @IsNumber()
   @IsOptional()

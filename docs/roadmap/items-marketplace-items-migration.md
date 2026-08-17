@@ -35,11 +35,11 @@ Changelog M5: [`../migrations/m5-consolidation-changelog.md`](../migrations/m5-c
 | Product hide `items.isArchive` / listing `deleted_at` | ✔ оба уровня |
 | **Ozon Tamov** (`ozonTamov*`) | ✔ cards/stocks/orders/warehouses/prices/trash/stop-list; DTO + dynamic orders |
 | Warehouse resolve (multi-cabinet) | ✔ всегда с `marketplaceId` (Ozon stocks: title+mp; orders: internalNumber+mp) |
-| Ozon Tamov directory PATCH | □ gap |
+| Ozon Tamov directory PATCH | ✔ |
 | Yandex Tamov sync | ✔ cards/stocks/orders/stop-list PATCH; trash □ |
 | Stocks Sheets | ✔ `GET /api/stocks/by-warehouses`; by-date **не возвращаем** |
 
-**Фокус спринта (M6):** MP characteristics sync → directory PATCH / Yandex trash → cleanup leftovers.
+**Фокус спринта (M6):** MP characteristics sync → Yandex Tamov trash.
 
 ---
 
@@ -61,8 +61,9 @@ Changelog M5: [`../migrations/m5-consolidation-changelog.md`](../migrations/m5-c
 - [x] Price crons pagination >1000 **не нужна** (≤~400 SKU/кабинет)
 - [x] Cleanup orphan DTO / dead stop-list fields (`get-items-list.dto`, legacy `GetStopListFromDb` / `direction*`)
 - [x] backfill размеров в `item_characteristics` из `marketplace_item_sizes` (`1789360000000`; `name='0'` = one-size)
+- [x] directory PATCH для Tamov (`Yandex Tamov` / `Ozon Tamov` в `updateArrayDirectoryItemsInfoV2`)
+- [x] drop с `items` Phase 3 + obsolete + `replenishment_period` / `remaining_balance` (`1789370000000`)
 - [ ] sync marketplace characteristics из WB/Ozon; Ozon sizes; soft-delete пропавших sizes
-- [ ] directory PATCH для Tamov (если нужен listing update 2-го кабинета)
 - [ ] Yandex Tamov: trash sync
 
 ---
@@ -72,7 +73,7 @@ Changelog M5: [`../migrations/m5-consolidation-changelog.md`](../migrations/m5-c
 | # | Задача | Статус |
 |---|--------|--------|
 | 1 | characteristics / sizes | ✔ schema + WB sizes + directory/ERP; MP characteristics sync — next |
-| 2 | Ozon / Yandex Tamov gaps | ✔ prices+trash+stop-list; □ directory PATCH; Yandex trash □ |
+| 2 | Ozon / Yandex Tamov gaps | ✔ prices+trash+stop-list+directory PATCH; Yandex trash □ |
 | 3 | Stocks / prices backlog | ✔ closed (by-date нет; pagination не нужна) |
 | 4 | Cleanup orphan DTO | ✔ |
 
@@ -82,6 +83,6 @@ Changelog M5: [`../migrations/m5-consolidation-changelog.md`](../migrations/m5-c
 
 | Gap | Влияние |
 |-----|---------|
-| Tamov directory PATCH | GAS может не обновить listing-поля 2-го кабинета |
+| Tamov directory PATCH | ✔ `updateArrayDirectoryItemsInfoV2` |
 | Yandex Tamov trash | архив listing 2-го Yandex не синхронится |
 | `items_sizes` на item | ✖ dropped (`178935`); runtime — `marketplace_item_sizes` |

@@ -24,7 +24,7 @@ alwaysApply: true
 ## Items ↔ MarketplaceItems
 
 - Marketplace-independent — на `items`; marketplace-specific — на `marketplace_items` (listing, prices, `send_status_id`).
-- Supplier-link — на `items_suppliers` (Phase 2 supplier-fields; Phase 3 `payment`/`dimensionsFact`/`dimensionsMasterBox`/`volume`, dual-write). Drop этих и устаревших (`volumeMasterBox`, `volumePerUnit`, `weightPerUnit`, `density`) с `items` — только по подтверждению.
+- Supplier-link — на `items_suppliers` (Phase 2 supplier-fields; Phase 3 `payment`/`dimensionsFact`/`dimensionsMasterBox`/`volume`). Dual-write на `items` снят (`178937`).
 - Архив listing: `marketplace_items.deleted_at`. Product hide: `items.isArchive` (directory). Не подменять одно другим.
 - После M5: **1 item на article** (+ отдельные `created_for_calculation`). Card sync create — find-or-create item by article.
 - Не удаляй `marketplace_id` на `stocks`/`orders_v2` без плана. `item_id` на stocks/orders_v2 и MP-колонки на `items` уже drop через `1786526400000` (prod).
@@ -47,7 +47,7 @@ alwaysApply: true
 
 - Меняй только то, что требует задача. Без drive-by рефакторинга чужих модулей.
 - При шаге миграции Items/MP обновляй `docs/roadmap/items-marketplace-items-migration.md` после шага.
-- Текущая позиция roadmap: **Milestone 6 — Cutover**. M5 ✔ prod. `isArchive` оставляем. Next: backfill размеров в `item_characteristics` / Tamov gaps / stocks v1.
+- Текущая позиция roadmap: **Milestone 6 — Cutover**. M5 ✔ prod. `isArchive` оставляем. Next: MP characteristics sync / Yandex Tamov trash.
 - Вторые кабинеты — отдельные `marketplaces.title`, не смешивать с основным:
   - Yandex — `'Yandex Tamov'`; credentials `yandexTamov*`.
   - Ozon — `'Ozon Tamov'`; credentials `ozonTamov*`. Legacy `Ozon Second` / `ozonSecond*` не использовать.

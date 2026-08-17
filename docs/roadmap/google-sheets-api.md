@@ -209,7 +209,7 @@ PATCH /api/info/suppliers/:id
 **Phase 3 (FACT, 2026-08-13, dual-write):** на связь дополнительно:
 `payment`, `dimensionsFact`, `dimensionsMasterBox`, `volume` (все nullable, без default; `payment` на `items` был NOT NULL DEFAULT 10).
 
-**Не на связи** (остаются на `items`, drop после cutover): `volumeMasterBox`, `volumePerUnit`, `weightPerUnit`, `density`. Directory/ERP list их больше не отдают.
+**Не на связи:** `volumeMasterBox`, `volumePerUnit`, `weightPerUnit`, `density`, `replenishmentPeriod`, `remainingBalance` — **dropped** с `items` (`1789370000000`). Directory/ERP list их не отдают.
 
 Миграции:
 - `1789300000000` — ADD колонки + initial backfill
@@ -220,7 +220,7 @@ PATCH /api/info/suppliers/:id
 
 **Read/write (FACT):**
 - `GET /api/items/directory/list` — supplier-fields + Phase 3 с `items_suppliers[0]`
-- `PATCH /api/items/directory/info` — dual-write: `items` + `items_suppliers` (link-поля пишутся и без `supplier`, если связь уже есть); устаревшие `volumeMasterBox`/`volumePerUnit`/`weightPerUnit`/`density` — только на `items`
+- `PATCH /api/items/directory/info` — supplier-link только на `items_suppliers`; dual-write на `items` **снят** (`178937`). Dead DTO planning/габариты (`planTime`, `volumePerUnit`, `density`, `replenishmentPeriod`, …) сняты; `whitelist` отбрасывает, если GAS ещё шлёт.
 - `GET /api/items/erp/suppliers-items/list` — flat list связей
 
 **GET `/api/items/erp/suppliers-items/list` response:** `itemId`, `supplierId`, `itemSupplierId`, `article`, `title`, `category`, `supplierTitle`, `supplierMinimumOrder`, `boxNumber`, `costInYuan`, `costInYuanWhite`, `multiplicity`, `assembling`, `production`, `payment`, `dimensionsFact`, `dimensionsMasterBox`, `volume`.
@@ -409,7 +409,7 @@ Filter: `marketplaceId IS NOT NULL`. Нет query по MP. Auth header прин�
 - [ ] Counterparties: filter `deleted_at`, null-safe bank.
 - [ ] Создать paginated orders list (raw `orders_v2`), не ломая `/orders/dynamic`.
 - [ ] Stocks: date/history + pagination; выровнять warehouse `id` со справочником.
-- [ ] Drop с `items` после cutover: Phase 3 (`payment`, `dimensionsFact`, `dimensionsMasterBox`, `volume`) и устаревшие (`volumeMasterBox`, `volumePerUnit`, `weightPerUnit`, `density`).
+- [x] Drop с `items`: Phase 3 + obsolete габариты + `replenishment_period` / `remaining_balance` (`1789370000000`).
 - [ ] Единый api-key guard на Sheets routes (`/info/warehouses` пока без проверки).
 - [ ] Документировать контракт в `docs/` (после первой реализации).
 - [ ] Нагрузочная проверка объёма orders/stocks на prod (**NEEDS VERIFICATION** counts).
@@ -507,6 +507,7 @@ Filter: `marketplaceId IS NOT NULL`. Нет query по MP. Auth header прин�
 | Дата | Итог |
 |------|------|
 | 2026-08-13 | Phase 3: `payment`/`dimensionsFact`/`dimensionsMasterBox`/`volume` → `items_suppliers` (`1789320000000`); dual-write; `volumeMasterBox`/`volumePerUnit`/`weightPerUnit`/`density` остаются на `items` до drop |
+| 2026-08-17 | Drop с `items` Phase 3 + obsolete + `replenishment_period` / `remaining_balance` (`1789370000000`); dual-write снят |
 | 2026-08-13 | Warehouse-level stocks: `GET /api/stocks/by-warehouses`; справочник `GET /api/info/warehouses`; ERP `marketplace` + `chrtId`; v1 by-date код удалён; AD-5 de facto C |
 | 2026-08-12 | Supplier↔Item Phase 2: `1789310000000` drop items columns; assembling/production nullable; code read/write на `items_suppliers`; orphans → «Системный поставщик» |
 | 2026-08-12 | Supplier↔Item Phase 1: migration backfill `1789300000000`; ERP `GET /api/items/erp/suppliers-items/list` |

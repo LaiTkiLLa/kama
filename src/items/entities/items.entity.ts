@@ -39,10 +39,6 @@ export class Items {
   @Column({ type: 'int', nullable: false, default: 14 })
   consolidation: number;
 
-  //Оплата груза
-  @Column({ type: 'int', nullable: false, default: 10 })
-  payment: number;
-
   //Приемка груза фулфилмент
   @Column({ type: 'int', nullable: false, default: 5, name: 'fullfillment_acceptance' })
   fullfillmentAcceptance: number;
@@ -63,22 +59,6 @@ export class Items {
   @Column({ type: 'varchar', nullable: true })
   classification: string;
 
-  //Размеры факт
-  @Column({ type: 'varchar', nullable: true, name: 'dimensions_fact' })
-  dimensionsFact: string;
-
-  //Размеры Мастер короба д/ш/в/вес
-  @Column({ type: 'varchar', nullable: true, name: 'dimensions_master_box' })
-  dimensionsMasterBox: string;
-
-  //Объем Мастер короба
-  @Column({ type: 'varchar', nullable: true, name: 'volume_master_box' })
-  volumeMasterBox: string;
-
-  //Объем товара
-  @Column({ type: 'varchar', nullable: true })
-  volume: string;
-
   @Column({
     type: 'boolean',
     nullable: false,
@@ -95,22 +75,6 @@ export class Items {
   @Column({ type: 'varchar', name: 'cost_tnved', nullable: true })
   codeTNVED: string;
 
-  //Срок пополнения в днях
-  @Column({ type: 'int', name: 'replenishment_period', nullable: false, default: 60 })
-  replenishmentPeriod: number;
-
-  //Норматив остатков на ФФ + МП днях
-  @Column({ type: 'int', name: 'remaining_balance', nullable: false, default: 60 })
-  remainingBalance: number;
-
-  //Объем на единицу
-  @Column({ type: 'float', name: 'volume_per_unit', nullable: true })
-  volumePerUnit: number;
-
-  //Вес на единицу
-  @Column({ type: 'float', name: 'weight_per_unit', nullable: true })
-  weightPerUnit: number;
-
   //Транспортная ставка USD
   @Column({ type: 'float', name: 'transport_rate_usd', nullable: true })
   transportRateUsd: number;
@@ -118,10 +82,6 @@ export class Items {
   //Пошлина %
   @Column({ type: 'float', name: 'duty_percentage', nullable: true })
   dutyPercentage: number;
-
-  //Плотность
-  @Column({ type: 'float', nullable: true })
-  density: number;
 
   //Тарифный вес
   @Column({ type: 'varchar', name: 'tariff_weight', nullable: true })

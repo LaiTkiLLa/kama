@@ -11,7 +11,7 @@
 
 **Milestone 6 — Cutover (в работе).** M1–M5 закрыты на prod. Price crons → mp.  
 **DECISION:** `items.isArchive` **оставляем** (product-level hide). Listing archive = `marketplace_items.deleted_at`.  
-Второй кабинет Ozon: `marketplaces.title = 'Ozon Tamov'` (env `ozonTamov*`) — cards/stocks/orders/prices/trash/stop-list PATCH ✔; directory PATCH — gap.  
+Второй кабинет Ozon: `marketplaces.title = 'Ozon Tamov'` (env `ozonTamov*`) — cards/stocks/orders/prices/trash/stop-list/directory PATCH ✔.  
 Yandex Tamov: cards/stocks/orders + stop-list PATCH ✔; trash sync — gap.
 
 ---
@@ -22,8 +22,7 @@ Yandex Tamov: cards/stocks/orders + stop-list PATCH ✔; trash sync — gap.
 - **1 item на article** (кроме `created_for_calculation = true`).
 - Marketplace-specific на `marketplace_items`: identity, listing, prices (`discount` = %), `send_status_id`, `deleted_at`.
 - Marketplace-independent на `items`: article, логистика/себестоимость/classification, `wbCreatedAt`, `ownImagesUrl`, **`isArchive`**.
-- Supplier-link на `items_suppliers`: Phase 2 supplier-fields; Phase 3 (dual-write) `payment`, `dimensionsFact`, `dimensionsMasterBox`, `volume`. Drop с `items` — отдельно.
-- На `items` до отдельного drop: `volumeMasterBox`, `volumePerUnit`, `weightPerUnit`, `density` (не на связи).
+- Supplier-link на `items_suppliers`: Phase 2 supplier-fields + Phase 3 `payment` / `dimensionsFact` / `dimensionsMasterBox` / `volume`. Dual-write на `items` **снят** (`1789370000000`).
 - **Два уровня скрытия (DECISION, 2026-08-10):**
   - `marketplace_items.deleted_at` — архив **listing**.
   - `items.isArchive` — скрытие **товара** в directory. Optional rename → `isDeleted` позже.
@@ -58,8 +57,9 @@ Yandex Tamov: cards/stocks/orders + stop-list PATCH ✔; trash sync — gap.
 | Область | Статус |
 |---------|--------|
 | `items_sizes` → characteristics / mp sizes | ✔ mp sizes + backfill `item_characteristics` (`1789360000000`) + WB sync |
-| Ozon Tamov gaps: directory PATCH | □ (prices + trash + stop-list PATCH ✔) |
+| Ozon Tamov gaps: directory PATCH | ✔ Tamov ветки в `updateArrayDirectoryItemsInfoV2` |
 | Yandex Tamov: trash sync | □ (stop-list PATCH ✔) |
+| Drop Phase 3 / obsolete с `items` | ✔ `1789370000000` (+ `replenishment_period` / `remaining_balance`) |
 | Stocks API v1 / by-date | ✖ **не делаем** — Sheets на `GET /api/stocks/by-warehouses` |
 | Price crons pagination >1000 | ✖ **не нужна** — ≤~400 SKU/кабинет |
 | Cleanup orphan DTO / dead stop-list fields | ✔ (2026-08-15): `get-items-list.dto` + legacy `GetStopListFromDb` / `direction*` |
@@ -75,7 +75,7 @@ Yandex Tamov: cards/stocks/orders + stop-list PATCH ✔; trash sync — gap.
 | Ozon stocks warehouse resolve | по `title` + `marketplaceId`; без find-or-create; skip если склада нет (нужен warehouses cron) |
 | Ozon Tamov prices / trash | ✔ First/Second crons; credentials `ozon*` / `ozonTamov*`; mp by title |
 | Stop-list PATCH | ✔ WB / `Озон` / Yandex / Ozon Tamov / Yandex Tamov |
-| Directory PATCH | ✔ для основных кабинетов; Tamov listing update — gap (см. `updateDirectory`) |
+| Directory PATCH | ✔ WB / `Озон` / Yandex / Ozon Tamov / Yandex Tamov |
 | Price API limit 1000 | ✔ достаточно (≤~400 SKU/кабинет); pagination не делаем |
 | Card sync find by article | без `created_for_calculation = false` — риск test item |
 
@@ -83,7 +83,7 @@ Yandex Tamov: cards/stocks/orders + stop-list PATCH ✔; trash sync — gap.
 
 ## Не менять без плана
 
-Drop `marketplace_id` на `stocks`/`orders_v2`; force cutover без миграции; возврат stocks by-date/v1; секреты в репо; drop/rename `items.isArchive` без явного решения; drop с `items` колонок Phase 3 (`payment`, `dimensionsFact`, `dimensionsMasterBox`, `volume`) и устаревших (`volumeMasterBox`, `volumePerUnit`, `weightPerUnit`, `density`) без подтверждения.
+Drop `marketplace_id` на `stocks`/`orders_v2`; force cutover без миграции; возврат stocks by-date/v1; секреты в репо; drop/rename `items.isArchive` без явного решения.
 
 ---
 
@@ -101,3 +101,4 @@ Drop `marketplace_id` на `stocks`/`orders_v2`; force cutover без мигра
 | 2026-08-15 | Ozon Tamov: price cron + trash cron (паттерн First/Second, как cards) |
 | 2026-08-15 | directory/ERP `marketPlaceItemsSizes` по MP; stop-list PATCH + GET filter — Tamov кабинеты |
 | 2026-08-17 | Backfill `item_characteristics` «Размер» из `marketplace_item_sizes`; WB sync поддерживает product-level sizes |
+| 2026-08-17 | Drop с `items`: Phase 3 + габариты/плотность + `replenishment_period` / `remaining_balance` (`1789370000000`); dual-write снят; directory DTO без dead planning fields |

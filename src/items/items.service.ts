@@ -131,9 +131,14 @@ export class ItemsService {
     await queryRunner.connect();
     await queryRunner.startTransaction();
     try {
+      // LEGACY: расчётный товар (`createdForCalculation`) получает listings на все кабинеты
+      // (WB / Озон / Yandex / Tamov), чтобы Sheets мог писать volume/title по МП.
+      // Это не реальные карточки. Пересмотреть, когда появится создание товара из GAS.
       const findWbMp = await this.infoService.findMarketplace({ title: 'WB' });
       const findOzonMp = await this.infoService.findMarketplace({ title: 'Озон' });
       const findYandexMp = await this.infoService.findMarketplace({ title: 'Yandex' });
+      const findYandexTamovMp = await this.infoService.findMarketplace({ title: 'Yandex Tamov' });
+      const findOzonTamovMp = await this.infoService.findMarketplace({ title: 'Ozon Tamov' });
       const createItem = queryRunner.manager.create(Items, {
         createdForCalculation: true,
         article: 'тестовый артикул'
@@ -178,6 +183,26 @@ export class ItemsService {
         marketplaceIdentifier: `тестовый идентификатор ${createItem.id} ${findYandexMp.id}`
       });
       await queryRunner.manager.save(MarketplaceItems, createMarketplaceItemYandex);
+      const createMarketplaceItemYandexTamov = queryRunner.manager.create(MarketplaceItems, {
+        itemId: createItem.id,
+        marketplaceId: findYandexTamovMp.id,
+        category: 'тестовая категория',
+        title: `тестовое название ${createItem.id}`,
+        barcode: `тестовый баркод ${createItem.id} ${findYandexTamovMp.id}`,
+        sku: `тестовый ску ${createItem.id} ${findYandexTamovMp.id}`,
+        marketplaceIdentifier: `тестовый идентификатор ${createItem.id} ${findYandexTamovMp.id}`
+      });
+      await queryRunner.manager.save(MarketplaceItems, createMarketplaceItemYandexTamov);
+      const createMarketplaceItemOzonTamov = queryRunner.manager.create(MarketplaceItems, {
+        itemId: createItem.id,
+        marketplaceId: findOzonTamovMp.id,
+        category: 'тестовая категория',
+        title: `тестовое название ${createItem.id}`,
+        barcode: `тестовый баркод ${createItem.id} ${findOzonTamovMp.id}`,
+        sku: `тестовый ску ${createItem.id} ${findOzonTamovMp.id}`,
+        marketplaceIdentifier: `тестовый идентификатор ${createItem.id} ${findOzonTamovMp.id}`
+      });
+      await queryRunner.manager.save(MarketplaceItems, createMarketplaceItemOzonTamov);
       const findSupplier = await queryRunner.manager.findOne(Suppliers, {
         where: {
           title: 'Системный поставщик'
@@ -248,8 +273,6 @@ export class ItemsService {
           wbCreatedAt: item.wbCreatedAt,
           costInYuan: item.itemsSuppliers.length ? item.itemsSuppliers[0].costInYuan : null,
           costInRub: item.costInRub,
-          replenishmentPeriod: item.replenishmentPeriod,
-          remainingBalance: item.remainingBalance,
           ownImagesUrl: item.ownImagesUrl,
           transportRateUsd: item.transportRateUsd,
           dutyPercentage: item.dutyPercentage,
@@ -516,22 +539,14 @@ export class ItemsService {
           {
             ownCategory: item.ownCategory,
             classification: item.classification,
-            dimensionsFact: item.dimensionsFact,
-            volume: item.volume,
             articleOld: item.articleOld,
             costInRub: item.costInRub,
-            replenishmentPeriod: item.replenishmentPeriod,
-            remainingBalance: item.remainingBalance,
             ownImagesUrl: item.ownImagesUrl,
-            volumePerUnit: item.volumePerUnit,
-            weightPerUnit: item.weightPerUnit,
             transportRateUsd: item.transportRateUsd,
             dutyPercentage: item.dutyPercentage,
             tariffWeight: item.tariffWeight,
             codeTNVED: item.codeTNVED,
-            dimensionsMasterBox: item.dimensionsMasterBox,
             consolidation: item.consolidation,
-            payment: item.payment,
             fullfillmentAcceptance: item.fullfillmentAcceptance,
             marketplaceAcceptance: item.marketplaceAcceptance,
             buffer: item.buffer,
@@ -568,6 +583,22 @@ export class ItemsService {
               MarketplaceItems,
               { id: mpItem.id },
               { category: item.category, title: findItem.createdForCalculation ? item.title : undefined }
+            );
+          } else if (mpItem.marketplace.title === 'Yandex Tamov') {
+            await queryRunner.manager.update(
+              MarketplaceItems,
+              { id: mpItem.id },
+              { category: item.category, title: findItem.createdForCalculation ? item.title : undefined }
+            );
+          } else if (mpItem.marketplace.title === 'Ozon Tamov') {
+            await queryRunner.manager.update(
+              MarketplaceItems,
+              { id: mpItem.id },
+              {
+                category: item.category,
+                volume: findItem.createdForCalculation ? item.volumeOzon : undefined,
+                title: findItem.createdForCalculation ? item.title : undefined
+              }
             );
           }
         }

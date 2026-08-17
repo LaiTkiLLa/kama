@@ -28,11 +28,11 @@ Item (marketplace-independent, 1 на article)
 
 ### Поля на `items` (DECISION, 2026-08-10)
 
-Marketplace-independent: `id`, `article`, `articleOld`, `ownCategory`, classification/virality/planning, логистика/сроки (`consolidation`, `fullfillmentAcceptance`, `marketplaceAcceptance`, `buffer`, `daysDeliveryToRussia`, …), себестоимость/таможня (`costInRub`, `codeTNVED`, …), `ownImagesUrl`, `downloadCalculationMethod`, `wbCreatedAt`, audit.
+Marketplace-independent: `id`, `article`, `articleOld`, `ownCategory`, classification/virality, логистика/сроки (`consolidation`, `fullfillmentAcceptance`, `marketplaceAcceptance`, `buffer`, `daysDeliveryToRussia`), себестоимость/таможня (`costInRub`, `codeTNVED`, …), `ownImagesUrl`, `downloadCalculationMethod`, `wbCreatedAt`, audit.
 
-**На `items_suppliers` (supplier-link, не item-level):** Phase 2 — `supplierMinimumOrder`, `boxNumber`, `costInYuan`, `costInYuanWhite`, `multiplicity`, `assembling`, `production`. Phase 3 (2026-08-13, dual-write) — `payment`, `dimensionsFact`, `dimensionsMasterBox`, `volume`. Колонки Phase 3 на `items` пока остаются.
+**На `items_suppliers` (supplier-link, не item-level):** Phase 2 — `supplierMinimumOrder`, `boxNumber`, `costInYuan`, `costInYuanWhite`, `multiplicity`, `assembling`, `production`. Phase 3 — `payment`, `dimensionsFact`, `dimensionsMasterBox`, `volume`. Dual-write на `items` **снят** (`1789370000000`).
 
-**Остаются на `items`, drop после cutover (не на связи):** `volumeMasterBox`, `volumePerUnit`, `weightPerUnit`, `density`.
+**Drop с `items` (`1789370000000`):** Phase 3 (`payment`, `dimensions_fact`, `dimensions_master_box`, `volume`); устаревшие габариты (`volume_master_box`, `volume_per_unit`, `weight_per_unit`, `density`); планирование (`replenishment_period`, `remaining_balance`).
 
 **Drop с `items` (M5, prod):** MP listing/identity/габариты/цены/`send_status_id`/`direction_id`.
 
