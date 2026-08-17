@@ -179,20 +179,7 @@ export class ItemsService {
           costCalculationType: item.costCalculationType,
           calculationType: item.calculationType,
           downloadCalculationMethod: item.downloadCalculationMethod,
-          marketplacesInfo: [] as MarketplaceInfo[],
-          marketPlaceItemsSizes: item.marketplaceItems.map(mpItem => {
-            return {
-              marketplaceTitle: mpItem.marketplace.title,
-              marketplaceItemSizes: (mpItem.marketplaceItemSizes ?? []).map(el => {
-                return {
-                  size: el.name,
-                  skus: Array.isArray(el.metadata?.skus) ? el?.metadata?.skus : [],
-                  chrtId: el.marketplaceSizeId,
-                  value: el.value
-                };
-              })
-            };
-          })
+          marketplacesInfo: [] as MarketplaceInfo[]
         };
       });
       for (const item of findItems) {
@@ -201,6 +188,14 @@ export class ItemsService {
           findItem.marketplacesInfo.push(
             ...item.marketplaceItems.map(el => ({
               title: el.marketplace.title,
+              marketplaceItemSizes: (el.marketplaceItemSizes ?? []).map(el => {
+                return {
+                  size: el.name,
+                  skus: Array.isArray(el.metadata?.skus) ? el?.metadata?.skus : [],
+                  chrtId: el.marketplaceSizeId,
+                  value: el.value
+                };
+              }),
               dimensions: el.dimensions,
               volume: Number(el.volume).toFixed(2),
               sku: el.sku,
