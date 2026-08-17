@@ -270,8 +270,9 @@ export class ItemsService {
           costCalculationType: item.costCalculationType,
           calculationType: item.calculationType,
           downloadCalculationMethod: item.downloadCalculationMethod,
-          marketPlaceItemsSizes: item.marketplaceItems.map(mpItem => {
+          marketplaceItemsInfo: item.marketplaceItems.map(mpItem => {
             return {
+              marketplaceItemId: mpItem.id,
               marketplaceTitle: mpItem.marketplace.title,
               marketplaceItemSizes: (mpItem.marketplaceItemSizes ?? []).map(el => {
                 return {
