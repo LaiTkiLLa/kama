@@ -622,7 +622,7 @@ export class ItemsService {
     try {
       const findItems = await queryRunner.manager
         .createQueryBuilder(Items, 'items')
-        .where('items.id = :id', { id: In(updateErpLogisticInfoDto.items.map(item => item.id)) })
+        .where('items.id IN (:...ids)', { ids: In(updateErpLogisticInfoDto.items.map(item => item.id)) })
         .getMany();
 
       if (findItems.length !== updateErpLogisticInfoDto.items.length) {
