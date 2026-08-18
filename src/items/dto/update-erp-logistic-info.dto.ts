@@ -1,6 +1,18 @@
-import { IsNumber, IsOptional, IsString } from 'class-validator';
+import { Type } from 'class-transformer';
+import {
+  ArrayMinSize,
+  IsArray,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+  ValidateNested
+} from 'class-validator';
 
-export class UpdateErpLogisticInfoDto {
+export class ItemLogisticsInfoDto {
+  @IsNumber()
+  id: number;
+
   @IsNumber()
   @IsOptional()
   consolidation: number;
@@ -36,4 +48,15 @@ export class UpdateErpLogisticInfoDto {
   @IsString()
   @IsOptional()
   deliveryMethod: string;
+}
+
+export class UpdateErpLogisticInfoDto {
+  @ValidateNested({
+    each: true
+  })
+  @Type(() => ItemLogisticsInfoDto)
+  @IsArray()
+  @IsNotEmpty()
+  @ArrayMinSize(1)
+  items: ItemLogisticsInfoDto[];
 }

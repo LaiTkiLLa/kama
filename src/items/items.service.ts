@@ -616,37 +616,39 @@ export class ItemsService {
     }
   }
 
-  async updateErpLogisticsInfo(id: number, updateErpLogisticInfoDto: UpdateErpLogisticInfoDto) {
+  async updateErpLogisticsInfo(updateErpLogisticInfoDto: UpdateErpLogisticInfoDto) {
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     try {
-      const findItem = await queryRunner.manager
+      const findItems = await queryRunner.manager
         .createQueryBuilder(Items, 'items')
-        .where('items.id = :id', { id })
-        .getOne();
+        .where('items.id = :id', { id: In(updateErpLogisticInfoDto.items.map(item => item.id)) })
+        .getMany();
 
-      if (!findItem) {
-        throw new NotFoundException('Товар не найден');
+      if (findItems.length !== updateErpLogisticInfoDto.items.length) {
+        throw new NotFoundException('Не все товары найдены');
       }
-      await queryRunner.manager.update(
-        Items,
-        { id: findItem.id },
-        {
-          consolidation: updateErpLogisticInfoDto.consolidation,
-          daysDeliveryToRussia: updateErpLogisticInfoDto.daysDeliveryToRussia,
-          fullfillmentAcceptance: updateErpLogisticInfoDto.fullfillmentAcceptance,
-          marketplaceAcceptance: updateErpLogisticInfoDto.marketplaceAcceptance,
-          costCalculationType: updateErpLogisticInfoDto.costCalculationType,
-          downloadCalculationMethod: updateErpLogisticInfoDto.downloadCalculationMethod,
-          calculationType: updateErpLogisticInfoDto.calculationType,
-          transportType: updateErpLogisticInfoDto.transportType,
-          deliveryMethod: updateErpLogisticInfoDto.deliveryMethod
-        }
-      );
-      return { id };
+      for (const item of updateErpLogisticInfoDto.items) {
+        await queryRunner.manager.update(
+          Items,
+          { id: item.id },
+          {
+            consolidation: item.consolidation,
+            daysDeliveryToRussia: item.daysDeliveryToRussia,
+            fullfillmentAcceptance: item.fullfillmentAcceptance,
+            marketplaceAcceptance: item.marketplaceAcceptance,
+            costCalculationType: item.costCalculationType,
+            downloadCalculationMethod: item.downloadCalculationMethod,
+            calculationType: item.calculationType,
+            transportType: item.transportType,
+            deliveryMethod: item.deliveryMethod
+          }
+        );
+      }
+      return { success: true };
     } catch (error) {
       this.logger.error(error);
-      this.logger.error(`Не смог обновить логистическую информацию для товара ${id}`);
+      this.logger.error('Не смог обновить логистическую информацию');
       throw error;
     } finally {
       await queryRunner.release();

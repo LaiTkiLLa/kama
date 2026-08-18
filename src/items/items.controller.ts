@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, Param, ParseIntPipe, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Patch, Post, Query } from '@nestjs/common';
 import { ItemsService } from './items.service';
 import { GetItemsStopListDto } from './dto/get-items-stop-list.dto';
 import { UpdateStopListItems } from './dto/update-status-stop-list.dto';
@@ -61,12 +61,11 @@ export class ItemsController {
     return this.itemsService.getSuppliersItemsErpList(getErpItemsListDto);
   }
 
-  @Patch('erp/logistics-info/:id')
+  @Patch('erp/logistics-info')
   async updateErpLogisticsInfo(
     @Headers('api-key') apiKey: string,
-    @Param('id', ParseIntPipe) id: number,
     @Body() updateErpLogisticInfoDto: UpdateErpLogisticInfoDto
   ) {
-    return await this.itemsService.updateErpLogisticsInfo(id, updateErpLogisticInfoDto);
+    return await this.itemsService.updateErpLogisticsInfo(updateErpLogisticInfoDto);
   }
 }
