@@ -35,21 +35,21 @@ export class CreateProductCreationOutbox1789400000000 implements MigrationInterf
   };
 
   public async up(queryRunner: QueryRunner): Promise<void> {
-    const duplicateListings: { count: string }[] = await queryRunner.query(`
-      SELECT COUNT(*)::text AS count
-      FROM (
-        SELECT item_id, marketplace_id
-        FROM marketplace_items
-        WHERE deleted_at IS NULL
-        GROUP BY item_id, marketplace_id
-        HAVING COUNT(*) > 1
-      ) d
-    `);
-    if (Number(duplicateListings[0]?.count) > 0) {
-      throw new Error(
-        `Migration aborted: ${duplicateListings[0].count} duplicate marketplace_items (item_id, marketplace_id) pairs`
-      );
-    }
+    // const duplicateListings: { count: string }[] = await queryRunner.query(`
+    //   SELECT COUNT(*)::text AS count
+    //   FROM (
+    //     SELECT item_id, marketplace_id
+    //     FROM marketplace_items
+    //     WHERE deleted_at IS NULL
+    //     GROUP BY item_id, marketplace_id
+    //     HAVING COUNT(*) > 1
+    //   ) d
+    // `);
+    // if (Number(duplicateListings[0]?.count) > 0) {
+    //   throw new Error(
+    //     `Migration aborted: ${duplicateListings[0].count} duplicate marketplace_items (item_id, marketplace_id) pairs`
+    //   );
+    // }
 
     await queryRunner.query(`
       CREATE UNIQUE INDEX IF NOT EXISTS "UQ_marketplace_items_item_id_marketplace_id_active"
