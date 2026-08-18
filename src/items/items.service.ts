@@ -622,7 +622,7 @@ export class ItemsService {
     try {
       const findItem = await queryRunner.manager
         .createQueryBuilder(Items, 'items')
-        .where('items.article = :id', { id })
+        .where('items.id = :id', { id })
         .getOne();
 
       if (!findItem) {
