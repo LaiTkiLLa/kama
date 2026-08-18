@@ -1,17 +1,26 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
-import { DataSource } from 'typeorm';
+import { BadRequestException, Inject, Injectable, Logger } from '@nestjs/common';
+import { Cron } from '@nestjs/schedule';
+import { DataSource, In } from 'typeorm';
 import { CreateProductDto } from '../dto/create-product.dto';
 import { Items } from '../entities/items.entity';
 import { ProductCreationRequests } from '../entities/product-creation-requests.entity';
 import { Marketplaces } from '../../info/entities/marketplaces.entity';
 import { CreateItemWb } from '../interfaces/create-item-wb.interface';
 import { ProductCreationRequestStatus } from './product-creation-status.enum';
+import {
+  MARKETPLACE_CARD_PUBLISHERS,
+  MarketplaceCardPublisher
+} from './publishers/marketplace-card-publisher.interface';
 
 @Injectable()
 export class ProductCreationService {
   private logger: Logger = new Logger(ProductCreationService.name);
 
-  constructor(private dataSource: DataSource) {}
+  constructor(
+    private dataSource: DataSource,
+    @Inject(MARKETPLACE_CARD_PUBLISHERS)
+    private marketplacePublishers: MarketplaceCardPublisher[]
+  ) {}
 
   async createProduct(createProductDto: CreateProductDto) {
     const article = createProductDto.article.trim();
@@ -68,5 +77,49 @@ export class ProductCreationService {
       subjectID,
       variants: [{ vendorCode: article }]
     };
+  }
+
+  @Cron('0 */5 * * * *')
+  async createMpItems() {
+    for (const publisher of this.marketplacePublishers) {
+      await this.processPublisherRequests(publisher);
+    }
+  }
+
+  private async processPublisherRequests(publisher: MarketplaceCardPublisher) {
+    const requests = await this.dataSource.manager.find(ProductCreationRequests, {
+      where: {
+        status: ProductCreationRequestStatus.InProgress,
+        marketplace: {
+          title: publisher.marketplaceTitle
+        }
+      },
+      relations: {
+        item: true
+      }
+    });
+
+    if (!requests.length) {
+      return;
+    }
+
+    try {
+      await publisher.publish(requests);
+      await this.dataSource.manager.update(
+        ProductCreationRequests,
+        { id: In(requests.map(request => request.id)) },
+        { status: ProductCreationRequestStatus.Created, lastError: null }
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.error(error);
+      this.logger.error(`Не смог создать товар на ${publisher.marketplaceTitle}`);
+
+      await this.dataSource.manager.update(
+        ProductCreationRequests,
+        { id: In(requests.map(request => request.id)) },
+        { status: ProductCreationRequestStatus.Failed, lastError: message }
+      );
+    }
   }
 }

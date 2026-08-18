@@ -102,7 +102,7 @@ Card sync crons обновляют: `dimensions`, `volume`, `category`, `title`,
 ### DB constraints, релевантные для создания (FACT)
 
 - `UQ_items_article_not_calculation` — unique `article` WHERE `created_for_calculation = false`.
-- Dedup-проверки migration: **нет дублей** `(item_id, marketplace_id)` на prod; **отдельного UNIQUE INDEX нет** — только verify-логика в migrations.
+- **FACT (2026-08-18):** на prod **есть дубли** active `(item_id, marketplace_id)` в `marketplace_items`. Unique index **не накатили** — закомментирован в `1789400000000`. После дедупа — отдельная миграция (задача в items-marketplace-items-migration Known Gaps).
 - `marketplace_items.marketplace_identifier`, `barcode`, `sku` — **NOT NULL**.
 - Lookup при sync: `(marketplace_identifier, marketplace_id)` или `article` на items.
 
@@ -537,6 +537,7 @@ Natural keys на стороне МП (из sync): WB `vendorCode`, Ozon `offer_
 - [x] Schema outbox: `product_creation_requests` (`1789400000000`) + unique listing; без jobs
 - [x] `POST /api/items/create-on-marketplaces` — новый item + заявка на каждый кабинет; duplicate article → 400
 - [x] `warehouses.deleted_at` (`1789410000000`)
+- [ ] Dedup `marketplace_items` (item_id + marketplace_id, `deleted_at IS NULL`) → unique listing + индексы `product_creation_requests` (отложены в `178940`)
 - [ ] Worker + `WbCardPublisher` (пока заявки остаются `in_progress`)
 - [ ] Spike WB upload/poll
 - [ ] GAS UX

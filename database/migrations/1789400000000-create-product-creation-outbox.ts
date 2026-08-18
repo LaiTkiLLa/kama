@@ -1,12 +1,13 @@
-import { MigrationInterface, QueryRunner, Table, TableForeignKey, TableIndex } from 'typeorm';
+import { MigrationInterface, QueryRunner, Table, TableForeignKey } from 'typeorm';
 
 /**
  * Outbox создания карточек на МП (без Redis, без jobs):
  * product_creation_requests — одна заявка на кабинет.
  * status: in_progress | created | failed
  *
- * marketplace_items пишется только после успеха на МП (worker, отдельным шагом).
- * Parallel: partial unique listing (item_id, marketplace_id) WHERE deleted_at IS NULL.
+ * Unique-индексы отложены: на prod есть дубли active marketplace_items
+ * по (item_id, marketplace_id). После дедупа — отдельная миграция, см.
+ * docs/roadmap/items-marketplace-items-migration.md (Known Gaps).
  */
 export class CreateProductCreationOutbox1789400000000 implements MigrationInterface {
   private readonly timestampColumns = [

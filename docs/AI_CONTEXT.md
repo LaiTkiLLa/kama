@@ -79,6 +79,7 @@ Yandex Tamov: cards/stocks/orders/stop-list PATCH/trash ✔.
 | Directory PATCH | ✔ WB / `Озон` / Yandex / Ozon Tamov / Yandex Tamov |
 | Price API limit 1000 | ✔ достаточно (≤~400 SKU/кабинет); pagination не делаем |
 | Card sync find by article | без `created_for_calculation = false` — риск test item |
+| Duplicate `marketplace_items` | дубли active listing на `(item_id, marketplace_id)`; unique index отложен (`178940`) |
 
 ---
 

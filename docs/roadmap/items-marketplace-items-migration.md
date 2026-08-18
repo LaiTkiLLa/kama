@@ -65,6 +65,7 @@ Changelog M5: [`../migrations/m5-consolidation-changelog.md`](../migrations/m5-c
 - [x] drop с `items` Phase 3 + obsolete + `replenishment_period` / `remaining_balance` (`1789370000000`)
 - [ ] sync marketplace characteristics из WB/Ozon; Ozon sizes; soft-delete пропавших sizes
 - [x] Yandex Tamov: trash sync (`getYandexTrashItemsFirst` / `Second`; soft-delete `marketplace_items.deleted_at`)
+- [ ] Dedup `marketplace_items`: дубли active listing на `(item_id, marketplace_id)`; затем unique index `UQ_marketplace_items_item_id_marketplace_id_active` + индексы `product_creation_requests` (отложены в `178940`)
 
 ---
 
@@ -86,3 +87,4 @@ Changelog M5: [`../migrations/m5-consolidation-changelog.md`](../migrations/m5-c
 | Tamov directory PATCH | ✔ `updateArrayDirectoryItemsInfoV2` |
 | MP characteristics sync | WB/Ozon characteristics → `marketplace_item_characteristics`; Ozon sizes → `marketplace_item_sizes`; soft-delete пропавших |
 | `items_sizes` на item | ✖ dropped (`178935`); runtime — `marketplace_item_sizes` |
+| Duplicate listings | **FACT (2026-08-18):** есть дубли active `marketplace_items` на одном `(item_id, marketplace_id)`. Unique `UQ_marketplace_items_item_id_marketplace_id_active` и индексы outbox **не накатывали** (`178940` закомментированы). Next: разобрать дубли (какие строки оставить — stocks/orders/identity), затем отдельная миграция с индексами. |
