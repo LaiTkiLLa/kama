@@ -620,9 +620,10 @@ export class ItemsService {
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     try {
-      const findItem = await queryRunner.manager.findOne(Items, {
-        where: { id }
-      });
+      const findItem = await queryRunner.manager
+        .createQueryBuilder(Items, 'items')
+        .where('items.article = :id', { id })
+        .getOne();
 
       if (!findItem) {
         throw new NotFoundException('Товар не найден');
