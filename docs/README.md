@@ -42,6 +42,7 @@ Backend-сервис синхронизации товаров, остатков
 |--------|----------------|
 | Любая задача (старт) | Этот README → [`AI_CONTEXT.md`](AI_CONTEXT.md) → [`PROJECT_CONTEXT.md`](PROJECT_CONTEXT.md) → [`ai/agent-guide.md`](ai/agent-guide.md) |
 | Items / MarketplaceItems / dual-write | [`domain/items-and-marketplace-items.md`](domain/items-and-marketplace-items.md) → [`roadmap/items-marketplace-items-migration.md`](roadmap/items-marketplace-items-migration.md) |
+| Создание карточек на МП из Sheets | [`roadmap/marketplace-product-creation.md`](roadmap/marketplace-product-creation.md) |
 | Схема / миграции TypeORM | *(пока)* domain + migrations в репо; раздел `database/` — следующий этап |
 | Стоп-лист / автостатусы / listing fields (M4b) | domain Items/MP + roadmap + `src/items/items.service.ts` (v2 read only; dual-write gap) |
 | Интеграции МП | `src/items`, `src/stocks`, `src/orders`, `src/info` |

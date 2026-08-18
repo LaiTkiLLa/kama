@@ -164,6 +164,7 @@ export class InfoService {
         .createQueryBuilder(Warehouses, 'warehouses')
         .leftJoinAndSelect('warehouses.marketplace', 'marketplace')
         .where('warehouses.marketplaceId IS NOT NULL')
+        .andWhere('warehouses.deletedAt IS NULL')
         .getMany();
       if (!findWarehouses.length) {
         return [];

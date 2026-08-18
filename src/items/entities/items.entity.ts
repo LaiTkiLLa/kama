@@ -9,6 +9,7 @@ import {
 import { ItemsSuppliers } from './items_suppliers.entity';
 import { MarketplaceItems } from './marketplace-items.entity';
 import { ItemCharacteristics } from './item-characteristics.entity';
+import { ProductCreationRequests } from './product-creation-requests.entity';
 
 @Entity({
   name: 'items'
@@ -154,4 +155,7 @@ export class Items {
 
   @OneToMany(() => MarketplaceItems, marketplaceItems => marketplaceItems.item)
   marketplaceItems: MarketplaceItems[];
+
+  @OneToMany(() => ProductCreationRequests, request => request.item)
+  productCreationRequests: ProductCreationRequests[];
 }

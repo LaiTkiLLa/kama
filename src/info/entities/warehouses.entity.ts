@@ -53,6 +53,13 @@ export class Warehouses {
   })
   updatedAt: Date;
 
+  @Column({
+    type: 'timestamptz',
+    nullable: true,
+    name: 'deleted_at'
+  })
+  deletedAt: Date | null;
+
   @OneToMany(() => Stocks, stocks => stocks.warehouse)
   stocks: Stocks[];
 

@@ -6,10 +6,15 @@ import { UpdateArrayDirectoryItemsInfoDto } from './dto/update-directory-item-in
 import { GetDirectoryListDto } from './dto/get-directory-list.dto';
 import { GetErpItemsListDto } from './dto/get-erp-items-list.dto';
 import { UpdateErpLogisticInfoDto } from './dto/update-erp-logistic-info.dto';
+import { CreateProductDto } from './dto/create-product.dto';
+import { ProductCreationService } from './product-creation/product-creation.service';
 
 @Controller('items')
 export class ItemsController {
-  constructor(private itemsService: ItemsService) {}
+  constructor(
+    private itemsService: ItemsService,
+    private productCreationService: ProductCreationService
+  ) {}
 
   @Post()
   async createTestItem(@Headers('api-key') apiKey: string) {
@@ -67,5 +72,10 @@ export class ItemsController {
     @Body() updateErpLogisticInfoDto: UpdateErpLogisticInfoDto
   ) {
     return await this.itemsService.updateErpLogisticsInfo(updateErpLogisticInfoDto);
+  }
+
+  @Post('create-on-marketplaces')
+  async createProduct(@Headers('api-key') apiKey: string, @Body() createProductDto: CreateProductDto) {
+    return this.productCreationService.createProduct(createProductDto);
   }
 }

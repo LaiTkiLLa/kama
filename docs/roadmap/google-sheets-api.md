@@ -71,6 +71,7 @@ Sheets **не должна** знать схему БД. API отдаёт ста
 | GET | `/api/items/v2/stop-list` | items | stop-list (операционный) |
 | PATCH | `/api/items/stop-list` | items | обновление send status |
 | POST | `/api/items` | items | тестовый item (не для Sheets prod) |
+| POST | `/api/items/create-on-marketplaces` | items | новый товар в БД + outbox-заявки на все кабинеты; если article уже есть — 400 |
 | GET | `/api/orders/dynamic` | orders | **агрегированная** динамика заказов + остатки |
 | GET | `/api/stocks/v2/current` | stocks | **агрегированные** текущие остатки (сегодня) |
 | GET | `/api/stocks/by-warehouses` | stocks | **warehouse-level** остатки на сегодня (Sheets) |
