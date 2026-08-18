@@ -5,7 +5,7 @@
 
 Связанные: [`../AI_CONTEXT.md`](../AI_CONTEXT.md), [`../domain/items-and-marketplace-items.md`](../domain/items-and-marketplace-items.md), [`../PROJECT_CONTEXT.md`](../PROJECT_CONTEXT.md).
 
-Последнее обновление: 2026-08-12.
+Последнее обновление: 2026-08-18.
 
 ---
 
@@ -172,11 +172,11 @@ Backend API (валидация + постановка задачи)
 
 `nmID`, `imtID`, `nmUUID`, `subjectID`, `subjectName`, `vendorCode`, `brand`, `title`, `dimensions`, `photos`, `characteristics`, `sizes[]` (`chrtID`, `techSize`, `wbSize`, `skus`), `createdAt`.
 
-#### Создание карточки (NEEDS VERIFICATION)
+#### Создание карточки
 
 | Вопрос                                                          | Статус                                                                      |
 | --------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| Обязательные поля для create                                    | NEEDS VERIFICATION                                                          |
+| Обязательные поля для create                                    | **FACT (2026-08-18):** минимум `subjectID` + `variants[].vendorCode` (`CreateItemWb`); см. **Marketplace category taxonomies** |
 | Этапы (черновик → модерация → публикация)                       | NEEDS VERIFICATION                                                          |
 | Отдельные операции (карточка / размеры / баркод / медиа / цена) | NEEDS VERIFICATION                                                          |
 | Возвращаемые ID после create                                    | NEEDS VERIFICATION (ожидаемо `nmID`, `chrtID`, `skus` — по аналогии с read) |
@@ -316,7 +316,45 @@ Mapping: `marketSku`, `marketModelId`, `marketCategoryId`, `marketCategoryName`,
 
 **FACT (marketplace-specific, уже на `marketplace_items` или sync):** `category`, `title`, `color`, `dimensions`, `volume`, `barcode`, `sku`, `imageUrl`, prices (post-create).
 
-**NEEDS VERIFICATION (MP-only, не в БД сейчас):** WB `subjectID`, characteristics, brand, sizes; Ozon `description_category_id`, `type_id`, attribute map; Yandex `weightDimensions`, campaign/card params.
+**FACT (2026-08-18, WB create v1):** `subjectID` обязателен при create — хранится в `product_creation_requests.payload` (не отдельная колонка). См. **Marketplace category taxonomies**.
+
+**NEEDS VERIFICATION (MP-only, не в БД сейчас):** WB characteristics, brand, sizes; Ozon `description_category_id`, `type_id`, attribute map; Yandex `weightDimensions`, campaign/card params.
+
+---
+
+## Marketplace category taxonomies (справочники категорий)
+
+> **DECISION (2026-08-18):** при create карточки на МП нужен выбор **категории из taxonomy маркетплейса**. Это не то же самое, что `items.category` / `marketplace_items.category` (текст после card sync).
+
+### Wildberries — `subjectID` (FACT)
+
+- В `POST /content/v2/cards/upload` поле **`subjectID`** — ID **предмета/категории** в дереве WB (в API — «subject»; в UI WB — категория товара).
+- Категории **разные** (напр. «Коврики спортивные» `388`, «Спортивный товар» `239` — parent); у каждой subject свой набор обязательных характеристик.
+- **Сейчас:** `subjectID` приходит из GAS в `CreateProductDto.wb.subjectID`, попадает в outbox (`product_creation_requests.payload` → `WbCardPublisher`).
+- **Позже (не реализовано):** вести **справочник** допустимых `subjectID` (+ human-readable name, parentID) — для выбора в Sheets и валидации на backend. Источник данных: sync дерева subjects с WB Content API vs ручное ведение — **NEEDS DECISION**.
+
+### Ozon — `description_category_id` + `type_id` (ASSUMPTION)
+
+- Аналог taxonomy: пара category + type (уже используется при **read** sync и category tree cron).
+- **FACT:** дерево категорий читается (`POST …/v1/description-category/tree`); для create нужен обратный выбор из справочника — **не реализовано**.
+
+### Yandex — category / `marketCategoryId` (ASSUMPTION)
+
+- Аналог: категория оффера (`marketCategoryId`, `marketCategoryName` при read sync).
+- Требования create API — **NEEDS VERIFICATION**; справочник для Sheets — **не реализовано**.
+
+### Target (backlog, не в scope v1)
+
+| Задача | Статус |
+| ------ | ------ |
+| Справочник WB subjects (`subjectID` + название + parent) | □ |
+| Справочник Ozon categories/types для create | □ |
+| Справочник Yandex categories для create | □ |
+| API/metadata для GAS (`GET …/create/metadata` или аналог) | □ |
+| Валидация category ID перед записью в outbox | □ |
+| Optional: mapping `items.ownCategory` → MP category IDs | **NEEDS DECISION** |
+
+**ASSUMPTION:** у Ozon и Yandex будет та же потребность — **вести список категорий per marketplace** для формы создания; детали полей уточняются при spike create API.
 
 ---
 
@@ -538,16 +576,17 @@ Natural keys на стороне МП (из sync): WB `vendorCode`, Ozon `offer_
 - [x] `POST /api/items/create-on-marketplaces` — новый item + заявка на каждый кабинет; duplicate article → 400
 - [x] `warehouses.deleted_at` (`1789410000000`)
 - [ ] Dedup `marketplace_items` (item_id + marketplace_id, `deleted_at IS NULL`) → unique listing + индексы `product_creation_requests` (отложены в `178940`)
-- [ ] Worker + `WbCardPublisher` (пока заявки остаются `in_progress`)
-- [ ] Spike WB upload/poll
+- [x] Worker: cron `createMpItems` + `WbCardPublisher` + outbox FSM (2026-08-18)
+- [ ] Spike WB upload/poll (подтверждение `nmID` после upload)
+- [ ] **Справочник категорий МП** (WB `subjectID`; Ozon/Yandex — аналоги) для Sheets + backend validation
 - [ ] GAS UX
-- [ ] Ozon / Yandex адаптеры
+- [ ] Ozon / Yandex publishers
 
 ---
 
 ## IN PROGRESS
 
-- Outbox + HTTP create. Worker / вызов WB **ещё нет** — заявки ждут в `in_progress`.
+- Outbox + `POST /api/items/create-on-marketplaces` + worker cron `createMpItems` (WB upload). Poll/reconcile и `marketplace_items` после create — **ещё нет**.
 
 ---
 
@@ -595,3 +634,4 @@ Natural keys на стороне МП (из sync): WB `vendorCode`, Ozon `offer_
 | Дата       | Итог                                                                                                |
 | ---------- | --------------------------------------------------------------------------------------------------- |
 | 2026-08-12 | Initial research; roadmap created; подтверждено: только read/sync MP APIs; create layer отсутствует |
+| 2026-08-18 | WB create v1: outbox worker + `WbCardPublisher`; **DECISION:** `subjectID` = категория WB, нужен справочник categories per MP (реализация позже) |

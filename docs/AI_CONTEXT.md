@@ -64,7 +64,8 @@ Yandex Tamov: cards/stocks/orders/stop-list PATCH/trash ✔.
 | Price crons pagination >1000 | ✖ **не нужна** — ≤~400 SKU/кабинет |
 | Cleanup orphan DTO / dead stop-list fields | ✔ (2026-08-15): `get-items-list.dto` + legacy `GetStopListFromDb` / `direction*` |
 | Rename `isArchive` → `isDeleted` | □ optional later |
-| **Create карточек через GAS** | `POST /api/items/create-on-marketplaces`: новый `items` + N `product_creation_requests` (`in_progress`); существующий article → 400; worker/WB ещё нет |
+| **Create карточек через GAS** | `POST /api/items/create-on-marketplaces` + cron `createMpItems` / `WbCardPublisher`; poll/`marketplace_items` — ещё нет |
+| **Справочник категорий МП** | WB `subjectID` = категория; список subjects + Ozon/Yandex аналоги — **backlog**, см. `marketplace-product-creation.md` |
 
 ---
 
@@ -103,5 +104,5 @@ Drop `marketplace_id` на `stocks`/`orders_v2`; force cutover без мигра
 | 2026-08-15 | Ozon Tamov: price cron + trash cron (паттерн First/Second, как cards) |
 | 2026-08-15 | directory/ERP `marketPlaceItemsSizes` по MP; stop-list PATCH + GET filter — Tamov кабинеты |
 | 2026-08-17 | Backfill `item_characteristics` «Размер» из `marketplace_item_sizes`; WB sync поддерживает product-level sizes |
-| 2026-08-18 | Product creation v1: WB; outbox+FSM+adapter; `CreateItemWb` (subjectID + vendorCode); Redis нет |
+| 2026-08-18 | Product creation v1: WB; outbox+FSM+`WbCardPublisher`; `subjectID` = категория WB; справочник categories per MP — backlog |
 | 2026-08-17 | Drop с `items`: Phase 3 + габариты/плотность + `replenishment_period` / `remaining_balance` (`1789370000000`); dual-write снят; directory DTO без dead planning fields |
