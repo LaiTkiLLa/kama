@@ -1,11 +1,27 @@
-import { IsBoolean, IsNumber, IsOptional, IsString, ValidateNested } from 'class-validator';
+import { IsOptional, IsString, ValidateNested } from 'class-validator';
 import { BankDto } from './bank.dto';
 import { Type } from 'class-transformer';
 
-export class UpdateSupplierDto {
+export class UpdateContaminantsDto {
   @IsString()
   @IsOptional()
   title: string;
+
+  @IsString()
+  @IsOptional()
+  country: string;
+
+  @IsString()
+  @IsOptional()
+  type: string;
+
+  @IsString()
+  @IsOptional()
+  inn: string;
+
+  @IsString()
+  @IsOptional()
+  kpp: string;
 
   @IsString()
   @IsOptional()
@@ -18,22 +34,6 @@ export class UpdateSupplierDto {
   @IsString()
   @IsOptional()
   paymentTerms: string;
-
-  @IsString()
-  @IsOptional()
-  typeOfMutualSettlements: string;
-
-  @IsString()
-  @IsOptional()
-  legalTitle: string;
-
-  @IsString()
-  @IsOptional()
-  legalAddress: string;
-
-  @IsString()
-  @IsOptional()
-  accRaschet: string;
 
   @IsString()
   @IsOptional()
@@ -53,23 +53,19 @@ export class UpdateSupplierDto {
 
   @IsString()
   @IsOptional()
-  creditLimit: string;
-
-  @IsBoolean()
-  @IsOptional()
-  canBeAbleToStoreInWarehouse: boolean;
-
-  @IsNumber()
-  @IsOptional()
-  numberOfStorageDays: number;
+  typeOfMutualSettlements: string;
 
   @IsString()
   @IsOptional()
-  webSite: string;
+  legalTitle: string;
 
-  @IsNumber()
+  @IsString()
   @IsOptional()
-  rank: number;
+  legalAddress: string;
+
+  @IsString()
+  @IsOptional()
+  accRaschet: string;
 
   @IsOptional()
   @ValidateNested({ message: 'bank должен передаваться объектом' })

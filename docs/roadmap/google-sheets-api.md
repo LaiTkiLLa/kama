@@ -62,6 +62,7 @@ Sheets **не должна** знать схему БД. API отдаёт ста
 | PATCH | `/api/info/suppliers/:id` | info | частичное обновление поставщика |
 | GET | `/api/info/warehouses` | info | справочник складов + nested marketplace |
 | GET | `/api/info/contaminants` | info | список контрагентов + bank |
+| PATCH | `/api/info/contaminants/:id` | info | частичное обновление контрагента |
 | GET | `/api/items/directory/list` | items | справочник товаров + `marketplacesInfo[]` |
 | GET | `/api/items/erp/list` | items | ERP/Sheets: items + listing image/color/barcode/`chrtId` (marketplace query, default WB) |
 | GET | `/api/items/erp/suppliers-items/list` | items | ERP/Sheets: связи item↔supplier + supplier-fields с `items_suppliers` |
@@ -75,7 +76,7 @@ Sheets **не должна** знать схему БД. API отдаёт ста
 | ~~GET~~ | `/api/stocks/current` | stocks | **удалён** (бывший v1, был закомментирован) |
 | ~~GET~~ | `/api/stocks/by-date` | stocks | **удалён** (бывший v1, был закомментирован) |
 
-**FACT (2026-08-11):** `PATCH /api/info/suppliers/:id` — method исправлен. Поле `bank` в body пока только проверяет существование банка; **`bankId` не обновляется** (отложено).
+**FACT (2026-08-18):** `PATCH /api/info/suppliers/:id` и `PATCH /api/info/contaminants/:id` принимают nested `bank` object; сервис резолвит/создаёт запись в `banks` и обновляет `bankId`.
 
 ### Cron / sync (FACT, кратко)
 
@@ -98,9 +99,10 @@ Sheets **не должна** знать схему БД. API отдаёт ста
 | Items | `GET /api/items/v2/stop-list` | `marketplace_items`, `items`, stocks/orders aggregates | Нет как общий каталог | Операционный stop-list |
 | Items | `PATCH /api/items/directory/info` | `items`, `marketplace_items`, `items_suppliers` | Write-back из Sheets | Supplier-fields на **`items_suppliers`**; link — `supplierId` + fields |
 | Suppliers | `GET /api/info/suppliers` | `suppliers`, `banks` | Да для полного справочника | Нет audit timestamps в API |
-| Suppliers | `PATCH /api/info/suppliers/:id` | `suppliers` | Да (partial update) | `bank` → `bankId` write отложен; GAS должен слать PATCH |
+| Suppliers | `PATCH /api/info/suppliers/:id` | `suppliers`, `banks` | Да (partial update) | nested `bank` ищется по полям; при отсутствии создаётся новая запись в `banks` |
 | Supplier↔Item | `GET /api/items/erp/suppliers-items/list` | `items_suppliers`, `items`, `suppliers` | **Да** для ERP/Sheets | Все items имеют связь (в т.ч. «Системный поставщик») |
-| Counterparties | `GET /api/info/contaminants` | `contaminants`, `banks` | Да для полного списка | Не фильтрует `deleted_at`; NPE risk если `bank` null; нет incremental |
+| Counterparties | `GET /api/info/contaminants` | `contaminants`, `banks` | Да для полного списка | Не фильтрует `deleted_at`; нет incremental |
+| Counterparties | `PATCH /api/info/contaminants/:id` | `contaminants`, `banks` | Да (partial update) | nested `bank` ищется по полям; при отсутствии создаётся новая запись в `banks` |
 | Orders | `GET /api/orders/dynamic` | `orders_v2` + stocks via service | Нет для «накопления заказов» — это analytics | Нужен raw/list export |
 | Stocks | `GET /api/stocks/v2/current` | `marketplace_items`, `stocks`, `warehouses`, suppliers | Частично: snapshot «сегодня» по MP | Агрегат без warehouse rows |
 | Stocks | `GET /api/stocks/by-warehouses` | `marketplace_items`, `stocks`, `warehouses` | **Да** для warehouse-level «сегодня» | Нет date/history; нет pagination; `excludeWarehouses` zero-out |
@@ -178,7 +180,7 @@ GET /api/sheets/items
 
 **GET `/api/info/suppliers` (FACT):** отдаёт business fields + nested `bank`; без `createdAt`/`updatedAt`.
 
-**PATCH `/api/info/suppliers/:id` (FACT):** partial update (`@IsOptional` на всех полях DTO). `bank` (title) — только проверка существования; запись `bankId` **отложена**.
+**PATCH `/api/info/suppliers/:id` (FACT):** partial update (`@IsOptional` на всех полях DTO). `bank` передаётся nested object (`title`, `accBik`, `accKorschet`, `address`, `swift`); сервис ищет существующий банк по полям или создаёт новый, затем пишет `bankId`.
 
 ```text
 GET /api/info/suppliers
@@ -196,7 +198,7 @@ PATCH /api/info/suppliers/:id
 
 Сортировка: id ASC (сейчас); rank — NEEDS DECISION для Sheets.
 
-Особенности: bank write отложен; не слать bank в PATCH, если не готовы к no-op validate.
+Особенности: `bank` в PATCH — nested object; при совпадении по всем полям используется существующий `banks`, иначе создаётся новый.
 ```
 
 ### Supplier ↔ Item
@@ -231,12 +233,13 @@ PATCH /api/info/suppliers/:id
 
 Связи с `suppliers` / `items` в схеме **отсутствуют** (FACT).
 
-**Существует:** `GET /api/info/contaminants`.
+**Существует:** `GET /api/info/contaminants`, `PATCH /api/info/contaminants/:id`.
 
-Риски: `deletedAt` не фильтруется; `contaminant.bank.title` без null-check.
+Риски: `deletedAt` не фильтруется.
 
 ```text
-GET /api/info/contaminants  (reuse + harden)
+GET /api/info/contaminants
+PATCH /api/info/contaminants/:id
   и/или GET /api/sheets/counterparties (alias naming)
 
 Назначение: справочник контрагентов.
@@ -245,7 +248,7 @@ GET /api/info/contaminants  (reuse + harden)
 
 Фильтры: includeDeleted? (default false), updatedSince?
 
-Поля: как сейчас + deletedAt? + bank nullable object.
+Поля: как сейчас + `contract` + deletedAt? + bank nullable object.
 
 Пагинация: вероятно не нужна — NEEDS VERIFICATION.
 

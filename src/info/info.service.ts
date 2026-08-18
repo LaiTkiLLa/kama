@@ -15,6 +15,7 @@ import { Contaminants } from './entities/contaminants.entity';
 import { Suppliers } from './entities/suppliers.entity';
 import { UpdateSupplierDto } from './dto/update-supplier.dto';
 import { Banks } from './entities/banks.entity';
+import { UpdateContaminantsDto } from './dto/update-contaminants.dto';
 
 @Injectable()
 export class InfoService {
@@ -86,23 +87,26 @@ export class InfoService {
         inn: contaminant.inn,
         kpp: contaminant.kpp,
         contact: contaminant.contact,
+        contract: contaminant.contract,
         paymentTerms: contaminant.paymentTerms,
         reliabilityRating: contaminant.reliabilityRating,
         warehouseAddress: contaminant.warehouseAddress,
         responsibleEmployee: contaminant.responsibleEmployee,
         comment: contaminant.comment,
         typeOfMutualSettlements: contaminant.typeOfMutualSettlements,
-        bank: {
-          title: contaminant.bank.title,
-          accBik: contaminant.bank.accBik,
-          accKorschet: contaminant.bank.accKorschet,
-          address: contaminant.bank.address,
-          swift: contaminant.bank.swift
-        }
+        bank: contaminant.bank
+          ? {
+              title: contaminant.bank.title ?? null,
+              accBik: contaminant.bank.accBik ?? null,
+              accKorschet: contaminant.bank.accKorschet ?? null,
+              address: contaminant.bank.address ?? null,
+              swift: contaminant.bank.swift ?? null
+            }
+          : null
       }));
     } catch (error) {
       this.logger.error(error);
-      this.logger.error('Не смог получить список поставщиков');
+      this.logger.error('Не смог получить список контрагентов');
       throw error;
     } finally {
       await queryRunner.release();
@@ -135,11 +139,11 @@ export class InfoService {
         rank: supplier.rank,
         bank: supplier.bank
           ? {
-              title: supplier.bank.title,
-              accBik: supplier.bank.accBik,
-              accKorschet: supplier.bank.accKorschet,
-              address: supplier.bank.address,
-              swift: supplier.bank.swift
+              title: supplier.bank.title ?? null,
+              accBik: supplier.bank.accBik ?? null,
+              accKorschet: supplier.bank.accKorschet ?? null,
+              address: supplier.bank.address ?? null,
+              swift: supplier.bank.swift ?? null
             }
           : null
       }));
@@ -194,14 +198,28 @@ export class InfoService {
       if (!findSuppliers) {
         throw new NotFoundException(['Поставщик не найден']);
       }
+      let bankId: number | undefined;
       if (updateSupplierDto.bank) {
         const findBank = await queryRunner.manager.findOne(Banks, {
           where: {
-            title: updateSupplierDto.bank
+            title: updateSupplierDto.bank.title,
+            accBik: updateSupplierDto.bank.accBik,
+            accKorschet: updateSupplierDto.bank.accKorschet,
+            address: updateSupplierDto.bank.address,
+            swift: updateSupplierDto.bank.swift
           }
         });
         if (!findBank) {
-          throw new NotFoundException(['Банк не найден']);
+          const createBank = await queryRunner.manager.save(Banks, {
+            title: updateSupplierDto.bank.title,
+            accBik: updateSupplierDto.bank.accBik,
+            accKorschet: updateSupplierDto.bank.accKorschet,
+            address: updateSupplierDto.bank.address,
+            swift: updateSupplierDto.bank.swift
+          });
+          bankId = createBank.id;
+        } else {
+          bankId = findBank.id;
         }
       }
       await queryRunner.manager.update(
@@ -224,7 +242,77 @@ export class InfoService {
           canBeAbleToStoreInWarehouse: updateSupplierDto.canBeAbleToStoreInWarehouse,
           numberOfStorageDays: updateSupplierDto.numberOfStorageDays,
           webSite: updateSupplierDto.webSite,
-          rank: updateSupplierDto.rank
+          rank: updateSupplierDto.rank,
+          bankId
+        }
+      );
+      return { id };
+    } catch (error) {
+      this.logger.error(error);
+      this.logger.error('Не смог изменить данные поставщика');
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  async updateContaminant(id: number, updateContaminantsDto: UpdateContaminantsDto) {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    try {
+      const findContaminant = await queryRunner.manager.findOne(Contaminants, {
+        where: {
+          id
+        }
+      });
+      if (!findContaminant) {
+        throw new NotFoundException(['Контрагент не найден']);
+      }
+      let bankId: number | undefined;
+      if (updateContaminantsDto.bank) {
+        const findBank = await queryRunner.manager.findOne(Banks, {
+          where: {
+            title: updateContaminantsDto.bank.title,
+            accBik: updateContaminantsDto.bank.accBik,
+            accKorschet: updateContaminantsDto.bank.accKorschet,
+            address: updateContaminantsDto.bank.address,
+            swift: updateContaminantsDto.bank.swift
+          }
+        });
+        if (!findBank) {
+          const createBank = await queryRunner.manager.save(Banks, {
+            title: updateContaminantsDto.bank.title,
+            accBik: updateContaminantsDto.bank.accBik,
+            accKorschet: updateContaminantsDto.bank.accKorschet,
+            address: updateContaminantsDto.bank.address,
+            swift: updateContaminantsDto.bank.swift
+          });
+          bankId = createBank.id;
+        } else {
+          bankId = findBank.id;
+        }
+      }
+      await queryRunner.manager.update(
+        Contaminants,
+        { id },
+        {
+          title: updateContaminantsDto.title,
+          contact: updateContaminantsDto.contact,
+          country: updateContaminantsDto.country,
+          type: updateContaminantsDto.type,
+          inn: updateContaminantsDto.inn,
+          kpp: updateContaminantsDto.kpp,
+          reliabilityRating: updateContaminantsDto.reliabilityRating,
+          warehouseAddress: updateContaminantsDto.warehouseAddress,
+          responsibleEmployee: updateContaminantsDto.responsibleEmployee,
+          comment: updateContaminantsDto.comment,
+          contract: updateContaminantsDto.contract,
+          paymentTerms: updateContaminantsDto.paymentTerms,
+          typeOfMutualSettlements: updateContaminantsDto.typeOfMutualSettlements,
+          legalTitle: updateContaminantsDto.legalTitle,
+          legalAddress: updateContaminantsDto.legalAddress,
+          accRaschet: updateContaminantsDto.accRaschet,
+          bankId
         }
       );
       return { id };

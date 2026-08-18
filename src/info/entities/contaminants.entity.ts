@@ -36,6 +36,7 @@ export class Contaminants {
   })
   type: string;
 
+  //Наименование юридического лица
   @Column({
     type: 'varchar',
     nullable: true,
@@ -43,6 +44,7 @@ export class Contaminants {
   })
   legalTitle: string;
 
+  //Юридический адрес
   @Column({
     type: 'varchar',
     nullable: true,
@@ -74,6 +76,13 @@ export class Contaminants {
     nullable: true
   })
   contact: string;
+
+  //Договор
+  @Column({
+    type: 'varchar',
+    nullable: true
+  })
+  contract: string;
 
   //Условия оплат
   @Column({
