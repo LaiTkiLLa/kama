@@ -51,11 +51,11 @@ export class CreateProductCreationOutbox1789400000000 implements MigrationInterf
     //   );
     // }
 
-    await queryRunner.query(`
-      CREATE UNIQUE INDEX IF NOT EXISTS "UQ_marketplace_items_item_id_marketplace_id_active"
-      ON marketplace_items (item_id, marketplace_id)
-      WHERE deleted_at IS NULL
-    `);
+    // await queryRunner.query(`
+    //   CREATE UNIQUE INDEX IF NOT EXISTS "UQ_marketplace_items_item_id_marketplace_id_active"
+    //   ON marketplace_items (item_id, marketplace_id)
+    //   WHERE deleted_at IS NULL
+    // `);
 
     await queryRunner.createTable(
       new Table({
@@ -104,35 +104,35 @@ export class CreateProductCreationOutbox1789400000000 implements MigrationInterf
       })
     );
 
-    await queryRunner.createIndex(
-      'product_creation_requests',
-      new TableIndex({
-        name: 'IDX_product_creation_requests_status_id',
-        columnNames: ['status', 'id']
-      })
-    );
+    // await queryRunner.createIndex(
+    //   'product_creation_requests',
+    //   new TableIndex({
+    //     name: 'IDX_product_creation_requests_status_id',
+    //     columnNames: ['status', 'id']
+    //   })
+    // );
 
-    await queryRunner.createIndex(
-      'product_creation_requests',
-      new TableIndex({
-        name: 'UQ_product_creation_requests_item_id_marketplace_id',
-        columnNames: ['item_id', 'marketplace_id'],
-        isUnique: true
-      })
-    );
+    // await queryRunner.createIndex(
+    //   'product_creation_requests',
+    //   new TableIndex({
+    //     name: 'UQ_product_creation_requests_item_id_marketplace_id',
+    //     columnNames: ['item_id', 'marketplace_id'],
+    //     isUnique: true
+    //   })
+    // );
 
-    await queryRunner.createIndex(
-      'product_creation_requests',
-      new TableIndex({
-        name: 'UQ_product_creation_requests_marketplace_item_id',
-        columnNames: ['marketplace_item_id'],
-        isUnique: true
-      })
-    );
+    // await queryRunner.createIndex(
+    //   'product_creation_requests',
+    //   new TableIndex({
+    //     name: 'UQ_product_creation_requests_marketplace_item_id',
+    //     columnNames: ['marketplace_item_id'],
+    //     isUnique: true
+    //   })
+    // );
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.dropTable('product_creation_requests', true, true, true);
-    await queryRunner.query(`DROP INDEX IF EXISTS "UQ_marketplace_items_item_id_marketplace_id_active"`);
+    // await queryRunner.query(`DROP INDEX IF EXISTS "UQ_marketplace_items_item_id_marketplace_id_active"`);
   }
 }
