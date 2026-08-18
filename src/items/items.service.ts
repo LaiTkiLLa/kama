@@ -1194,81 +1194,94 @@ export class ItemsService {
     }
   }
 
-  // @Cron('0 */51 * * * *')
-  // async getYandexTrashItems() {
-  //   const businessId = this.configService.get<string>('yandexBusinessId');
-  //   let pageToken;
-  //   let hasMoreData = true;
+  @Cron('0 */51 * * * *')
+  async getYandexTrashItemsFirst() {
+    const businessId = this.configService.get<string>('yandexBusinessId');
+    const apiKey = this.configService.get<string>('yandexToken');
+    if (!businessId) return;
+    if (!apiKey) return;
+    await this.getYandexTrashItems(businessId, apiKey, 'Yandex');
+    return;
+  }
 
-  //   const items: { marketplaceIdentifier: string; article: string; sku: string }[] = [];
+  @Cron('0 */52 * * * *')
+  async getYandexTrashItemsSecond() {
+    const businessId = this.configService.get<string>('yandexTamovBusinessId');
+    const apiKey = this.configService.get<string>('yandexTamovToken');
+    if (!businessId) return;
+    if (!apiKey) return;
+    await this.getYandexTrashItems(businessId, apiKey, 'Yandex Tamov');
+    return;
+  }
 
-  //   while (hasMoreData) {
-  //     let urlItems = `https://api.partner.market.yandex.ru/businesses/${businessId}/offer-mappings?limit=200`;
-  //     if (pageToken) {
-  //       urlItems = `https://api.partner.market.yandex.ru/businesses/${businessId}/offer-mappings?limit=200&page_token=${pageToken}`;
-  //     }
+  async getYandexTrashItems(businessId: string, apiKey: string, mpTitle: string) {
+    let pageToken;
+    let hasMoreData = true;
 
-  //     const { data }: { data: YandexItems } = await axios.post(
-  //       urlItems,
-  //       {
-  //         data: {
-  //           archived: true
-  //         }
-  //       },
-  //       {
-  //         headers: {
-  //           'Api-Key': 'ACMA:1pUUUtGUjFw0frKFuYg5ymG5nEs5RKNtz5NbW9OQ:226d6e1d'
-  //         }
-  //       }
-  //     );
-  //     for (const item of data.result.offerMappings) {
-  //       if (!item.mapping.marketSku) {
-  //         continue;
-  //       }
-  //       items.push({
-  //         marketplaceIdentifier: String(item.mapping.marketSku),
-  //         article: item.offer.offerId,
-  //         sku: String(0)
-  //       });
-  //     }
-  //     if (data.result.paging?.nextPageToken) {
-  //       pageToken = data.result.paging.nextPageToken;
-  //     } else {
-  //       hasMoreData = false;
-  //     }
-  //   }
-  //   const yandexMarketplace = await this.infoService.findMarketplace({ title: 'Yandex' });
+    const items: { marketplaceIdentifier: string; article: string; sku: string }[] = [];
 
-  //   const queryRunner = this.dataSource.createQueryRunner();
-  //   await queryRunner.connect();
-  //   try {
-  //     for (const item of items) {
-  //       const findItem = await queryRunner.manager.findOne(Items, {
-  //         where: {
-  //           marketplaceIdentifier: String(item.marketplaceIdentifier),
-  //           marketplaceId: yandexMarketplace.id,
-  //           isArchive: false
-  //         }
-  //       });
+    while (hasMoreData) {
+      let urlItems = `https://api.partner.market.yandex.ru/businesses/${businessId}/offer-mappings?limit=200`;
+      if (pageToken) {
+        urlItems = `https://api.partner.market.yandex.ru/businesses/${businessId}/offer-mappings?limit=200&page_token=${pageToken}`;
+      }
 
-  //       if (findItem) {
-  //         await queryRunner.manager.update(
-  //           Items,
-  //           { id: findItem.id },
-  //           {
-  //             isArchive: true
-  //           }
-  //         );
-  //       }
-  //     }
-  //     return;
-  //   } catch (error) {
-  //     this.logger.error(error);
-  //     this.logger.error('Не смог получить архивные товары Яндекс');
-  //   } finally {
-  //     await queryRunner.release();
-  //   }
-  // }
+      const { data }: { data: YandexItems } = await axios.post(
+        urlItems,
+        {
+          archived: true
+        },
+        {
+          headers: {
+            'Api-Key': apiKey
+          }
+        }
+      );
+      for (const item of data.result.offerMappings) {
+        if (!item.mapping.marketSku) {
+          continue;
+        }
+        items.push({
+          marketplaceIdentifier: String(item.mapping.marketSku),
+          article: item.offer.offerId,
+          sku: String(0)
+        });
+      }
+      if (data.result.paging?.nextPageToken) {
+        pageToken = data.result.paging.nextPageToken;
+      } else {
+        hasMoreData = false;
+      }
+    }
+    const yandexMarketplace = await this.infoService.findMarketplace({ title: mpTitle });
+
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    try {
+      for (const item of items) {
+        const findMpItem = await queryRunner.manager.findOne(MarketplaceItems, {
+          where: {
+            marketplaceIdentifier: String(item.marketplaceIdentifier),
+            marketplaceId: yandexMarketplace.id,
+            deletedAt: IsNull()
+          }
+        });
+        if (findMpItem) {
+          await queryRunner.manager.update(
+            MarketplaceItems,
+            { id: findMpItem.id },
+            { deletedAt: new Date() }
+          );
+        }
+      }
+      return;
+    } catch (error) {
+      this.logger.error(error);
+      this.logger.error(`Не смог получить архивные товары ${mpTitle}`);
+    } finally {
+      await queryRunner.release();
+    }
+  }
 
   @Cron('0 */42 * * * *')
   async getOzonItemsFirst() {

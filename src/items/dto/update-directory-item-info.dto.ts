@@ -130,14 +130,6 @@ export class UpdateDirectoryItemInfoDto {
   @IsOptional()
   daysDeliveryToRussia: number;
 
-  @IsNumber()
-  @IsOptional()
-  seasonalityForOrder: number;
-
-  @IsNumber()
-  @IsOptional()
-  seasonalityForExport: number;
-
   @IsString()
   @IsOptional()
   virality: string;

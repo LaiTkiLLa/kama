@@ -12,7 +12,7 @@
 **Milestone 6 — Cutover (в работе).** M1–M5 закрыты на prod. Price crons → mp.  
 **DECISION:** `items.isArchive` **оставляем** (product-level hide). Listing archive = `marketplace_items.deleted_at`.  
 Второй кабинет Ozon: `marketplaces.title = 'Ozon Tamov'` (env `ozonTamov*`) — cards/stocks/orders/prices/trash/stop-list/directory PATCH ✔.  
-Yandex Tamov: cards/stocks/orders + stop-list PATCH ✔; trash sync — gap.
+Yandex Tamov: cards/stocks/orders/stop-list PATCH/trash ✔.
 
 ---
 
@@ -58,7 +58,7 @@ Yandex Tamov: cards/stocks/orders + stop-list PATCH ✔; trash sync — gap.
 |---------|--------|
 | `items_sizes` → characteristics / mp sizes | ✔ mp sizes + backfill `item_characteristics` (`1789360000000`) + WB sync |
 | Ozon Tamov gaps: directory PATCH | ✔ Tamov ветки в `updateArrayDirectoryItemsInfoV2` |
-| Yandex Tamov: trash sync | □ (stop-list PATCH ✔) |
+| Yandex Tamov: trash sync | ✔ `getYandexTrashItemsFirst/Second`; soft-delete `marketplace_items.deleted_at` |
 | Drop Phase 3 / obsolete с `items` | ✔ `1789370000000` (+ `replenishment_period` / `remaining_balance`) |
 | Stocks API v1 / by-date | ✖ **не делаем** — Sheets на `GET /api/stocks/by-warehouses` |
 | Price crons pagination >1000 | ✖ **не нужна** — ≤~400 SKU/кабинет |

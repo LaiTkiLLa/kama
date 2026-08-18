@@ -36,10 +36,10 @@ Changelog M5: [`../migrations/m5-consolidation-changelog.md`](../migrations/m5-c
 | **Ozon Tamov** (`ozonTamov*`) | ✔ cards/stocks/orders/warehouses/prices/trash/stop-list; DTO + dynamic orders |
 | Warehouse resolve (multi-cabinet) | ✔ всегда с `marketplaceId` (Ozon stocks: title+mp; orders: internalNumber+mp) |
 | Ozon Tamov directory PATCH | ✔ |
-| Yandex Tamov sync | ✔ cards/stocks/orders/stop-list PATCH; trash □ |
+| Yandex Tamov sync | ✔ cards/stocks/orders/stop-list PATCH/trash |
 | Stocks Sheets | ✔ `GET /api/stocks/by-warehouses`; by-date **не возвращаем** |
 
-**Фокус спринта (M6):** MP characteristics sync → Yandex Tamov trash.
+**Фокус спринта (M6):** MP characteristics sync (WB + Ozon).
 
 ---
 
@@ -64,7 +64,7 @@ Changelog M5: [`../migrations/m5-consolidation-changelog.md`](../migrations/m5-c
 - [x] directory PATCH для Tamov (`Yandex Tamov` / `Ozon Tamov` в `updateArrayDirectoryItemsInfoV2`)
 - [x] drop с `items` Phase 3 + obsolete + `replenishment_period` / `remaining_balance` (`1789370000000`)
 - [ ] sync marketplace characteristics из WB/Ozon; Ozon sizes; soft-delete пропавших sizes
-- [ ] Yandex Tamov: trash sync
+- [x] Yandex Tamov: trash sync (`getYandexTrashItemsFirst` / `Second`; soft-delete `marketplace_items.deleted_at`)
 
 ---
 
@@ -73,7 +73,7 @@ Changelog M5: [`../migrations/m5-consolidation-changelog.md`](../migrations/m5-c
 | # | Задача | Статус |
 |---|--------|--------|
 | 1 | characteristics / sizes | ✔ schema + WB sizes + directory/ERP; MP characteristics sync — next |
-| 2 | Ozon / Yandex Tamov gaps | ✔ prices+trash+stop-list+directory PATCH; Yandex trash □ |
+| 2 | Ozon / Yandex Tamov gaps | ✔ prices+trash+stop-list+directory PATCH+Yandex trash |
 | 3 | Stocks / prices backlog | ✔ closed (by-date нет; pagination не нужна) |
 | 4 | Cleanup orphan DTO | ✔ |
 
@@ -84,5 +84,5 @@ Changelog M5: [`../migrations/m5-consolidation-changelog.md`](../migrations/m5-c
 | Gap | Влияние |
 |-----|---------|
 | Tamov directory PATCH | ✔ `updateArrayDirectoryItemsInfoV2` |
-| Yandex Tamov trash | архив listing 2-го Yandex не синхронится |
+| MP characteristics sync | WB/Ozon characteristics → `marketplace_item_characteristics`; Ozon sizes → `marketplace_item_sizes`; soft-delete пропавших |
 | `items_sizes` на item | ✖ dropped (`178935`); runtime — `marketplace_item_sizes` |
