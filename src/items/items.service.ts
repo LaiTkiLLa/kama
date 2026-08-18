@@ -24,6 +24,7 @@ import { MarketplaceItemSizes } from './entities/marketplace-item-sizes.entity';
 import { Characteristics } from './entities/characteristics.entity';
 import { ItemCharacteristics } from './entities/item-characteristics.entity';
 import { CharacteristicValues } from './entities/characteristic-values.entity';
+import { UpdateErpLogisticInfoDto } from './dto/update-erp-logistic-info.dto';
 
 @Injectable()
 export class ItemsService {
@@ -387,6 +388,8 @@ export class ItemsService {
           costCalculationType: item.costCalculationType,
           calculationType: item.calculationType,
           downloadCalculationMethod: item.downloadCalculationMethod,
+          transportType: item.transportType,
+          deliveryMethod: item.deliveryMethod,
           marketplaceItemsInfo: item.marketplaceItems.map(mpItem => {
             return {
               marketplaceItemId: mpItem.id,
@@ -607,6 +610,42 @@ export class ItemsService {
     } catch (error) {
       this.logger.error(error);
       this.logger.error('Не смог обновить справочник товаров');
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  async updateErpLogisticsInfo(id: number, updateErpLogisticInfoDto: UpdateErpLogisticInfoDto) {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    try {
+      const findItem = await queryRunner.manager.findOne(Items, {
+        where: { id }
+      });
+
+      if (!findItem) {
+        throw new NotFoundException('Товар не найден');
+      }
+      await queryRunner.manager.update(
+        Items,
+        { id: findItem.id },
+        {
+          consolidation: updateErpLogisticInfoDto.consolidation,
+          daysDeliveryToRussia: updateErpLogisticInfoDto.daysDeliveryToRussia,
+          fullfillmentAcceptance: updateErpLogisticInfoDto.fullfillmentAcceptance,
+          marketplaceAcceptance: updateErpLogisticInfoDto.marketplaceAcceptance,
+          costCalculationType: updateErpLogisticInfoDto.costCalculationType,
+          downloadCalculationMethod: updateErpLogisticInfoDto.downloadCalculationMethod,
+          calculationType: updateErpLogisticInfoDto.calculationType,
+          transportType: updateErpLogisticInfoDto.transportType,
+          deliveryMethod: updateErpLogisticInfoDto.deliveryMethod
+        }
+      );
+      return { id };
+    } catch (error) {
+      this.logger.error(error);
+      this.logger.error(`Не смог обновить логистическую информацию для товара ${id}`);
       throw error;
     } finally {
       await queryRunner.release();

@@ -59,6 +59,14 @@ export class Items {
   @Column({ type: 'varchar', nullable: true })
   classification: string;
 
+  //Вид транспорта
+  @Column({ type: 'varchar', nullable: true, name: 'transport_type' })
+  transportType: string;
+
+  //Метод доставки
+  @Column({ type: 'varchar', nullable: true, name: 'delivery_method' })
+  deliveryMethod: string;
+
   @Column({
     type: 'boolean',
     nullable: false,
