@@ -13,3 +13,18 @@ export type MarketplaceInfo = {
   discount: number | null;
   priceWithDiscount: number | null;
 };
+
+export type SupplierInfo = {
+  title: string;
+  multiplicity: string;
+  boxNumber: string;
+  dimensionsFact: string;
+  volume: string;
+  costInYuan: number;
+  costInYuanWhite: number;
+  dimensionsMasterBox: string;
+  payment: number;
+  assembling: number;
+  production: number;
+  supplierMinimumOrder: number;
+};

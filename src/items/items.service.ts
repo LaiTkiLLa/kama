@@ -17,7 +17,7 @@ import { OzonCategoryData, OzonItemsInfo, OzonItemsPrices } from './interfaces/o
 import { GetDirectoryListDto } from './dto/get-directory-list.dto';
 import { ItemsSuppliers } from './entities/items_suppliers.entity';
 import { MarketplaceItems } from './entities/marketplace-items.entity';
-import { MarketplaceInfo } from './interfaces/get-items-directory-list.interface';
+import { MarketplaceInfo, SupplierInfo } from './interfaces/get-items-directory-list.interface';
 import { Statuses } from 'src/info/entities/statuses.entity';
 import { GetErpItemsListDto } from './dto/get-erp-items-list.dto';
 import { MarketplaceItemSizes } from './entities/marketplace-item-sizes.entity';
@@ -257,7 +257,52 @@ export class ItemsService {
         });
       }
       const findItems = await queryBuilder.orderBy('items.id', 'ASC').getMany();
-      const filterWbItems = findItems.map(item => {
+      return findItems.map(item => {
+        const marketplacesInfo: MarketplaceInfo[] = [];
+        marketplacesInfo.push(
+          ...item.marketplaceItems.map(el => ({
+            title: el.marketplace.title,
+            marketplaceItemSizes: (el.marketplaceItemSizes ?? []).map(el => {
+              return {
+                size: el.name,
+                skus: Array.isArray(el.metadata?.skus) ? el?.metadata?.skus : [],
+                chrtId: el.marketplaceSizeId,
+                value: el.value
+              };
+            }),
+            dimensions: el.dimensions,
+            volume: Number(el.volume).toFixed(2),
+            sku: el.sku,
+            marketplaceIdentifier: el.marketplaceIdentifier,
+            category: el.category,
+            barcode: el.barcode,
+            image: el.imageUrl,
+            color: el.color,
+            itemTitle: el.title,
+            price: el.price,
+            discount: el.discount,
+            priceWithDiscount: el.priceWithDiscount
+          }))
+        );
+        const suppliersInfo: SupplierInfo[] = [];
+        if (item.itemsSuppliers.length) {
+          for (const itemSupplier of item.itemsSuppliers) {
+            suppliersInfo.push({
+              title: itemSupplier.supplier.title,
+              multiplicity: itemSupplier.multiplicity,
+              boxNumber: itemSupplier.boxNumber,
+              dimensionsFact: itemSupplier.dimensionsFact,
+              volume: itemSupplier.volume,
+              costInYuan: itemSupplier.costInYuan,
+              costInYuanWhite: itemSupplier.costInYuanWhite,
+              dimensionsMasterBox: itemSupplier.dimensionsMasterBox,
+              payment: itemSupplier.payment,
+              assembling: itemSupplier.assembling,
+              production: itemSupplier.production,
+              supplierMinimumOrder: itemSupplier.supplierMinimumOrder
+            });
+          }
+        }
         return {
           id: item.id,
           article: item.article,
@@ -297,40 +342,40 @@ export class ItemsService {
           costCalculationType: item.costCalculationType,
           calculationType: item.calculationType,
           downloadCalculationMethod: item.downloadCalculationMethod,
-          marketplacesInfo: [] as MarketplaceInfo[]
+          marketplacesInfo,
+          suppliersInfo
         };
       });
-      for (const item of findItems) {
-        const findItem = filterWbItems.find(wbItem => wbItem.article === item.article);
-        if (findItem) {
-          findItem.marketplacesInfo.push(
-            ...item.marketplaceItems.map(el => ({
-              title: el.marketplace.title,
-              marketplaceItemSizes: (el.marketplaceItemSizes ?? []).map(el => {
-                return {
-                  size: el.name,
-                  skus: Array.isArray(el.metadata?.skus) ? el?.metadata?.skus : [],
-                  chrtId: el.marketplaceSizeId,
-                  value: el.value
-                };
-              }),
-              dimensions: el.dimensions,
-              volume: Number(el.volume).toFixed(2),
-              sku: el.sku,
-              marketplaceIdentifier: el.marketplaceIdentifier,
-              category: el.category,
-              barcode: el.barcode,
-              image: el.imageUrl,
-              color: el.color,
-              itemTitle: el.title,
-              price: el.price,
-              discount: el.discount,
-              priceWithDiscount: el.priceWithDiscount
-            }))
-          );
-        }
-      }
-      return filterWbItems;
+      // for (const item of findItems) {
+      //   const findItem = filterWbItems.find(wbItem => wbItem.article === item.article);
+      //   if (findItem) {
+      //     findItem.marketplacesInfo.push(
+      //       ...item.marketplaceItems.map(el => ({
+      //         title: el.marketplace.title,
+      //         marketplaceItemSizes: (el.marketplaceItemSizes ?? []).map(el => {
+      //           return {
+      //             size: el.name,
+      //             skus: Array.isArray(el.metadata?.skus) ? el?.metadata?.skus : [],
+      //             chrtId: el.marketplaceSizeId,
+      //             value: el.value
+      //           };
+      //         }),
+      //         dimensions: el.dimensions,
+      //         volume: Number(el.volume).toFixed(2),
+      //         sku: el.sku,
+      //         marketplaceIdentifier: el.marketplaceIdentifier,
+      //         category: el.category,
+      //         barcode: el.barcode,
+      //         image: el.imageUrl,
+      //         color: el.color,
+      //         itemTitle: el.title,
+      //         price: el.price,
+      //         discount: el.discount,
+      //         priceWithDiscount: el.priceWithDiscount
+      //       }))
+      //     );
+      //   }
+      // }
     } catch (error) {
       this.logger.error(error);
       this.logger.error('Не смог получить справочник товаров');
