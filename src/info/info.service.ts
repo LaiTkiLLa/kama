@@ -511,7 +511,7 @@ export class InfoService {
     return;
   }
 
-  @Cron(CronExpression.EVERY_30_SECONDS)
+  @Cron(CronExpression.EVERY_HOUR)
   async syncOzonCategories() {
     const ozonToken = this.configService.get<string>('ozonToken');
     const clientId = this.configService.get<string>('ozonClientId');
