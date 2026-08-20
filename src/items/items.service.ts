@@ -13,7 +13,7 @@ import { UpdateStopListItems } from './dto/update-status-stop-list.dto';
 import { StatusesTypes } from '../info/enum/statuses.enum';
 import { UpdateArrayDirectoryItemsInfoDto } from './dto/update-directory-item-info.dto';
 import { Suppliers } from '../info/entities/suppliers.entity';
-import { OzonCategoryData, OzonItemsInfo, OzonItemsPrices } from './interfaces/ozon-items-info.interface';
+import { OzonItemsInfo, OzonItemsPrices } from './interfaces/ozon-items-info.interface';
 import { GetDirectoryListDto } from './dto/get-directory-list.dto';
 import { ItemsSuppliers } from './entities/items_suppliers.entity';
 import { MarketplaceItems } from './entities/marketplace-items.entity';
@@ -25,6 +25,7 @@ import { Characteristics } from './entities/characteristics.entity';
 import { ItemCharacteristics } from './entities/item-characteristics.entity';
 import { CharacteristicValues } from './entities/characteristic-values.entity';
 import { UpdateErpLogisticInfoDto } from './dto/update-erp-logistic-info.dto';
+import { MarketplaceCategories } from '../info/entities/marketplace-categories.entity';
 
 @Injectable()
 export class ItemsService {
@@ -1533,26 +1534,6 @@ export class ItemsService {
       'Client-Id': clientId,
       'Api-Key': ozonToken
     };
-    const ozonCategoryUrl = 'https://api-seller.ozon.ru/v1/description-category/tree';
-    const { data: categoryData }: { data: { result: OzonCategoryData[] } } = await axios.post(
-      ozonCategoryUrl,
-      {},
-      { headers }
-    );
-    const mappedCategory = categoryData.result.flatMap(el => {
-      return el.children.map(i => {
-        return {
-          title: i.category_name,
-          id: i.description_category_id,
-          subTypes: i.children.map(q => {
-            return {
-              title: q.type_name,
-              id: q.type_id
-            };
-          })
-        };
-      });
-    });
     const ozonUrlItemsInfo = 'https://api-seller.ozon.ru/v4/product/info/attributes';
     const { data }: { data: { result: OzonItemsInfo[] } } = await axios.post(
       ozonUrlItemsInfo,
@@ -1565,89 +1546,98 @@ export class ItemsService {
       },
       { headers }
     );
-    for (const item of data.result) {
-      const queryRunner = this.dataSource.createQueryRunner();
-      await queryRunner.connect();
-      try {
-        await queryRunner.startTransaction();
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    try {
+      const types = await queryRunner.manager.find(MarketplaceCategories, {
+        where: {
+          platform: 'Ozon',
+          nodeType: 'ozon_type',
+          deletedAt: IsNull()
+        }
+      });
+      const ozonTypeTitles = new Map(types.map(type => [type.externalId, type.title]));
+      for (const item of data.result) {
         if (!item.sku) {
           continue;
         }
-        const findMpItem = await queryRunner.manager.findOne(MarketplaceItems, {
-          where: { marketplaceIdentifier: String(item.id), marketplaceId }
-        });
-        const volumeOzon = String(((item.depth / 10) * (item.width / 10) * (item.height / 10)) / 1000);
-        let category = 'Другое';
-        const findCategory = mappedCategory.find(el => {
-          return el.id === item.description_category_id;
-        });
-        if (findCategory && item.type_id) {
-          const findSubCategory = findCategory.subTypes.find(el => el.id === item.type_id);
-          if (findSubCategory) {
-            category = findSubCategory.title;
-          }
-        }
-        if (!findMpItem) {
-          const findItem = await queryRunner.manager.findOne(Items, {
-            where: {
-              article: item.offer_id
-            }
+        await queryRunner.startTransaction();
+        try {
+          const findMpItem = await queryRunner.manager.findOne(MarketplaceItems, {
+            where: { marketplaceIdentifier: String(item.id), marketplaceId }
           });
-          let itemId: number;
-          if (findItem) {
-            itemId = findItem.id;
-          } else {
-            const createItem = queryRunner.manager.create(Items, {
-              article: item.offer_id
+          const volumeOzon = String(((item.depth / 10) * (item.width / 10) * (item.height / 10)) / 1000);
+          let category = 'Другое';
+          if (item.type_id) {
+            const categoryTitle = ozonTypeTitles.get(String(item.type_id));
+            if (categoryTitle) {
+              category = categoryTitle;
+            }
+          }
+          if (!findMpItem) {
+            const findItem = await queryRunner.manager.findOne(Items, {
+              where: {
+                article: item.offer_id
+              }
             });
-            await queryRunner.manager.save(Items, createItem);
-            itemId = createItem.id;
-          }
-          const createMarketplaceItem = queryRunner.manager.create(MarketplaceItems, {
-            itemId,
-            barcode: item.barcode,
-            sku: String(item.sku),
-            marketplaceIdentifier: String(item.id),
-            marketplaceId,
-            //Переводим размеры в см, вес в кг
-            dimensions: `${Number((item.depth / 10).toFixed(2))}/${Number((item.width / 10).toFixed(2))}/${Number((item.height / 10).toFixed(2))}/${Number((item.weight / 1000).toFixed(3))}`,
-            volume: volumeOzon,
-            category,
-            title: item.name,
-            imageUrl: item.primary_image
-          });
-          await queryRunner.manager.save(MarketplaceItems, createMarketplaceItem);
-        } else {
-          await queryRunner.manager.update(
-            Items,
-            { id: findMpItem.itemId },
-            {
-              article: item.offer_id
+            let itemId: number;
+            if (findItem) {
+              itemId = findItem.id;
+            } else {
+              const createItem = queryRunner.manager.create(Items, {
+                article: item.offer_id
+              });
+              await queryRunner.manager.save(Items, createItem);
+              itemId = createItem.id;
             }
-          );
-          await queryRunner.manager.update(
-            MarketplaceItems,
-            { id: findMpItem.id },
-            {
+            const createMarketplaceItem = queryRunner.manager.create(MarketplaceItems, {
+              itemId,
+              barcode: item.barcode,
+              sku: String(item.sku),
+              marketplaceIdentifier: String(item.id),
+              marketplaceId,
               //Переводим размеры в см, вес в кг
               dimensions: `${Number((item.depth / 10).toFixed(2))}/${Number((item.width / 10).toFixed(2))}/${Number((item.height / 10).toFixed(2))}/${Number((item.weight / 1000).toFixed(3))}`,
               volume: volumeOzon,
+              category,
               title: item.name,
-              imageUrl: item.primary_image,
-              category
-            }
-          );
+              imageUrl: item.primary_image
+            });
+            await queryRunner.manager.save(MarketplaceItems, createMarketplaceItem);
+          } else {
+            await queryRunner.manager.update(
+              Items,
+              { id: findMpItem.itemId },
+              {
+                article: item.offer_id
+              }
+            );
+            await queryRunner.manager.update(
+              MarketplaceItems,
+              { id: findMpItem.id },
+              {
+                //Переводим размеры в см, вес в кг
+                dimensions: `${Number((item.depth / 10).toFixed(2))}/${Number((item.width / 10).toFixed(2))}/${Number((item.height / 10).toFixed(2))}/${Number((item.weight / 1000).toFixed(3))}`,
+                volume: volumeOzon,
+                title: item.name,
+                imageUrl: item.primary_image,
+                category
+              }
+            );
+          }
+          await queryRunner.commitTransaction();
+        } catch (error) {
+          await queryRunner.rollbackTransaction();
+          this.logger.error(error);
+          this.logger.error(`Не смог синхронизировать товар Ozon offer_id=${item.offer_id}`);
         }
-        await queryRunner.commitTransaction();
-      } catch (error) {
-        await queryRunner.rollbackTransaction();
-        this.logger.error(error);
-        this.logger.error('Не смог получить товары Ozon');
-      } finally {
-        await queryRunner.release();
       }
+    } catch (error) {
+      this.logger.error(error);
+      this.logger.error('Не смог получить товары Ozon');
+    } finally {
+      await queryRunner.release();
     }
-    return;
   }
 
   @Cron(CronExpression.EVERY_5_MINUTES)

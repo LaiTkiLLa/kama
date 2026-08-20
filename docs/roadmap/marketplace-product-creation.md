@@ -191,13 +191,13 @@ Backend API (валидация + постановка задачи)
 | Область                    | Реализация                                             | Endpoint / файл                                                        |
 | -------------------------- | ------------------------------------------------------ | ---------------------------------------------------------------------- |
 | API client                 | Нет; `axios` inline                                    | —                                                                      |
-| Категории (read)           | `getOzonItems`                                         | `POST api-seller.ozon.ru/v1/description-category/tree`                 |
+| Категории (read)           | `InfoService.syncOzonCategories` → `marketplace_categories`; lookup в `getOzonItems` | cron: `POST …/v1/description-category/tree` (whitelist)                  |
 | Атрибуты / карточки (read) | `getOzonItems`, `getOzonTrashItems`                    | `POST …/v4/product/info/attributes`                                    |
 | Цены (read)                | `updateOzonItemsPrices`                                | `POST …/v5/product/info/prices`                                        |
 | Склады                     | `InfoService.getOzonWarehouses`                        | `POST …/v1/warehouse/ozon/list`                                        |
 | Остатки / заказы           | `StocksService`, `OrdersService`                       | seller API                                                             |
 | DTO                        | `OzonItemsInfo`, `OzonCategoryData`, `OzonItemsPrices` | `ozon-items-info.interface.ts`                                         |
-| Mapping                    | Inline в `getOzonItems`                                | offer_id→article, id→marketplace_identifier, sku, category via type_id |
+| Mapping                    | Inline в `getOzonItems`                                | offer_id→article, id→marketplace_identifier, sku, category title по `type_id` из БД |
 | Характеристики             | **Нет** отдельного read attributes API в коде          | attributes endpoint возвращает product info                            |
 | Изображения                | **Только read**                                        | `primary_image`                                                        |
 | Create / import / publish  | **Нет**                                                | —                                                                      |
@@ -216,7 +216,7 @@ Backend API (валидация + постановка задачи)
 | Возвращаемые ID                                                          | NEEDS VERIFICATION (ожидаемо `product_id`, `sku` — по read sync) |
 | Ограничения                                                              | NEEDS VERIFICATION                                               |
 
-**FACT:** category mapping уже реализован для **read** (`description_category_id` + `type_id` → title); для create потребуется обратный mapping — **новый код**.
+**FACT:** category title для **read** sync — lookup `type_id` в `marketplace_categories` (`getOzonItems`); справочник наполняет cron `syncOzonCategories`. Для create — обратный mapping из whitelist — **новый код**.
 
 ---
 
@@ -261,7 +261,7 @@ Mapping: `marketSku`, `marketModelId`, `marketCategoryId`, `marketCategoryName`,
 | Entity model `items` + `marketplace_items`          | ✔                    | —                                        |
 | find-or-create по `article` / mp lookup pattern     | ✔ (логика sync)      | —                                        |
 | Mapping полей read → DB                             | ✔ как reference      | Reverse mapping (DB/Sheets → MP payload) |
-| Ozon category tree read                             | ✔                    | Category/attribute **write** APIs        |
+| Ozon category tree read                             | ✔ cron `InfoService.syncOzonCategories` → DB; card sync читает из `marketplace_categories` | Category/attribute **write** APIs        |
 | Credentials / multi-cabinet config                  | ✔ `configuration.ts` | Per-request cabinet selection rules      |
 | Price / stocks / orders crons после create          | ✔                    | —                                        |
 | Outbound create/update/publish                      | —                     | **Весь слой**                            |
@@ -335,8 +335,8 @@ Mapping: `marketSku`, `marketModelId`, `marketCategoryId`, `marketCategoryName`,
 
 ### Ozon — `description_category_id` + `type_id` (FACT)
 
-- Аналог taxonomy: пара category + type (уже используется при **read** sync и category tree cron).
-- **FACT (2026-08-20):** справочник в `marketplace_categories` (`platform = 'Ozon'`). Whitelist `OZON_CATEGORY`: `typeId` + `title` + `isParent` (`true` → `description_category_id`, `false` → `type_id` leaf); cron sync по дереву API, в БД только whitelist.
+- Аналог taxonomy: пара category + type (уже используется при **read** sync).
+- **FACT (2026-08-20):** справочник в `marketplace_categories` (`platform = 'Ozon'`). Whitelist `OZON_CATEGORY`: `typeId` + `title` + `isParent` (`true` → `description_category_id`, `false` → `type_id` leaf); cron sync по дереву API, в БД только whitelist. **`getOzonItems`** резолвит `marketplace_items.category` по `type_id` из БД, без запроса category tree на каждый card sync.
 
 ### Yandex — category / `marketCategoryId` (ASSUMPTION)
 

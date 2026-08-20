@@ -105,5 +105,5 @@ Drop `marketplace_id` на `stocks`/`orders_v2`; force cutover без мигра
 | 2026-08-15 | directory/ERP `marketPlaceItemsSizes` по MP; stop-list PATCH + GET filter — Tamov кабинеты |
 | 2026-08-17 | Backfill `item_characteristics` «Размер» из `marketplace_item_sizes`; WB sync поддерживает product-level sizes |
 | 2026-08-18 | Product creation v1: WB; outbox+FSM+`WbCardPublisher`; `subjectID` = категория WB; справочник categories per MP — backlog |
-| 2026-08-20 | `marketplace_categories` + whitelist sync WB (`WB_CATEGORY_PARENTS`) / Ozon (`OZON_CATEGORY`) |
+| 2026-08-20 | `marketplace_categories` + whitelist sync WB/Ozon; `getOzonItems` — category title из БД, не category tree API |
 | 2026-08-17 | Drop с `items`: Phase 3 + габариты/плотность + `replenishment_period` / `remaining_balance` (`1789370000000`); dual-write снят; directory DTO без dead planning fields |
