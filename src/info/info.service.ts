@@ -1,5 +1,5 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { DataSource, FindOptionsWhere, QueryRunner, Repository } from 'typeorm';
+import { DataSource, FindOptionsWhere, In, IsNull, Not, QueryRunner, Repository } from 'typeorm';
 import { Warehouses } from './entities/warehouses.entity';
 import { Marketplaces } from './entities/marketplaces.entity';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -16,6 +16,14 @@ import { Suppliers } from './entities/suppliers.entity';
 import { UpdateSupplierDto } from './dto/update-supplier.dto';
 import { Banks } from './entities/banks.entity';
 import { UpdateContaminantsDto } from './dto/update-contaminants.dto';
+import { GetOzonCategoriesResponse } from './interfaces/get-ozon-categories.interfaces';
+import { GetWbChildrenCategoriesResponse } from './interfaces/get-wb-categorues.interface';
+import {
+  MarketplaceCategories,
+  MarketplaceCategoryNodeType,
+  MarketplaceCategoryPlatform
+} from './entities/marketplace-categories.entity';
+import { WB_CATEGORY_PARENTS } from './constants/wb-category-parents';
 
 @Injectable()
 export class InfoService {
@@ -496,6 +504,235 @@ export class InfoService {
     if (!ozonToken || !clientId) return;
     await this.getOzonWarehouses(clientId, ozonToken, 'Ozon Tamov');
     return;
+  }
+
+  @Cron(CronExpression.EVERY_2_HOURS)
+  async syncOzonCategories() {
+    const ozonToken = this.configService.get<string>('ozonToken');
+    const clientId = this.configService.get<string>('ozonClientId');
+    if (!ozonToken || !clientId) return;
+    await this.syncOzonCategoriesFromApi(clientId, ozonToken);
+  }
+
+  @Cron(CronExpression.EVERY_HOUR)
+  async syncWbCategories() {
+    const wbToken = this.configService.get<string>('wbToken');
+    if (!wbToken) return;
+    await this.syncWbCategoriesFromApi(wbToken);
+  }
+
+  private async syncWbCategoriesFromApi(wbToken: string) {
+    const parentEntries = Object.entries(WB_CATEGORY_PARENTS);
+    if (!parentEntries.length) {
+      this.logger.warn('WB_CATEGORY_PARENTS пуст — sync категорий WB пропущен');
+      return;
+    }
+
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+    try {
+      const seenIds: number[] = [];
+      const platform: MarketplaceCategoryPlatform = 'WB';
+
+      for (const [parentExternalId, parentMeta] of parentEntries) {
+        const allowedTitles = new Set(parentMeta.categories ?? []);
+        if (!allowedTitles.size) {
+          this.logger.warn(`WB parent ${parentExternalId}: categories пуст — subjects не синхронизируются`);
+          continue;
+        }
+
+        const parentId = await this.upsertMarketplaceCategory(queryRunner, {
+          platform,
+          nodeType: 'wb_parent',
+          externalId: parentExternalId,
+          title: parentMeta.title,
+          parentId: null,
+          isDisabled: false,
+          isVisible: parentMeta.isVisible ?? null,
+          isSelectable: false
+        });
+        seenIds.push(parentId);
+
+        let responseChildrenCategories: { data: GetWbChildrenCategoriesResponse };
+        try {
+          const childrenCategoriesUrl = `https://content-api.wildberries.ru/content/v2/object/all?parentID=${parentExternalId}&limit=1000`;
+          responseChildrenCategories = await axios.get<GetWbChildrenCategoriesResponse>(
+            childrenCategoriesUrl,
+            {
+              headers: {
+                Authorization: wbToken
+              }
+            }
+          );
+        } catch (error) {
+          this.logger.error(error);
+          this.logger.error(`Не смог получить subjects WB для parentID=${parentExternalId}`);
+          continue;
+        }
+
+        const matchedTitles = new Set<string>();
+        for (const subject of responseChildrenCategories.data.data) {
+          if (!allowedTitles.has(subject.subjectName)) {
+            continue;
+          }
+          matchedTitles.add(subject.subjectName);
+          const subjectId = await this.upsertMarketplaceCategory(queryRunner, {
+            platform,
+            nodeType: 'wb_subject',
+            externalId: String(subject.subjectID),
+            title: subject.subjectName,
+            parentId,
+            isDisabled: false,
+            isVisible: null,
+            isSelectable: true
+          });
+          seenIds.push(subjectId);
+        }
+      }
+
+      await this.softDeleteStaleMarketplaceCategories(queryRunner, platform, seenIds);
+      await queryRunner.commitTransaction();
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      this.logger.error(error);
+      this.logger.error('Не смог синхронизировать категории WB');
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  private async syncOzonCategoriesFromApi(clientId: string, ozonToken: string) {
+    let response: { data: GetOzonCategoriesResponse };
+    try {
+      const categoriesUrl = 'https://api-seller.ozon.ru/v1/description-category/tree';
+      response = await axios.post<GetOzonCategoriesResponse>(
+        categoriesUrl,
+        {},
+        {
+          headers: {
+            'Client-Id': clientId,
+            'Api-Key': ozonToken
+          }
+        }
+      );
+    } catch (error) {
+      this.logger.error(error);
+      this.logger.error('Не смог получить категории Ozon по API');
+      return;
+    }
+
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+    try {
+      const seenIds: number[] = [];
+      const platform: MarketplaceCategoryPlatform = 'Ozon';
+
+      for (const root of response.data.result) {
+        for (const category of root.children) {
+          const categoryId = await this.upsertMarketplaceCategory(queryRunner, {
+            platform,
+            nodeType: 'ozon_category',
+            externalId: String(category.description_category_id),
+            title: category.category_name,
+            parentId: null,
+            isDisabled: category.disabled,
+            isVisible: null,
+            isSelectable: false
+          });
+          seenIds.push(categoryId);
+
+          for (const typeNode of category.children) {
+            const typeId = await this.upsertMarketplaceCategory(queryRunner, {
+              platform,
+              nodeType: 'ozon_type',
+              externalId: String(typeNode.type_id),
+              title: typeNode.type_name,
+              parentId: categoryId,
+              isDisabled: typeNode.disabled,
+              isVisible: null,
+              isSelectable: true
+            });
+            seenIds.push(typeId);
+          }
+        }
+      }
+
+      await this.softDeleteStaleMarketplaceCategories(queryRunner, platform, seenIds);
+      await queryRunner.commitTransaction();
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      this.logger.error(error);
+      this.logger.error('Не смог синхронизировать категории Ozon');
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  private async upsertMarketplaceCategory(
+    queryRunner: QueryRunner,
+    params: {
+      platform: MarketplaceCategoryPlatform;
+      nodeType: MarketplaceCategoryNodeType;
+      externalId: string;
+      title: string;
+      parentId: number | null;
+      isDisabled: boolean;
+      isVisible: boolean | null;
+      isSelectable: boolean;
+    }
+  ): Promise<number> {
+    const existing = await queryRunner.manager.findOne(MarketplaceCategories, {
+      where: {
+        platform: params.platform,
+        nodeType: params.nodeType,
+        externalId: params.externalId
+      }
+    });
+
+    if (existing) {
+      await queryRunner.manager.update(MarketplaceCategories, existing.id, {
+        title: params.title,
+        parentId: params.parentId,
+        isDisabled: params.isDisabled,
+        isVisible: params.isVisible,
+        isSelectable: params.isSelectable,
+        deletedAt: null
+      });
+      return existing.id;
+    }
+
+    const created = await queryRunner.manager.save(
+      MarketplaceCategories,
+      queryRunner.manager.create(MarketplaceCategories, params)
+    );
+    return created.id;
+  }
+
+  private async softDeleteStaleMarketplaceCategories(
+    queryRunner: QueryRunner,
+    platform: MarketplaceCategoryPlatform,
+    seenIds: number[]
+  ) {
+    if (!seenIds.length) {
+      await queryRunner.manager.update(
+        MarketplaceCategories,
+        { platform, deletedAt: IsNull() },
+        { deletedAt: new Date() }
+      );
+      return;
+    }
+
+    await queryRunner.manager.update(
+      MarketplaceCategories,
+      {
+        platform,
+        deletedAt: IsNull(),
+        id: Not(In(seenIds))
+      },
+      { deletedAt: new Date() }
+    );
   }
 
   async getOzonWarehouses(clientId: string, ozonToken: string, mpTitle: string) {
