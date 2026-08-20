@@ -563,12 +563,17 @@ export class ItemsService {
           if (!findSupplier) {
             throw new NotFoundException('Поставщик не найден');
           }
+          const findItemSupplier = await queryRunner.manager.findOne(ItemsSuppliers, {
+            where: {
+              itemId: findItem.id,
+              supplierId: findSupplier.id
+            }
+          });
           if (findItemsSupplier.length) {
             await queryRunner.manager.update(
               ItemsSuppliers,
-              { itemId: findItem.id },
+              { itemId: findItem.id, supplierId: findSupplier.id },
               {
-                supplierId: findSupplier.id,
                 ...supplierLinkFields
               }
             );
