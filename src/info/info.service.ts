@@ -16,14 +16,19 @@ import { Suppliers } from './entities/suppliers.entity';
 import { UpdateSupplierDto } from './dto/update-supplier.dto';
 import { Banks } from './entities/banks.entity';
 import { UpdateContaminantsDto } from './dto/update-contaminants.dto';
-import { GetOzonCategoriesResponse } from './interfaces/get-ozon-categories.interfaces';
+import { WB_CATEGORY_PARENTS } from './constants/wb-category-parents';
+import { OZON_CATEGORY } from './constants/ozon-category';
+import {
+  GetOzonCategoriesResponse,
+  OzonCategoryNode,
+  OzonCategoryTypeNode
+} from './interfaces/get-ozon-categories.interfaces';
 import { GetWbChildrenCategoriesResponse } from './interfaces/get-wb-categorues.interface';
 import {
   MarketplaceCategories,
   MarketplaceCategoryNodeType,
   MarketplaceCategoryPlatform
 } from './entities/marketplace-categories.entity';
-import { WB_CATEGORY_PARENTS } from './constants/wb-category-parents';
 
 @Injectable()
 export class InfoService {
@@ -506,7 +511,7 @@ export class InfoService {
     return;
   }
 
-  @Cron(CronExpression.EVERY_2_HOURS)
+  @Cron(CronExpression.EVERY_30_SECONDS)
   async syncOzonCategories() {
     const ozonToken = this.configService.get<string>('ozonToken');
     const clientId = this.configService.get<string>('ozonClientId');
@@ -603,6 +608,11 @@ export class InfoService {
   }
 
   private async syncOzonCategoriesFromApi(clientId: string, ozonToken: string) {
+    if (!OZON_CATEGORY.length) {
+      this.logger.warn('OZON_CATEGORY пуст — sync категорий Ozon пропущен');
+      return;
+    }
+
     let response: { data: GetOzonCategoriesResponse };
     try {
       const categoriesUrl = 'https://api-seller.ozon.ru/v1/description-category/tree';
@@ -622,41 +632,105 @@ export class InfoService {
       return;
     }
 
+    const categoryByDescriptionId = new Map<number, OzonCategoryNode>();
+    const typeByTypeId = new Map<
+      number,
+      { typeNode: OzonCategoryTypeNode; categoryNode: OzonCategoryNode }
+    >();
+
+    for (const root of response.data.result) {
+      for (const categoryNode of root.children) {
+        categoryByDescriptionId.set(categoryNode.description_category_id, categoryNode);
+        for (const typeNode of categoryNode.children) {
+          typeByTypeId.set(typeNode.type_id, { typeNode, categoryNode });
+        }
+      }
+    }
+
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
     try {
       const seenIds: number[] = [];
       const platform: MarketplaceCategoryPlatform = 'Ozon';
+      const categoryDbIds = new Map<number, number>();
 
-      for (const root of response.data.result) {
-        for (const category of root.children) {
-          const categoryId = await this.upsertMarketplaceCategory(queryRunner, {
+      for (const entry of OZON_CATEGORY) {
+        if (!entry.isParent) {
+          continue;
+        }
+
+        const categoryNode = categoryByDescriptionId.get(entry.typeId);
+        if (!categoryNode) {
+          this.logger.warn(
+            `Ozon category не найдена в API: ${entry.title} (description_category_id=${entry.typeId})`
+          );
+          continue;
+        }
+        if (categoryNode.category_name !== entry.title) {
+          this.logger.warn(
+            `Ozon category title mismatch для ${entry.typeId}: whitelist="${entry.title}", API="${categoryNode.category_name}"`
+          );
+        }
+
+        const categoryId = await this.upsertMarketplaceCategory(queryRunner, {
+          platform,
+          nodeType: 'ozon_category',
+          externalId: String(entry.typeId),
+          title: entry.title,
+          parentId: null,
+          isDisabled: categoryNode.disabled,
+          isVisible: null,
+          isSelectable: false
+        });
+        categoryDbIds.set(entry.typeId, categoryId);
+        seenIds.push(categoryId);
+      }
+
+      for (const entry of OZON_CATEGORY) {
+        if (entry.isParent) {
+          continue;
+        }
+
+        const found = typeByTypeId.get(entry.typeId);
+        if (!found) {
+          this.logger.warn(`Ozon type не найден в API: ${entry.title} (type_id=${entry.typeId})`);
+          continue;
+        }
+        if (found.typeNode.type_name !== entry.title) {
+          this.logger.warn(
+            `Ozon type title mismatch для ${entry.typeId}: whitelist="${entry.title}", API="${found.typeNode.type_name}"`
+          );
+        }
+
+        const descriptionCategoryId = found.categoryNode.description_category_id;
+        let parentDbId = categoryDbIds.get(descriptionCategoryId);
+        if (!parentDbId) {
+          parentDbId = await this.upsertMarketplaceCategory(queryRunner, {
             platform,
             nodeType: 'ozon_category',
-            externalId: String(category.description_category_id),
-            title: category.category_name,
+            externalId: String(descriptionCategoryId),
+            title: found.categoryNode.category_name,
             parentId: null,
-            isDisabled: category.disabled,
+            isDisabled: found.categoryNode.disabled,
             isVisible: null,
             isSelectable: false
           });
-          seenIds.push(categoryId);
-
-          for (const typeNode of category.children) {
-            const typeId = await this.upsertMarketplaceCategory(queryRunner, {
-              platform,
-              nodeType: 'ozon_type',
-              externalId: String(typeNode.type_id),
-              title: typeNode.type_name,
-              parentId: categoryId,
-              isDisabled: typeNode.disabled,
-              isVisible: null,
-              isSelectable: true
-            });
-            seenIds.push(typeId);
-          }
+          categoryDbIds.set(descriptionCategoryId, parentDbId);
+          seenIds.push(parentDbId);
         }
+
+        const typeId = await this.upsertMarketplaceCategory(queryRunner, {
+          platform,
+          nodeType: 'ozon_type',
+          externalId: String(entry.typeId),
+          title: entry.title,
+          parentId: parentDbId,
+          isDisabled: found.typeNode.disabled,
+          isVisible: null,
+          isSelectable: true
+        });
+        seenIds.push(typeId);
       }
 
       await this.softDeleteStaleMarketplaceCategories(queryRunner, platform, seenIds);

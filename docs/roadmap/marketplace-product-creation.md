@@ -331,12 +331,12 @@ Mapping: `marketSku`, `marketModelId`, `marketCategoryId`, `marketCategoryName`,
 - В `POST /content/v2/cards/upload` поле **`subjectID`** — ID **предмета/категории** в дереве WB (в API — «subject»; в UI WB — категория товара).
 - Категории **разные** (напр. «Коврики спортивные» `388`, «Спортивный товар» `239` — parent); у каждой subject свой набор обязательных характеристик.
 - **Сейчас:** `subjectID` приходит из GAS в `CreateProductDto.wb.subjectID`, попадает в outbox (`product_creation_requests.payload` → `WbCardPublisher`).
-- **Позже (не реализовано):** вести **справочник** допустимых `subjectID` (+ human-readable name, parentID) — для выбора в Sheets и валидации на backend. Источник данных: sync дерева subjects с WB Content API vs ручное ведение — **NEEDS DECISION**.
+- **FACT (2026-08-20):** справочник в `marketplace_categories` (`platform = 'WB'`). Whitelist `WB_CATEGORY_PARENTS`: parentID + список `subjectName`; cron sync резолвит `subjectID` из Content API и soft-delete устаревших строк.
 
-### Ozon — `description_category_id` + `type_id` (ASSUMPTION)
+### Ozon — `description_category_id` + `type_id` (FACT)
 
 - Аналог taxonomy: пара category + type (уже используется при **read** sync и category tree cron).
-- **FACT:** дерево категорий читается (`POST …/v1/description-category/tree`); для create нужен обратный выбор из справочника — **не реализовано**.
+- **FACT (2026-08-20):** справочник в `marketplace_categories` (`platform = 'Ozon'`). Whitelist `OZON_CATEGORY`: `typeId` + `title` + `isParent` (`true` → `description_category_id`, `false` → `type_id` leaf); cron sync по дереву API, в БД только whitelist.
 
 ### Yandex — category / `marketCategoryId` (ASSUMPTION)
 
@@ -347,8 +347,8 @@ Mapping: `marketSku`, `marketModelId`, `marketCategoryId`, `marketCategoryName`,
 
 | Задача | Статус |
 | ------ | ------ |
-| Справочник WB subjects (`subjectID` + название + parent) | □ |
-| Справочник Ozon categories/types для create | □ |
+| Справочник WB subjects (`subjectID` + название + parent) | ✔ whitelist + cron sync → `marketplace_categories` |
+| Справочник Ozon categories/types для create | ✔ whitelist + cron sync → `marketplace_categories` |
 | Справочник Yandex categories для create | □ |
 | API/metadata для GAS (`GET …/create/metadata` или аналог) | □ |
 | Валидация category ID перед записью в outbox | □ |
@@ -578,7 +578,7 @@ Natural keys на стороне МП (из sync): WB `vendorCode`, Ozon `offer_
 - [ ] Dedup `marketplace_items` (item_id + marketplace_id, `deleted_at IS NULL`) → unique listing + индексы `product_creation_requests` (отложены в `178940`)
 - [x] Worker: cron `createMpItems` + `WbCardPublisher` + outbox FSM (2026-08-18)
 - [ ] Spike WB upload/poll (подтверждение `nmID` после upload)
-- [ ] **Справочник категорий МП** (WB `subjectID`; Ozon/Yandex — аналоги) для Sheets + backend validation
+- [x] **Справочник категорий МП** (WB `subjectID`; Ozon `type_id` + `description_category_id`) — whitelist + cron sync; API для GAS — backlog
 - [ ] GAS UX
 - [ ] Ozon / Yandex publishers
 
