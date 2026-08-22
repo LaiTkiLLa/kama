@@ -569,7 +569,7 @@ export class ItemsService {
               supplierId: findSupplier.id
             }
           });
-          if (findItemsSupplier.length) {
+          if (findItemSupplier) {
             await queryRunner.manager.update(
               ItemsSuppliers,
               { itemId: findItem.id, supplierId: findSupplier.id },
@@ -585,7 +585,7 @@ export class ItemsService {
             });
           }
         } else if (findItemsSupplier.length) {
-          await queryRunner.manager.update(ItemsSuppliers, { itemId: findItem.id }, supplierLinkFields);
+          // await queryRunner.manager.update(ItemsSuppliers, { itemId: findItem.id }, supplierLinkFields);
         }
         await queryRunner.manager.update(
           Items,
