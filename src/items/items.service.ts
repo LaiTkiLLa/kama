@@ -549,6 +549,7 @@ export class ItemsService {
           dimensionsMasterBox: item.dimensionsMasterBox,
           volume: item.volume
         };
+        console.log('supplierLinkFields', supplierLinkFields);
         const findItemsSupplier = await queryRunner.manager.find(ItemsSuppliers, {
           where: {
             itemId: findItem.id
