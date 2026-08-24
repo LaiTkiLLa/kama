@@ -816,20 +816,7 @@ export class InfoService {
       const response = await axios.post<OzonWarehouses>(
         warehousesUrl,
         {
-          warehouse_types: [
-            'FULL_FILLMENT',
-            'FULL_FILLMENT_RETURNS',
-            'FULL_FILLMENT_DEFECT',
-            'EXPRESS_DARK_STORE',
-            'CROSS_DOCK',
-            'SORTING_CENTER',
-            'PHARMACY',
-            'DISTRIBUTION_CENTER',
-            'ORDERS_RECEIVING_POINT',
-            'OUTSOURCE_FF',
-            'B2B',
-            'EXTERNAL_FF'
-          ]
+          warehouse_types: ['FULL_FILLMENT']
         },
         {
           headers: {

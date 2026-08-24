@@ -57,7 +57,7 @@ export class Stocks {
   })
   updatedAt: Date;
 
-  @ManyToOne(() => Warehouses, warehouse => warehouse.stocks)
+  @ManyToOne(() => Warehouses, warehouse => warehouse.stocks, { onDelete: 'RESTRICT' })
   @JoinColumn({
     name: 'warehouse_id'
   })

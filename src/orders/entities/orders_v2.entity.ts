@@ -118,7 +118,7 @@ export class OrdersV2 {
   })
   marketplaceItem: MarketplaceItems;
 
-  @ManyToOne(() => Warehouses, warehouse => warehouse.orders)
+  @ManyToOne(() => Warehouses, warehouse => warehouse.orders, { onDelete: 'RESTRICT' })
   @JoinColumn({
     name: 'warehouse_id'
   })
