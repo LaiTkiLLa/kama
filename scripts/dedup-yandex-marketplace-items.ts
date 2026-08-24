@@ -48,15 +48,11 @@ type GroupReport = {
 };
 
 const CABINETS: { title: CabinetTitle; businessIdEnv: string; tokenEnv: string }[] = [
-  {
-    title: 'Yandex',
-    businessIdEnv: process.env.yandexBusinessId || '',
-    tokenEnv: process.env.yandexToken || ''
-  },
+  { title: 'Yandex', businessIdEnv: 'yandexBusinessId', tokenEnv: 'yandexToken' },
   {
     title: 'Yandex Tamov',
-    businessIdEnv: process.env.yandexTamovBusinessId || '',
-    tokenEnv: process.env.yandexTamovToken || ''
+    businessIdEnv: 'yandexTamovBusinessId',
+    tokenEnv: 'yandexTamovToken'
   }
 ];
 
