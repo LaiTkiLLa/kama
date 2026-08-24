@@ -36,7 +36,7 @@ type ListingReport = {
 };
 
 type GroupReport = {
-  decision: 'SAFE' | 'REVIEW';
+  decision: 'MERGE' | 'REVIEW';
   reason: string;
   article: string;
   itemId: number;
@@ -45,6 +45,22 @@ type GroupReport = {
   keep: ListingReport | null;
   delete: ListingReport[];
   listings: ListingReport[];
+  stocksToReassign: number;
+  stocksToDelete: number;
+  ordersToReassign: number;
+  ordersToDelete: number;
+};
+
+type MergePair = {
+  keepMpId: number;
+  duplicateMpId: number;
+};
+
+type MergePreview = {
+  stocksToReassign: string;
+  stocksToDelete: string;
+  ordersToReassign: string;
+  ordersToDelete: string;
 };
 
 const CABINETS: { title: CabinetTitle; businessIdEnv: string; tokenEnv: string }[] = [
@@ -137,6 +153,152 @@ function toListingReport(listing: DuplicateListingRow): ListingReport {
   };
 }
 
+async function previewMerge(dataSource: DataSource, pairs: MergePair[]): Promise<MergePreview> {
+  if (pairs.length === 0) {
+    return {
+      stocksToReassign: '0',
+      stocksToDelete: '0',
+      ordersToReassign: '0',
+      ordersToDelete: '0'
+    };
+  }
+
+  const rows: MergePreview[] = await dataSource.query(
+    `
+    WITH pairs AS (
+      SELECT * FROM jsonb_to_recordset($1::jsonb) AS x(keep_mp_id int, duplicate_mp_id int)
+    )
+    SELECT
+      (
+        SELECT COUNT(*)::text
+        FROM stocks s
+        INNER JOIN pairs p ON p.duplicate_mp_id = s.marketplace_item_id
+        WHERE NOT EXISTS (
+          SELECT 1
+          FROM stocks keep_s
+          WHERE keep_s.marketplace_item_id = p.keep_mp_id
+            AND keep_s.warehouse_id = s.warehouse_id
+            AND DATE(keep_s.created_at) = DATE(s.created_at)
+        )
+      ) AS "stocksToReassign",
+      (
+        SELECT COUNT(*)::text
+        FROM stocks s
+        INNER JOIN pairs p ON p.duplicate_mp_id = s.marketplace_item_id
+        WHERE EXISTS (
+          SELECT 1
+          FROM stocks keep_s
+          WHERE keep_s.marketplace_item_id = p.keep_mp_id
+            AND keep_s.warehouse_id = s.warehouse_id
+            AND DATE(keep_s.created_at) = DATE(s.created_at)
+        )
+      ) AS "stocksToDelete",
+      (
+        SELECT COUNT(*)::text
+        FROM orders_v2 o
+        INNER JOIN pairs p ON p.duplicate_mp_id = o.marketplace_item_id
+        WHERE NOT EXISTS (
+          SELECT 1
+          FROM orders_v2 keep_o
+          WHERE keep_o.marketplace_item_id = p.keep_mp_id
+            AND keep_o.marketplace_order_identification
+              IS NOT DISTINCT FROM o.marketplace_order_identification
+            AND keep_o.marketplace_order_posting_number
+              IS NOT DISTINCT FROM o.marketplace_order_posting_number
+        )
+      ) AS "ordersToReassign",
+      (
+        SELECT COUNT(*)::text
+        FROM orders_v2 o
+        INNER JOIN pairs p ON p.duplicate_mp_id = o.marketplace_item_id
+        WHERE EXISTS (
+          SELECT 1
+          FROM orders_v2 keep_o
+          WHERE keep_o.marketplace_item_id = p.keep_mp_id
+            AND keep_o.marketplace_order_identification
+              IS NOT DISTINCT FROM o.marketplace_order_identification
+            AND keep_o.marketplace_order_posting_number
+              IS NOT DISTINCT FROM o.marketplace_order_posting_number
+        )
+      ) AS "ordersToDelete"
+    `,
+    [JSON.stringify(pairs.map(p => ({ keep_mp_id: p.keepMpId, duplicate_mp_id: p.duplicateMpId })))]
+  );
+
+  return rows[0];
+}
+
+async function applyMerge(dataSource: DataSource, pairs: MergePair[]): Promise<void> {
+  if (pairs.length === 0) {
+    return;
+  }
+
+  await dataSource.transaction(async manager => {
+    await manager.query(`
+      CREATE TEMP TABLE yandex_mp_dedup (
+        keep_mp_id int NOT NULL,
+        duplicate_mp_id int NOT NULL
+      ) ON COMMIT DROP
+    `);
+    await manager.query(
+      `
+      INSERT INTO yandex_mp_dedup (keep_mp_id, duplicate_mp_id)
+      SELECT keep_mp_id, duplicate_mp_id
+      FROM jsonb_to_recordset($1::jsonb) AS x(keep_mp_id int, duplicate_mp_id int)
+      `,
+      [JSON.stringify(pairs.map(p => ({ keep_mp_id: p.keepMpId, duplicate_mp_id: p.duplicateMpId })))]
+    );
+
+    await manager.query(`
+      DELETE FROM stocks dup_s
+      USING yandex_mp_dedup d
+      WHERE dup_s.marketplace_item_id = d.duplicate_mp_id
+        AND EXISTS (
+          SELECT 1
+          FROM stocks keep_s
+          WHERE keep_s.marketplace_item_id = d.keep_mp_id
+            AND keep_s.warehouse_id = dup_s.warehouse_id
+            AND DATE(keep_s.created_at) = DATE(dup_s.created_at)
+        )
+    `);
+
+    await manager.query(`
+      UPDATE stocks s
+      SET marketplace_item_id = d.keep_mp_id, updated_at = now()
+      FROM yandex_mp_dedup d
+      WHERE s.marketplace_item_id = d.duplicate_mp_id
+    `);
+
+    await manager.query(`
+      DELETE FROM orders_v2 dup_o
+      USING yandex_mp_dedup d
+      WHERE dup_o.marketplace_item_id = d.duplicate_mp_id
+        AND EXISTS (
+          SELECT 1
+          FROM orders_v2 keep_o
+          WHERE keep_o.marketplace_item_id = d.keep_mp_id
+            AND keep_o.marketplace_order_identification
+              IS NOT DISTINCT FROM dup_o.marketplace_order_identification
+            AND keep_o.marketplace_order_posting_number
+              IS NOT DISTINCT FROM dup_o.marketplace_order_posting_number
+        )
+    `);
+
+    await manager.query(`
+      UPDATE orders_v2 o
+      SET marketplace_item_id = d.keep_mp_id, updated_at = now()
+      FROM yandex_mp_dedup d
+      WHERE o.marketplace_item_id = d.duplicate_mp_id
+    `);
+
+    await manager.query(`
+      DELETE FROM marketplace_items mi
+      USING yandex_mp_dedup d
+      WHERE mi.id = d.duplicate_mp_id
+    `);
+  });
+}
+
 async function main(): Promise<void> {
   const apply = process.argv.includes('--apply');
   const dataSource = createDataSource();
@@ -200,13 +362,13 @@ async function main(): Promise<void> {
     );
 
     const groups = groupDuplicates(duplicateRows);
-    const idsToDelete: number[] = [];
+    const mergePairs: MergePair[] = [];
     const report: GroupReport[] = [];
-    let safeGroups = 0;
+    let mergeGroups = 0;
     let reviewGroups = 0;
 
     console.log(`\nDuplicate groups: ${groups.length}`);
-    console.log(apply ? 'Mode: APPLY' : 'Mode: DRY-RUN (pass --apply to delete)');
+    console.log(apply ? 'Mode: APPLY' : 'Mode: DRY-RUN (pass --apply to merge/delete)');
 
     for (const group of groups) {
       const currentSku = currentMarketSkuByCabinet.get(group.marketplaceTitle)?.get(group.article) ?? null;
@@ -233,7 +395,11 @@ async function main(): Promise<void> {
           currentMarketSku: null,
           keep: null,
           delete: [],
-          listings
+          listings,
+          stocksToReassign: 0,
+          stocksToDelete: 0,
+          ordersToReassign: 0,
+          ordersToDelete: 0
         });
         console.log(`\n[REVIEW] ${group.article} / ${group.marketplaceTitle}: ${reason}`);
         for (const listing of group.listings) {
@@ -254,7 +420,11 @@ async function main(): Promise<void> {
           currentMarketSku: currentSku,
           keep: null,
           delete: [],
-          listings
+          listings,
+          stocksToReassign: 0,
+          stocksToDelete: 0,
+          ordersToReassign: 0,
+          ordersToDelete: 0
         });
         console.log(`\n[REVIEW] ${group.article} / ${group.marketplaceTitle}: ${reason}`);
         for (const listing of group.listings) {
@@ -263,70 +433,46 @@ async function main(): Promise<void> {
         continue;
       }
 
-      const unsafeLosers = losers.filter(
-        listing => Number(listing.stocks_count) > 0 || Number(listing.orders_count) > 0
-      );
-      const safeLosers = losers.filter(
-        listing => Number(listing.stocks_count) === 0 && Number(listing.orders_count) === 0
-      );
-
-      if (unsafeLosers.length > 0) {
-        reviewGroups += 1;
-        const reason = 'на дубле есть stocks/orders';
-        report.push({
-          decision: 'REVIEW',
-          reason,
-          article: group.article,
-          itemId: group.itemId,
-          marketplace: group.marketplaceTitle,
-          currentMarketSku: currentSku,
-          keep: toListingReport(keep),
-          delete: [],
-          listings
-        });
-        console.log(
-          `\n[REVIEW] ${group.article} / ${group.marketplaceTitle}: keep id=${keep.marketplace_item_id} sku=${keep.marketplace_identifier} (актуальный), но ${reason}`
-        );
-        console.log(`  KEEP ${formatListing(keep)}`);
-        for (const listing of losers) {
-          console.log(`  LOSER ${formatListing(listing)}`);
-        }
-        continue;
-      }
-
-      if (safeLosers.length === 0) {
-        continue;
-      }
-
-      safeGroups += 1;
-      idsToDelete.push(...safeLosers.map(listing => listing.marketplace_item_id));
+      const pairs = losers.map(loser => ({
+        keepMpId: keep.marketplace_item_id,
+        duplicateMpId: loser.marketplace_item_id
+      }));
+      const preview = await previewMerge(dataSource, pairs);
+      mergeGroups += 1;
+      mergePairs.push(...pairs);
       report.push({
-        decision: 'SAFE',
-        reason: 'у дубля нет stocks и orders, keep совпадает с актуальным marketSku',
+        decision: 'MERGE',
+        reason:
+          'keep = актуальный marketSku; stocks без конфликта склада+дня и заказы без того же id переносятся, конфликты удаляются, loser listing удаляется',
         article: group.article,
         itemId: group.itemId,
         marketplace: group.marketplaceTitle,
         currentMarketSku: currentSku,
         keep: toListingReport(keep),
-        delete: safeLosers.map(toListingReport),
-        listings
+        delete: losers.map(toListingReport),
+        listings,
+        stocksToReassign: Number(preview.stocksToReassign),
+        stocksToDelete: Number(preview.stocksToDelete),
+        ordersToReassign: Number(preview.ordersToReassign),
+        ordersToDelete: Number(preview.ordersToDelete)
       });
       console.log(
-        `\n[SAFE] ${group.article} / ${group.marketplaceTitle}: keep id=${keep.marketplace_item_id} sku=${currentSku}`
+        `\n[MERGE] ${group.article} / ${group.marketplaceTitle}: keep id=${keep.marketplace_item_id} sku=${currentSku}`
       );
       console.log(`  KEEP ${formatListing(keep)}`);
-      for (const listing of safeLosers) {
-        console.log(`  DELETE ${formatListing(listing)}`);
+      for (const listing of losers) {
+        console.log(`  DELETE listing ${formatListing(listing)}`);
       }
+      console.log(
+        `  stocks reassign=${preview.stocksToReassign} delete=${preview.stocksToDelete}; orders reassign=${preview.ordersToReassign} delete=${preview.ordersToDelete}`
+      );
     }
 
     let deletedIds: number[] = [];
-    if (apply && idsToDelete.length > 0) {
-      await dataSource.transaction(async manager => {
-        await manager.query(`DELETE FROM marketplace_items WHERE id = ANY($1)`, [idsToDelete]);
-      });
-      deletedIds = idsToDelete;
-      console.log(`Deleted marketplace_items: ${idsToDelete.join(', ')}`);
+    if (apply) {
+      await applyMerge(dataSource, mergePairs);
+      deletedIds = mergePairs.map(pair => pair.duplicateMpId);
+      console.log(`Merged pairs: ${mergePairs.length}; deleted marketplace_items: ${deletedIds.join(', ')}`);
     }
 
     const stamp = new Date().toISOString().replace(/[:.]/g, '-');
@@ -341,10 +487,14 @@ async function main(): Promise<void> {
           generatedAt: new Date().toISOString(),
           summary: {
             duplicateGroups: groups.length,
-            safe: safeGroups,
+            merge: mergeGroups,
             review: reviewGroups,
-            deleteIds: idsToDelete.length,
-            deleted: deletedIds.length
+            deleteIds: mergePairs.length,
+            deleted: deletedIds.length,
+            stocksToReassign: report.reduce((sum, g) => sum + g.stocksToReassign, 0),
+            stocksToDelete: report.reduce((sum, g) => sum + g.stocksToDelete, 0),
+            ordersToReassign: report.reduce((sum, g) => sum + g.ordersToReassign, 0),
+            ordersToDelete: report.reduce((sum, g) => sum + g.ordersToDelete, 0)
           },
           deletedMarketplaceItemIds: deletedIds,
           groups: report
@@ -354,7 +504,7 @@ async function main(): Promise<void> {
       )
     );
 
-    console.log(`\nSummary: safe=${safeGroups}, review=${reviewGroups}, deleteIds=${idsToDelete.length}`);
+    console.log(`\nSummary: merge=${mergeGroups}, review=${reviewGroups}, deleteIds=${mergePairs.length}`);
     console.log(`Report: ${reportPath}`);
   } finally {
     await dataSource.destroy();
