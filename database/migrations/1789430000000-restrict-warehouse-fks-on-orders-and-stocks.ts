@@ -42,11 +42,7 @@ export class RestrictWarehouseFksOnOrdersAndStocks1789430000000 implements Migra
   }
 
   public async up(queryRunner: QueryRunner): Promise<void> {
-    await this.replaceWarehouseFk(
-      queryRunner,
-      'orders_v2',
-      'FK_orders_v2_warehouse'
-    );
+    await this.replaceWarehouseFk(queryRunner, 'orders_v2', 'FK_orders_v2_warehouse');
     await this.replaceWarehouseFk(queryRunner, 'stocks', 'FK_stocks_warehouse');
   }
 

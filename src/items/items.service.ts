@@ -1468,12 +1468,10 @@ export class ItemsService {
       }
     }
     const yandexMarketplace = await this.infoService.findMarketplace({ title: mpTitle });
-
-    for (const item of items) {
-      const queryRunner = this.dataSource.createQueryRunner();
-      await queryRunner.connect();
-      try {
-        await queryRunner.startTransaction();
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    try {
+      for (const item of items) {
         const findMpItem = await queryRunner.manager.findOne(MarketplaceItems, {
           where: {
             marketplaceIdentifier: String(item.marketplaceIdentifier),
@@ -1524,14 +1522,12 @@ export class ItemsService {
             }
           );
         }
-        await queryRunner.commitTransaction();
-      } catch (error) {
-        await queryRunner.rollbackTransaction();
-        this.logger.error(error);
-        this.logger.error('Не смог получить товары Яндекс');
-      } finally {
-        await queryRunner.release();
       }
+    } catch (error) {
+      this.logger.error(error);
+      this.logger.error('Не смог получить товары Яндекс');
+    } finally {
+      await queryRunner.release();
     }
   }
 
