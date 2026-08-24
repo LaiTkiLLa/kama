@@ -228,30 +228,42 @@ async function previewMerge(dataSource: DataSource, pairs: MergePair[]): Promise
   return rows[0];
 }
 
-async function applyMerge(dataSource: DataSource, pairs: MergePair[]): Promise<void> {
+async function applyMerge(
+  dataSource: DataSource,
+  pairs: MergePair[]
+): Promise<{
+  deletedStocks: number;
+  reassignedStocks: number;
+  deletedOrders: number;
+  reassignedOrders: number;
+  deletedListings: number;
+}> {
   if (pairs.length === 0) {
-    return;
+    console.log('APPLY skipped: mergePairs is empty (все группы REVIEW?)');
+    return {
+      deletedStocks: 0,
+      reassignedStocks: 0,
+      deletedOrders: 0,
+      reassignedOrders: 0,
+      deletedListings: 0
+    };
   }
 
-  await dataSource.transaction(async manager => {
-    await manager.query(`
-      CREATE TEMP TABLE yandex_mp_dedup (
-        keep_mp_id int NOT NULL,
-        duplicate_mp_id int NOT NULL
-      ) ON COMMIT DROP
-    `);
-    await manager.query(
-      `
-      INSERT INTO yandex_mp_dedup (keep_mp_id, duplicate_mp_id)
-      SELECT keep_mp_id, duplicate_mp_id
-      FROM jsonb_to_recordset($1::jsonb) AS x(keep_mp_id int, duplicate_mp_id int)
-      `,
-      [JSON.stringify(pairs.map(p => ({ keep_mp_id: p.keepMpId, duplicate_mp_id: p.duplicateMpId })))]
-    );
+  const pairsJson = JSON.stringify(
+    pairs.map(pair => ({ keep_mp_id: pair.keepMpId, duplicate_mp_id: pair.duplicateMpId }))
+  );
+  const queryRunner = dataSource.createQueryRunner();
+  await queryRunner.connect();
+  await queryRunner.startTransaction();
 
-    await manager.query(`
+  try {
+    const deletedStocks: { id: number }[] = await queryRunner.query(
+      `
+      WITH pairs AS (
+        SELECT * FROM jsonb_to_recordset($1::jsonb) AS x(keep_mp_id int, duplicate_mp_id int)
+      )
       DELETE FROM stocks dup_s
-      USING yandex_mp_dedup d
+      USING pairs d
       WHERE dup_s.marketplace_item_id = d.duplicate_mp_id
         AND EXISTS (
           SELECT 1
@@ -260,18 +272,32 @@ async function applyMerge(dataSource: DataSource, pairs: MergePair[]): Promise<v
             AND keep_s.warehouse_id = dup_s.warehouse_id
             AND DATE(keep_s.created_at) = DATE(dup_s.created_at)
         )
-    `);
+      RETURNING dup_s.id
+      `,
+      [pairsJson]
+    );
 
-    await manager.query(`
+    const reassignedStocks: { id: number }[] = await queryRunner.query(
+      `
+      WITH pairs AS (
+        SELECT * FROM jsonb_to_recordset($1::jsonb) AS x(keep_mp_id int, duplicate_mp_id int)
+      )
       UPDATE stocks s
       SET marketplace_item_id = d.keep_mp_id, updated_at = now()
-      FROM yandex_mp_dedup d
+      FROM pairs d
       WHERE s.marketplace_item_id = d.duplicate_mp_id
-    `);
+      RETURNING s.id
+      `,
+      [pairsJson]
+    );
 
-    await manager.query(`
+    const deletedOrders: { id: number }[] = await queryRunner.query(
+      `
+      WITH pairs AS (
+        SELECT * FROM jsonb_to_recordset($1::jsonb) AS x(keep_mp_id int, duplicate_mp_id int)
+      )
       DELETE FROM orders_v2 dup_o
-      USING yandex_mp_dedup d
+      USING pairs d
       WHERE dup_o.marketplace_item_id = d.duplicate_mp_id
         AND EXISTS (
           SELECT 1
@@ -282,27 +308,81 @@ async function applyMerge(dataSource: DataSource, pairs: MergePair[]): Promise<v
             AND keep_o.marketplace_order_posting_number
               IS NOT DISTINCT FROM dup_o.marketplace_order_posting_number
         )
-    `);
+      RETURNING dup_o.id
+      `,
+      [pairsJson]
+    );
 
-    await manager.query(`
+    const reassignedOrders: { id: number }[] = await queryRunner.query(
+      `
+      WITH pairs AS (
+        SELECT * FROM jsonb_to_recordset($1::jsonb) AS x(keep_mp_id int, duplicate_mp_id int)
+      )
       UPDATE orders_v2 o
       SET marketplace_item_id = d.keep_mp_id, updated_at = now()
-      FROM yandex_mp_dedup d
+      FROM pairs d
       WHERE o.marketplace_item_id = d.duplicate_mp_id
-    `);
+      RETURNING o.id
+      `,
+      [pairsJson]
+    );
 
-    await manager.query(`
+    const leftover: { count: string }[] = await queryRunner.query(
+      `
+      WITH pairs AS (
+        SELECT * FROM jsonb_to_recordset($1::jsonb) AS x(keep_mp_id int, duplicate_mp_id int)
+      )
+      SELECT (
+        (SELECT COUNT(*) FROM stocks s INNER JOIN pairs p ON p.duplicate_mp_id = s.marketplace_item_id) +
+        (SELECT COUNT(*) FROM orders_v2 o INNER JOIN pairs p ON p.duplicate_mp_id = o.marketplace_item_id)
+      )::text AS count
+      `,
+      [pairsJson]
+    );
+
+    if (Number(leftover[0].count) > 0) {
+      throw new Error(
+        `Нельзя удалить listings: на дублях осталось ${leftover[0].count} stocks/orders после merge`
+      );
+    }
+
+    const deletedListings: { id: number }[] = await queryRunner.query(
+      `
+      WITH pairs AS (
+        SELECT * FROM jsonb_to_recordset($1::jsonb) AS x(keep_mp_id int, duplicate_mp_id int)
+      )
       DELETE FROM marketplace_items mi
-      USING yandex_mp_dedup d
+      USING pairs d
       WHERE mi.id = d.duplicate_mp_id
-    `);
-  });
+      RETURNING mi.id
+      `,
+      [pairsJson]
+    );
+
+    await queryRunner.commitTransaction();
+    return {
+      deletedStocks: deletedStocks.length,
+      reassignedStocks: reassignedStocks.length,
+      deletedOrders: deletedOrders.length,
+      reassignedOrders: reassignedOrders.length,
+      deletedListings: deletedListings.length
+    };
+  } catch (error) {
+    await queryRunner.rollbackTransaction();
+    throw error;
+  } finally {
+    await queryRunner.release();
+  }
 }
 
 async function main(): Promise<void> {
-  const apply = process.argv.includes('--apply');
+  const apply = process.argv.some(arg => arg === '--apply' || arg.endsWith('--apply'));
+  console.log(`argv: ${process.argv.join(' ')}`);
   const dataSource = createDataSource();
   await dataSource.initialize();
+  console.log(
+    `DB ${process.env.POSTGRES_HOST}:${process.env.POSTGRES_PORT}/${process.env.POSTGRES_DB}`
+  );
 
   try {
     const currentMarketSkuByCabinet = new Map<CabinetTitle, Map<string, string>>();
@@ -373,7 +453,9 @@ async function main(): Promise<void> {
     for (const group of groups) {
       const currentSku = currentMarketSkuByCabinet.get(group.marketplaceTitle)?.get(group.article) ?? null;
       const keep = currentSku
-        ? group.listings.find(listing => listing.marketplace_identifier === currentSku)
+        ? group.listings.find(
+            listing => String(listing.marketplace_identifier).trim() === String(currentSku).trim()
+          )
         : undefined;
       const losers = keep
         ? group.listings.filter(listing => listing.marketplace_item_id !== keep.marketplace_item_id)
@@ -470,10 +552,33 @@ async function main(): Promise<void> {
 
     let deletedIds: number[] = [];
     if (apply) {
-      await applyMerge(dataSource, mergePairs);
+      const result = await applyMerge(dataSource, mergePairs);
       deletedIds = mergePairs.map(pair => pair.duplicateMpId);
-      console.log(`Merged pairs: ${mergePairs.length}; deleted marketplace_items: ${deletedIds.join(', ')}`);
+      console.log(
+        `APPLY result: listings=${result.deletedListings}, stocks reassign=${result.reassignedStocks} delete=${result.deletedStocks}, orders reassign=${result.reassignedOrders} delete=${result.deletedOrders}`
+      );
+      if (mergePairs.length > 0 && result.deletedListings === 0) {
+        throw new Error('APPLY не удалил ни одного marketplace_items — транзакция не сработала');
+      }
+    } else {
+      console.log('DRY-RUN: БД не менялась. Для удаления: npm run dedup:yandex-listings -- --apply');
     }
+
+    const remaining: { count: string }[] = await dataSource.query(
+      `
+      SELECT COUNT(*)::text AS count
+      FROM (
+        SELECT item_id, marketplace_id
+        FROM marketplace_items mi
+        INNER JOIN marketplaces m ON m.id = mi.marketplace_id
+        WHERE mi.deleted_at IS NULL
+          AND m.title = ANY($1)
+        GROUP BY item_id, marketplace_id
+        HAVING COUNT(*) > 1
+      ) t
+      `,
+      [titles]
+    );
 
     const stamp = new Date().toISOString().replace(/[:.]/g, '-');
     const reportDir = 'scripts/reports';
@@ -491,6 +596,7 @@ async function main(): Promise<void> {
             review: reviewGroups,
             deleteIds: mergePairs.length,
             deleted: deletedIds.length,
+            remainingDuplicateGroups: Number(remaining[0].count),
             stocksToReassign: report.reduce((sum, g) => sum + g.stocksToReassign, 0),
             stocksToDelete: report.reduce((sum, g) => sum + g.stocksToDelete, 0),
             ordersToReassign: report.reduce((sum, g) => sum + g.ordersToReassign, 0),
@@ -505,6 +611,7 @@ async function main(): Promise<void> {
     );
 
     console.log(`\nSummary: merge=${mergeGroups}, review=${reviewGroups}, deleteIds=${mergePairs.length}`);
+    console.log(`Remaining duplicate groups after run: ${remaining[0].count}`);
     console.log(`Report: ${reportPath}`);
   } finally {
     await dataSource.destroy();
