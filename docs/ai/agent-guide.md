@@ -87,7 +87,8 @@ src/info (statuses)
 
 **FACT:** `GET /api/items/stop-list` (v1) отключён. Read только `GET /api/items/v2/stop-list`.  
 **FACT:** `sendStatus` в v2 уже с `mpItems`; image/title/color ещё с `item`.  
-**FACT:** card sync **create** пишет listing-поля в `items` и `MarketplaceItems`; **update** mp — только identity/dimensions.
+**FACT:** card sync **create** listing по `(marketplace_identifier, marketplace_id)`; Yandex identifier = `marketSku` (remap → дубли). Cleanup: `scripts/dedup-yandex-marketplace-items.ts`.  
+**FACT:** hard-delete склада блокируется FK RESTRICT со `stocks`/`orders_v2` (`1789430000000`).
 
 
 

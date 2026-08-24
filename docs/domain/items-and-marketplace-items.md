@@ -54,13 +54,15 @@ Marketplace-independent: `id`, `article`, `articleOld`, `ownCategory`, classific
 ## Текущий runtime (FACT, 2026-08-10)
 
 1. **Entity/code:** `items` без MP-полей; listing/price/status на mp.
-2. **Card sync:** find-or-create item by `article`; listing на mp по `{ id }`.
+2. **Card sync:** find-or-create item by `article`; listing lookup по `(marketplace_identifier, marketplace_id)`, update по `{ id }`. **Yandex:** identifier = `marketSku`; смена mapping при том же `offerId` создаёт второй active listing (fix sync ещё нет).
 3. **Directory:** `marketplacesInfo[]` с mp + prices; filter `items.isArchive = false` + join `mp.deletedAt IS NULL` (два уровня).
 4. **Stop-list / stocks:** listing archive через `mpItems.deletedAt IS NULL`.
 5. **Prices:** schema + hourly crons на mp для WB, `Озон` и **Ozon Tamov** (First/Second).
 6. **DB:** 1 item на article; `stocks`/`orders_v2` без `item_id`.
-7. **Ozon Tamov:** cards/stocks/orders_v2/warehouses/prices/trash sync ✔; stop-list/directory PATCH — gap.
+7. **Ozon Tamov:** cards/stocks/orders_v2/warehouses/prices/trash sync ✔; stop-list/directory PATCH ✔.
 8. **Warehouses multi-cabinet (DECISION):** lookup/create всегда в scope `marketplaceId`. Ozon stocks: find по `title` + `marketplaceId`, без auto-create (нужен prior warehouses cron). Orders Ozon: `marketplaceInternalNumber` + `marketplaceId`.
+9. **Warehouse delete (FACT, 2026-08-24):** hard-delete склада с существующими `stocks`/`orders_v2` → ошибка FK (`RESTRICT`, `1789430000000`). Soft-delete = `warehouses.deleted_at`.
+10. **Ozon warehouses cron (FACT, 2026-08-24):** запрос только `warehouse_types: ['FULL_FILLMENT']`.
 
 **Ozon multi-cabinet crons (FACT, 2026-08-15):** паттерн как у cards — wrapper First/Second + shared method `(token, clientId, mpTitle)`:
 
@@ -193,7 +195,10 @@ Migration `1789340000000`: только CREATE tables + FK + indexes. **Без**
 | `items_sizes`                                                        | ✖ dropped (`1789350000000`); замена — `marketplace_item_sizes`                                                       |
 | `characteristics` / `characteristic_values` / `item_characteristics` | ✔ schema + backfill `Размер` из `marketplace_item_sizes` (`1789360000000`) |
 | marketplace characteristics / sizes / mappings                       | ✔ schema (`1789340000000`); WB sizes sync ✔; directory `marketPlaceItemsSizes` ✔; characteristics / Ozon — ещё нет |
-| Yandex / Ozon Tamov | Ozon Tamov: prices+trash+stop-list ✔; directory PATCH □. Yandex Tamov: stop-list ✔; trash □ |
+| Yandex / Ozon Tamov | Ozon Tamov: prices+trash+stop-list+directory PATCH ✔. Yandex Tamov: stop-list+trash ✔ |
+| Stocks API | ✔ `by-warehouses` для Sheets; by-date/v1 **не возвращаем** (DECISION 2026-08-15) |
+| Warehouse FK | ✔ RESTRICT `stocks`/`orders_v2` → `warehouses` (`1789430000000`) |
+| Yandex duplicate listings | cleanup script ✔; unique index / fix `getYandexItems` □ |
 | Stocks API | ✔ `by-warehouses` для Sheets; by-date/v1 **не возвращаем** (DECISION 2026-08-15) |
 | Price pagination | ✖ не нужна — ≤~400 SKU/кабинет (DECISION 2026-08-15) |
 

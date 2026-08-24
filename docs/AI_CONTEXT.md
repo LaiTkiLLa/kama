@@ -36,6 +36,7 @@ Yandex Tamov: cards/stocks/orders/stop-list PATCH/trash ✔.
 - **Вторые кабинеты (не хардкодить title, не смешивать с основным):**
   - Yandex — `marketplaces.title = 'Yandex Tamov'`; env `yandexTamov*`.
   - Ozon — `marketplaces.title = 'Ozon Tamov'`; env `ozonTamovToken` / `ozonTamovClientId`. Legacy name `Ozon Second` / `ozonSecond*` **снят**.
+- **Hard-delete склада (DECISION, 2026-08-24):** `orders_v2.warehouse_id` и `stocks.warehouse_id` → `warehouses` с `onDelete: RESTRICT` (`1789430000000`). Soft-delete склада — `warehouses.deleted_at`.
 
 ---
 
@@ -66,6 +67,8 @@ Yandex Tamov: cards/stocks/orders/stop-list PATCH/trash ✔.
 | Rename `isArchive` → `isDeleted` | □ optional later |
 | **Create карточек через GAS** | `POST /api/items/create-on-marketplaces` + cron `createMpItems` / `WbCardPublisher`; poll/`marketplace_items` — ещё нет |
 | **Справочник категорий МП** | ✔ schema `marketplace_categories` (`1789420000000`); sync cron WB/Ozon по whitelist (`WB_CATEGORY_PARENTS`, `OZON_CATEGORY`); API для GAS — backlog |
+| Warehouse FK RESTRICT | ✔ `1789430000000` (`orders_v2` + `stocks` → `warehouses`) |
+| Yandex listing dedup | one-off `scripts/dedup-yandex-marketplace-items.ts` (keep = актуальный `marketSku`); unique index ещё нет |
 
 ---
 
@@ -80,7 +83,8 @@ Yandex Tamov: cards/stocks/orders/stop-list PATCH/trash ✔.
 | Directory PATCH | ✔ WB / `Озон` / Yandex / Ozon Tamov / Yandex Tamov |
 | Price API limit 1000 | ✔ достаточно (≤~400 SKU/кабинет); pagination не делаем |
 | Card sync find by article | без `created_for_calculation = false` — риск test item |
-| Duplicate `marketplace_items` | дубли active listing на `(item_id, marketplace_id)`; unique index отложен (`178940`) |
+| Duplicate `marketplace_items` | **FACT:** Yandex remap `marketSku` при том же `offerId` → второй listing: `getYandexItems` ищет только по `(marketplace_identifier, marketplace_id)`, не по `(item_id, marketplace_id)`. Cleanup: `npm run dedup:yandex-listings` (`-- --apply` пишет БД). Unique index всё ещё отложен (`178940`). Cron **не** чинили — дубли могут появиться снова |
+| Ozon warehouses cron | **FACT (2026-08-24):** в API только `warehouse_types: ['FULL_FILLMENT']` |
 
 ---
 
@@ -106,4 +110,7 @@ Drop `marketplace_id` на `stocks`/`orders_v2`; force cutover без мигра
 | 2026-08-17 | Backfill `item_characteristics` «Размер» из `marketplace_item_sizes`; WB sync поддерживает product-level sizes |
 | 2026-08-18 | Product creation v1: WB; outbox+FSM+`WbCardPublisher`; `subjectID` = категория WB; справочник categories per MP — backlog |
 | 2026-08-20 | `marketplace_categories` + whitelist sync WB/Ozon; `getOzonItems` — category title из БД, не category tree API |
+| 2026-08-24 | `178943`: warehouse FK CASCADE→RESTRICT на `orders_v2`/`stocks`; Ozon warehouses sync только FBO; excludeWarehouses расширен |
+| 2026-08-24 | Yandex dedup script: keep актуальный `marketSku`, stocks/orders reassign или delete при конфликте, loser listing hard-delete; unique index / fix card sync — ещё нет |
+| 2026-08-24 | WB create: `WbCardPublisher` генерирует баркоды (`/content/v2/barcodes`) и кладёт в `sizes[0].skus` до upload |
 | 2026-08-17 | Drop с `items`: Phase 3 + габариты/плотность + `replenishment_period` / `remaining_balance` (`1789370000000`); dual-write снят; directory DTO без dead planning fields |

@@ -5,7 +5,7 @@
 
 Связанные: [`../AI_CONTEXT.md`](../AI_CONTEXT.md), [`../domain/items-and-marketplace-items.md`](../domain/items-and-marketplace-items.md), [`../PROJECT_CONTEXT.md`](../PROJECT_CONTEXT.md).
 
-Последнее обновление: 2026-08-18.
+Последнее обновление: 2026-08-24.
 
 ---
 
@@ -33,6 +33,7 @@ GET/POST к API маркетплейса (только чтение)
 find-or-create Items по article
         ↓
 find-or-create MarketplaceItems по (marketplace_identifier, marketplace_id)
+        ↓  **Yandex:** identifier = marketSku; remap карточки → дубль listing (см. cleanup script)
         ↓
 Дальше: price crons, stocks crons, orders crons, autostatus
 ```
@@ -93,8 +94,8 @@ Card sync crons обновляют: `dimensions`, `volume`, `category`, `title`,
 | Связь                    | Таблица             | FK                                            |
 | ------------------------ | ------------------- | --------------------------------------------- |
 | Item → listings          | `marketplace_items` | `item_id`                                     |
-| Listing → stocks         | `stocks`            | `marketplace_item_id`                         |
-| Listing → orders         | `orders_v2`         | `marketplace_item_id`                         |
+| Listing → stocks         | `stocks`            | `marketplace_item_id`; `warehouse_id` **RESTRICT** on warehouse delete (`178943`) |
+| Listing → orders         | `orders_v2`         | `marketplace_item_id`; `warehouse_id` **RESTRICT** on warehouse delete (`178943`) |
 | Item → sizes             | `items_sizes`       | `item_id` (sync закомментирован; M6 redesign) |
 | Item → suppliers         | `items_suppliers`   | `item_id` + `supplier_id` (unique)            |
 | Marketplace → warehouses | `warehouses`        | `marketplace_id`                              |
@@ -102,7 +103,7 @@ Card sync crons обновляют: `dimensions`, `volume`, `category`, `title`,
 ### DB constraints, релевантные для создания (FACT)
 
 - `UQ_items_article_not_calculation` — unique `article` WHERE `created_for_calculation = false`.
-- **FACT (2026-08-18):** на prod **есть дубли** active `(item_id, marketplace_id)` в `marketplace_items`. Unique index **не накатили** — закомментирован в `1789400000000`. После дедупа — отдельная миграция (задача в items-marketplace-items-migration Known Gaps).
+- **FACT (2026-08-18 / 2026-08-24):** на prod были дубли active `(item_id, marketplace_id)` (Yandex: смена `marketSku`). Unique index **не накатили** (`178940`). One-off cleanup: `scripts/dedup-yandex-marketplace-items.ts` / `npm run dedup:yandex-listings`. Card sync lookup **не** меняли.
 - `marketplace_items.marketplace_identifier`, `barcode`, `sku` — **NOT NULL**.
 - Lookup при sync: `(marketplace_identifier, marketplace_id)` или `article` на items.
 
@@ -575,8 +576,9 @@ Natural keys на стороне МП (из sync): WB `vendorCode`, Ozon `offer_
 - [x] Schema outbox: `product_creation_requests` (`1789400000000`) + unique listing; без jobs
 - [x] `POST /api/items/create-on-marketplaces` — новый item + заявка на каждый кабинет; duplicate article → 400
 - [x] `warehouses.deleted_at` (`1789410000000`)
-- [ ] Dedup `marketplace_items` (item_id + marketplace_id, `deleted_at IS NULL`) → unique listing + индексы `product_creation_requests` (отложены в `178940`)
-- [x] Worker: cron `createMpItems` + `WbCardPublisher` + outbox FSM (2026-08-18)
+- [x] Yandex listing cleanup script (`scripts/dedup-yandex-marketplace-items.ts`, 2026-08-24)
+- [ ] Dedup `marketplace_items` unique `(item_id, marketplace_id)` + индексы `product_creation_requests` (отложены в `178940`)
+- [x] Worker: cron `createMpItems` + `WbCardPublisher` + outbox FSM (2026-08-18); **2026-08-24:** generate barcodes → `sizes[0].skus` → `/content/v2/cards/upload`
 - [ ] Spike WB upload/poll (подтверждение `nmID` после upload)
 - [x] **Справочник категорий МП** (WB `subjectID`; Ozon `type_id` + `description_category_id`) — whitelist + cron sync; API для GAS — backlog
 - [ ] GAS UX

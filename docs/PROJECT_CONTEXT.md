@@ -127,7 +127,7 @@ Gaps обоих Tamov: stop-list PATCH / trash; у Ozon Tamov дополните
 | `statuses`, `suppliers`, …               | справочники операционного контура                                  |
 
 
-**Критично:** переход `items` → `marketplace_items`. **M1–M5 ✔ на prod**. Сейчас **Milestone 6 — Cutover**: `items_sizes`, Tamov gaps (Ozon + Yandex), stocks v1. `items.isArchive` остаётся (product hide).
+**Критично:** переход `items` → `marketplace_items`. **M1–M5 ✔ на prod**. Сейчас **Milestone 6 — Cutover**. `items.isArchive` остаётся (product hide). Warehouse hard-delete = RESTRICT. Yandex listing duplicates — cleanup script, unique index ещё нет.
 Источник истины:
 
 - `[domain/items-and-marketplace-items.md](domain/items-and-marketplace-items.md)`
