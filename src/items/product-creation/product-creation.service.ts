@@ -75,11 +75,11 @@ export class ProductCreationService {
   private buildWbPayload(article: string, subjectID: number): CreateItemWb {
     return {
       subjectID,
-      variants: [{ vendorCode: article }]
+      variants: [{ vendorCode: article, sizes: [{ skus: [] }] }]
     };
   }
 
-  @Cron('0 */5 * * * *')
+  @Cron('0 */1 * * * *')
   async createMpItems() {
     for (const publisher of this.marketplacePublishers) {
       await this.processPublisherRequests(publisher);

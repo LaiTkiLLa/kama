@@ -20,11 +20,11 @@ export interface CreateItemWbVariant {
     id: number;
     value: string[];
   }[];
-  sizes?: {
+  sizes: {
     techSize?: string;
     wbSize?: string;
     price?: number;
-    skus?: string[];
+    skus: string[];
   }[];
 }
 
@@ -36,3 +36,10 @@ export interface CreateItemWb {
 
 /** Request body: массив карточек; для отдельной карточки — один объект с одним variant. */
 export type WbCardsUploadBody = CreateItemWb[];
+
+export interface GenerateBarcodesResponse {
+  data: string[];
+  error: boolean;
+  errorText: string;
+  additionalErrors: string;
+}
