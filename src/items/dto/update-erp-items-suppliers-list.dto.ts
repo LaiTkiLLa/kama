@@ -55,7 +55,7 @@ export class UpdateErpItemSuppliersListDto {
 
   @IsString()
   @IsOptional()
-  volume: string;
+  supplier: string;
 }
 
 export class UpdateArrayErpItemsSuppliersListDto {

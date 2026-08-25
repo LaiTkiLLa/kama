@@ -22,7 +22,7 @@ Yandex Tamov: cards/stocks/orders/stop-list PATCH/trash ✔.
 - **1 item на article** (кроме `created_for_calculation = true`).
 - Marketplace-specific на `marketplace_items`: identity, listing, prices (`discount` = %), `send_status_id`, `deleted_at`.
 - Marketplace-independent на `items`: article, логистика/себестоимость/classification, `wbCreatedAt`, `ownImagesUrl`, **`isArchive`**.
-- Supplier-link на `items_suppliers`: Phase 2 supplier-fields + Phase 3 `payment` / `dimensionsFact` / `dimensionsMasterBox` / `volume`. Dual-write на `items` **снят** (`1789370000000`).
+- Supplier-link на `items_suppliers`: Phase 2 supplier-fields + Phase 3 `payment` / `dimensionsFact` / `dimensionsMasterBox` / `volume`. Dual-write на `items` **снят** (`1789370000000`). Phase 4 (`178944`): per-size rows (`item_characteristic_id`) + `deleted_at`; ERP `PATCH /api/items/erp/suppliers-items/list` может менять `supplierId` по title (`supplier`).
 - **Два уровня скрытия (DECISION, 2026-08-10):**
   - `marketplace_items.deleted_at` — архив **listing**.
   - `items.isArchive` — скрытие **товара** в directory. Optional rename → `isDeleted` позже.

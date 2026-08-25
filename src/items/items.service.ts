@@ -1,6 +1,6 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { DataSource, EntityManager, In, IsNull } from 'typeorm';
+import { DataSource, EntityManager, In, IsNull, QueryFailedError } from 'typeorm';
 import axios from 'axios';
 import { InfoService } from '../info/info.service';
 import { ConfigService } from '@nestjs/config';
@@ -623,23 +623,48 @@ export class ItemsService {
       if (findItemsSuppliers.length !== ids.length) {
         throw new NotFoundException('Не все связи товар-поставщик найдены');
       }
+      const itemsSuppliersById = new Map(findItemsSuppliers.map(row => [row.id, row]));
       for (const item of updateArrayErpItemsSuppliersListDto.items) {
-        await queryRunner.manager.update(
-          ItemsSuppliers,
-          { id: item.itemSupplierId },
-          {
-            boxNumber: item.boxNumber,
-            multiplicity: item.multiplicity,
-            supplierMinimumOrder: item.supplierMinimumOrder,
-            costInYuan: item.costInYuan,
-            costInYuanWhite: item.costInYuanWhite,
-            payment: item.payment,
-            production: item.production,
-            assembling: item.assembling,
-            dimensionsMasterBox: item.dimensionsMasterBox,
-            dimensionsFact: item.dimensionsFact
+        const currentLink = itemsSuppliersById.get(item.itemSupplierId);
+        if (!currentLink) {
+          throw new NotFoundException('Товар-поставщик не найден');
+        }
+        const updateFields: {
+          boxNumber: string;
+          multiplicity: string;
+          supplierMinimumOrder: number;
+          costInYuan: number;
+          costInYuanWhite: number;
+          payment: number;
+          production: number;
+          assembling: number;
+          dimensionsMasterBox: string;
+          dimensionsFact: string;
+          supplierId?: number;
+        } = {
+          boxNumber: item.boxNumber,
+          multiplicity: item.multiplicity,
+          supplierMinimumOrder: item.supplierMinimumOrder,
+          costInYuan: item.costInYuan,
+          costInYuanWhite: item.costInYuanWhite,
+          payment: item.payment,
+          production: item.production,
+          assembling: item.assembling,
+          dimensionsMasterBox: item.dimensionsMasterBox,
+          dimensionsFact: item.dimensionsFact
+        };
+        if (item.supplier) {
+          const findSupplier = await queryRunner.manager.findOne(Suppliers, {
+            where: {
+              title: item.supplier
+            }
+          });
+          if (!findSupplier) {
+            throw new NotFoundException('Поставщик не найден');
           }
-        );
+          updateFields.supplierId = findSupplier.id;
+        }
+        await queryRunner.manager.update(ItemsSuppliers, { id: item.itemSupplierId }, updateFields);
       }
       return { success: true };
     } catch (error) {
