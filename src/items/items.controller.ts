@@ -8,6 +8,7 @@ import { GetErpItemsListDto } from './dto/get-erp-items-list.dto';
 import { UpdateErpLogisticInfoDto } from './dto/update-erp-logistic-info.dto';
 import { CreateProductDto } from './dto/create-product.dto';
 import { ProductCreationService } from './product-creation/product-creation.service';
+import { UpdateArrayErpItemsSuppliersListDto } from './dto/update-erp-items-suppliers-list.dto';
 
 @Controller('items')
 export class ItemsController {
@@ -64,6 +65,14 @@ export class ItemsController {
     @Query() getErpItemsListDto: GetErpItemsListDto
   ) {
     return this.itemsService.getSuppliersItemsErpList(getErpItemsListDto);
+  }
+
+  @Patch('erp/suppliers-items/list')
+  async updateItemsSuppliersList(
+    @Headers('api-key') apiKey: string,
+    @Body() updateArrayErpItemsSuppliersListDto: UpdateArrayErpItemsSuppliersListDto
+  ) {
+    return this.itemsService.updateItemsSuppliersList(updateArrayErpItemsSuppliersListDto);
   }
 
   @Patch('erp/logistics-info')

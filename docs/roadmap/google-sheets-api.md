@@ -66,6 +66,7 @@ Sheets **не должна** знать схему БД. API отдаёт ста
 | GET | `/api/items/directory/list` | items | справочник товаров + `marketplacesInfo[]` |
 | GET | `/api/items/erp/list` | items | ERP/Sheets: items + listing image/color/barcode/`chrtId` (marketplace query, default WB) |
 | GET | `/api/items/erp/suppliers-items/list` | items | ERP/Sheets: связи item↔supplier + supplier-fields с `items_suppliers` |
+| PATCH | `/api/items/erp/suppliers-items/list` | items | батч-обновление supplier-fields на `items_suppliers` (`body.items[]`, `itemSupplierId` = PK) |
 | PATCH | `/api/items/erp/logistics-info` | items | батч-обновление логистики (`body.items[]`, `id` = PK `items`) |
 | PATCH | `/api/items/directory/info` | items | обновление directory (в т.ч. один supplier по title) |
 | GET | `/api/items/v2/stop-list` | items | stop-list (операционный) |
@@ -99,11 +100,13 @@ Sheets **не должна** знать схему БД. API отдаёт ста
 | Items | `GET /api/items/erp/list` | `items` + `marketplace_items` выбранного MP | **Да** для ERP/Sheets (~400 items) | Пока без incremental; listing fields зависят от `marketplace` (default WB) |
 | Items | `PATCH /api/items/erp/logistics-info` | `items` | Да для ERP logistics write-back | батч `items[]`; `id` = PK; поля на `items` (не mp listing) |
 | Items | `GET /api/items/erp/suppliers-items/list` | `items_suppliers`, `items`, `suppliers` | **Да** для таблицы item↔supplier | Только строки с существующей связью; ~50 items без link — данных нет в этом endpoint |
+| Items | `PATCH /api/items/erp/suppliers-items/list` | `items_suppliers` | **Да** для ERP/Sheets write-back supplier-fields | батч `items[]`; `itemSupplierId` = PK связи; не меняет `itemId`/`supplierId` |
 | Items | `GET /api/items/v2/stop-list` | `marketplace_items`, `items`, stocks/orders aggregates | Нет как общий каталог | Операционный stop-list |
 | Items | `PATCH /api/items/directory/info` | `items`, `marketplace_items`, `items_suppliers` | Write-back из Sheets | Supplier-fields на **`items_suppliers`**; link — `supplierId` + fields |
 | Suppliers | `GET /api/info/suppliers` | `suppliers`, `banks` | Да для полного справочника | Нет audit timestamps в API |
 | Suppliers | `PATCH /api/info/suppliers/:id` | `suppliers`, `banks` | Да (partial update) | nested `bank` ищется по полям; при отсутствии создаётся новая запись в `banks` |
 | Supplier↔Item | `GET /api/items/erp/suppliers-items/list` | `items_suppliers`, `items`, `suppliers` | **Да** для ERP/Sheets | Все items имеют связь (в т.ч. «Системный поставщик») |
+| Supplier↔Item | `PATCH /api/items/erp/suppliers-items/list` | `items_suppliers` | **Да** для ERP/Sheets write-back | supplier-fields only; link identity (`itemId`/`supplierId`) не меняется |
 | Counterparties | `GET /api/info/contaminants` | `contaminants`, `banks` | Да для полного списка | Не фильтрует `deleted_at`; нет incremental |
 | Counterparties | `PATCH /api/info/contaminants/:id` | `contaminants`, `banks` | Да (partial update) | nested `bank` ищется по полям; при отсутствии создаётся новая запись в `banks` |
 | Orders | `GET /api/orders/dynamic` | `orders_v2` + stocks via service | Нет для «накопления заказов» — это analytics | Нужен raw/list export |
@@ -229,8 +232,11 @@ PATCH /api/info/suppliers/:id
 - `GET /api/items/directory/list` — supplier-fields + Phase 3 с `items_suppliers[0]`
 - `PATCH /api/items/directory/info` — supplier-link только на `items_suppliers`; dual-write на `items` **снят** (`178937`). Dead DTO planning/габариты (`planTime`, `volumePerUnit`, `density`, `replenishmentPeriod`, …) сняты; `whitelist` отбрасывает, если GAS ещё шлёт.
 - `GET /api/items/erp/suppliers-items/list` — flat list связей
+- `PATCH /api/items/erp/suppliers-items/list` — батч update supplier-fields по `itemSupplierId` (PK `items_suppliers`); не меняет `itemId`/`supplierId`
 
 **GET `/api/items/erp/suppliers-items/list` response:** `itemId`, `supplierId`, `itemSupplierId`, `article`, `title`, `category`, `supplierTitle`, `supplierMinimumOrder`, `boxNumber`, `costInYuan`, `costInYuanWhite`, `multiplicity`, `assembling`, `production`, `payment`, `dimensionsFact`, `dimensionsMasterBox`, `volume`.
+
+**PATCH `/api/items/erp/suppliers-items/list` body:** `{ items: [{ itemSupplierId, supplierMinimumOrder, boxNumber, costInYuan, costInYuanWhite, multiplicity, assembling, production, payment, dimensionsFact, dimensionsMasterBox, volume }] }` → `{ success: true }`.
 
 ### Counterparties
 
@@ -457,6 +463,7 @@ Filter: `marketplaceId IS NOT NULL`. Нет query по MP. Auth header прин�
 | `InfoService.getSuppliersList` / `updateSupplier` | ✔ read + partial PATCH |
 | `ItemsService.getItemsErpList` | ✔ ERP/Sheets items + listing fields выбранного MP (default WB) |
 | `ItemsService.getSuppliersItemsErpList` | ✔ ERP/Sheets item↔supplier (read from `items_suppliers`) |
+| `ItemsService.updateItemsSuppliersList` | ✔ ERP/Sheets item↔supplier write-back (`PATCH /api/items/erp/suppliers-items/list`) |
 | `InfoService.getContaminantsList` | Harden + soft-delete filter |
 | `ItemsService.getItemsDirectoryList` | Эталон полей item + `marketplacesInfo`; либо обёртка Sheets |
 | `StocksService.getStocks` / `getCurrentStocksV2` | Агрегат «сегодня» |
