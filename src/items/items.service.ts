@@ -162,6 +162,16 @@ export class ItemsService {
     };
   }
 
+  private async findSystemSupplier(manager: EntityManager): Promise<Suppliers> {
+    const supplier = await manager.findOne(Suppliers, {
+      where: { title: 'Системный поставщик' }
+    });
+    if (!supplier) {
+      throw new NotFoundException('Поставщик не найден');
+    }
+    return supplier;
+  }
+
   /**
    * После изменения item_characteristics «Размер» — выровнять строки items_suppliers:
    * без размеров → одна строка на supplier (item_characteristic_id NULL);
@@ -1194,6 +1204,7 @@ export class ItemsService {
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     try {
+      const systemSupplier = await this.findSystemSupplier(queryRunner.manager);
       for (const item of items) {
         const findColor = item?.characteristics?.find(el => el.name === 'Цвет');
         const findMpItem = await queryRunner.manager.findOne(MarketplaceItems, {
@@ -1219,6 +1230,10 @@ export class ItemsService {
             });
             await queryRunner.manager.save(Items, createItem);
             itemId = createItem.id;
+            await queryRunner.manager.insert(ItemsSuppliers, {
+              itemId,
+              supplierId: systemSupplier.id
+            });
           }
 
           const createMarketplaceItem = queryRunner.manager.create(MarketplaceItems, {
@@ -1643,6 +1658,7 @@ export class ItemsService {
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     try {
+      const systemSupplier = await this.findSystemSupplier(queryRunner.manager);
       for (const item of items) {
         const findMpItem = await queryRunner.manager.findOne(MarketplaceItems, {
           where: {
@@ -1665,6 +1681,10 @@ export class ItemsService {
             });
             await queryRunner.manager.save(Items, createItem);
             itemId = createItem.id;
+            await queryRunner.manager.insert(ItemsSuppliers, {
+              itemId,
+              supplierId: systemSupplier.id
+            });
           }
           const createMarketplaceItem = queryRunner.manager.create(MarketplaceItems, {
             itemId,
@@ -1731,6 +1751,7 @@ export class ItemsService {
         }
       });
       const ozonTypeTitles = new Map(types.map(type => [type.externalId, type.title]));
+      const systemSupplier = await this.findSystemSupplier(queryRunner.manager);
       for (const item of data.result) {
         if (!item.sku) {
           continue;
@@ -1763,6 +1784,10 @@ export class ItemsService {
               });
               await queryRunner.manager.save(Items, createItem);
               itemId = createItem.id;
+              await queryRunner.manager.insert(ItemsSuppliers, {
+                itemId,
+                supplierId: systemSupplier.id
+              });
             }
             const createMarketplaceItem = queryRunner.manager.create(MarketplaceItems, {
               itemId,
