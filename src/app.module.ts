@@ -7,6 +7,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { StocksModule } from './stocks/stocks.module';
 import { TypeOrmModule, TypeOrmModuleOptions } from '@nestjs/typeorm';
 import { InfoModule } from './info/info.module';
+import { AiModule } from './ai/ai.module';
 
 @Module({
   imports: [
@@ -26,7 +27,8 @@ import { InfoModule } from './info/info.module';
     ItemsModule,
     OrdersModule,
     StocksModule,
-    InfoModule
+    InfoModule,
+    AiModule
   ]
 })
 export class AppModule {}

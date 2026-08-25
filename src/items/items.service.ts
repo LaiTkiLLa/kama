@@ -628,7 +628,6 @@ export class ItemsService {
               MarketplaceItems,
               { id: mpItem.id },
               {
-                category: item.category,
                 volume: findItem.createdForCalculation ? item.volumeOzon : undefined,
                 title: findItem.createdForCalculation ? item.title : undefined
               }
@@ -637,20 +636,19 @@ export class ItemsService {
             await queryRunner.manager.update(
               MarketplaceItems,
               { id: mpItem.id },
-              { category: item.category, title: findItem.createdForCalculation ? item.title : undefined }
+              { title: findItem.createdForCalculation ? item.title : undefined }
             );
           } else if (mpItem.marketplace.title === 'Yandex Tamov') {
             await queryRunner.manager.update(
               MarketplaceItems,
               { id: mpItem.id },
-              { category: item.category, title: findItem.createdForCalculation ? item.title : undefined }
+              { title: findItem.createdForCalculation ? item.title : undefined }
             );
           } else if (mpItem.marketplace.title === 'Ozon Tamov') {
             await queryRunner.manager.update(
               MarketplaceItems,
               { id: mpItem.id },
               {
-                category: item.category,
                 volume: findItem.createdForCalculation ? item.volumeOzon : undefined,
                 title: findItem.createdForCalculation ? item.title : undefined
               }
