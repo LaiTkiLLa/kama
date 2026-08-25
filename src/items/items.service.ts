@@ -704,10 +704,10 @@ export class ItemsService {
           dimensionsMasterBox: item.dimensionsMasterBox,
           volume: item.volume
         };
-        console.log('supplierLinkFields', supplierLinkFields);
-        const findItemsSupplier = await queryRunner.manager.find(ItemsSuppliers, {
+        const activeSupplierLinks = await queryRunner.manager.find(ItemsSuppliers, {
           where: {
-            itemId: findItem.id
+            itemId: findItem.id,
+            deletedAt: IsNull()
           }
         });
         if (item.supplier) {
@@ -719,17 +719,30 @@ export class ItemsService {
           if (!findSupplier) {
             throw new NotFoundException('Поставщик не найден');
           }
-          const findItemSupplier = await queryRunner.manager.findOne(ItemsSuppliers, {
-            where: {
-              itemId: findItem.id,
-              supplierId: findSupplier.id
-            }
-          });
-          if (findItemSupplier) {
+          const linksWithNewSupplier = activeSupplierLinks.filter(
+            link => link.supplierId === findSupplier.id
+          );
+          const otherSupplierLinks = activeSupplierLinks.filter(link => link.supplierId !== findSupplier.id);
+          if (linksWithNewSupplier.length) {
             await queryRunner.manager.update(
               ItemsSuppliers,
-              { itemId: findItem.id, supplierId: findSupplier.id },
+              { id: In(linksWithNewSupplier.map(link => link.id)) },
+              supplierLinkFields
+            );
+            if (otherSupplierLinks.length) {
+              await queryRunner.manager.update(
+                ItemsSuppliers,
+                { id: In(otherSupplierLinks.map(link => link.id)) },
+                { deletedAt: new Date() }
+              );
+            }
+          } else if (otherSupplierLinks.length) {
+            // Смена поставщика: перепривязываем существующие строки, а не insert второго supplier-link.
+            await queryRunner.manager.update(
+              ItemsSuppliers,
+              { id: In(otherSupplierLinks.map(link => link.id)) },
               {
+                supplierId: findSupplier.id,
                 ...supplierLinkFields
               }
             );
@@ -740,8 +753,6 @@ export class ItemsService {
               ...supplierLinkFields
             });
           }
-        } else if (findItemsSupplier.length) {
-          // await queryRunner.manager.update(ItemsSuppliers, { itemId: findItem.id }, supplierLinkFields);
         }
         await queryRunner.manager.update(
           Items,
