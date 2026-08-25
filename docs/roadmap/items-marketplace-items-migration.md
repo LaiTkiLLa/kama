@@ -2,7 +2,7 @@
 
 > [`../domain/items-and-marketplace-items.md`](../domain/items-and-marketplace-items.md) · [`../AI_CONTEXT.md`](../AI_CONTEXT.md)
 
-Последнее обновление: 2026-08-15.
+Последнее обновление: 2026-08-24.
 
 ---
 
@@ -38,6 +38,8 @@ Changelog M5: [`../migrations/m5-consolidation-changelog.md`](../migrations/m5-c
 | Ozon Tamov directory PATCH | ✔ |
 | Yandex Tamov sync | ✔ cards/stocks/orders/stop-list PATCH/trash |
 | Stocks Sheets | ✔ `GET /api/stocks/by-warehouses`; by-date **не возвращаем** |
+| Warehouse hard-delete | ✔ RESTRICT с `orders_v2` / `stocks` (`1789430000000`) |
+| Yandex duplicate listings | one-off script ✔; unique `(item_id, marketplace_id)` active — ещё нет |
 
 **Фокус спринта (M6):** MP characteristics sync (WB + Ozon).
 
@@ -65,7 +67,9 @@ Changelog M5: [`../migrations/m5-consolidation-changelog.md`](../migrations/m5-c
 - [x] drop с `items` Phase 3 + obsolete + `replenishment_period` / `remaining_balance` (`1789370000000`)
 - [ ] sync marketplace characteristics из WB/Ozon; Ozon sizes; soft-delete пропавших sizes
 - [x] Yandex Tamov: trash sync (`getYandexTrashItemsFirst` / `Second`; soft-delete `marketplace_items.deleted_at`)
-- [ ] Dedup `marketplace_items`: дубли active listing на `(item_id, marketplace_id)`; затем unique index `UQ_marketplace_items_item_id_marketplace_id_active` + индексы `product_creation_requests` (отложены в `178940`)
+- [x] Warehouse FK: `orders_v2`/`stocks`.`warehouse_id` `onDelete RESTRICT` (`1789430000000`)
+- [x] Yandex listing cleanup script (`scripts/dedup-yandex-marketplace-items.ts`) — keep = `marketSku` из offer-mappings
+- [ ] Dedup cutover: unique index `UQ_marketplace_items_item_id_marketplace_id_active` + индексы `product_creation_requests` (отложены в `178940`); **card sync Yandex всё ещё создаёт дубли** при смене `marketSku`
 
 ---
 
@@ -87,4 +91,4 @@ Changelog M5: [`../migrations/m5-consolidation-changelog.md`](../migrations/m5-c
 | Tamov directory PATCH | ✔ `updateArrayDirectoryItemsInfoV2` |
 | MP characteristics sync | WB/Ozon characteristics → `marketplace_item_characteristics`; Ozon sizes → `marketplace_item_sizes`; soft-delete пропавших |
 | `items_sizes` на item | ✖ dropped (`178935`); runtime — `marketplace_item_sizes` |
-| Duplicate listings | **FACT (2026-08-18):** есть дубли active `marketplace_items` на одном `(item_id, marketplace_id)`. Unique `UQ_marketplace_items_item_id_marketplace_id_active` и индексы outbox **не накатывали** (`178940` закомментированы). Next: разобрать дубли (какие строки оставить — stocks/orders/identity), затем отдельная миграция с индексами. |
+| Duplicate listings | **FACT (2026-08-24):** Yandex — смена `mapping.marketSku` при том же `offerId`; sync lookup только по identifier. One-off: `npm run dedup:yandex-listings` (dry-run) / `-- --apply`. Keep = актуальный `marketSku`; stocks: конфликт `(warehouse_id, DATE(created_at))` → delete loser, иначе reassign; orders: конфликт identification+posting → delete, иначе reassign; затем hard-delete loser. Unique index и fix `getYandexItems` — **ещё нет**. |

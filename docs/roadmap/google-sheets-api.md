@@ -489,7 +489,7 @@ Filter: `marketplaceId IS NOT NULL`. Нет query по MP. Auth header прин�
 | Нет pagination на directory | Уже full scan + joins |
 | N+1 / тяжёлые JOIN | directory уже грузит relations; stocks current — all mp items |
 | Dual storage items / items_suppliers | **Снято** Phase 2 — supplier-fields только на `items_suppliers` |
-| Hardcoded excludeWarehouses | В v2/current и by-warehouses; в warehouse-level zero-out quantity, строка остаётся |
+| Hardcoded excludeWarehouses | В v2/current, by-warehouses и directory stocks SUM; списки **расширяли** 2026-08-24; в warehouse-level zero-out quantity, строка остаётся |
 | Warehouse id mismatch | `/info/warehouses`.id = PK; `/stocks/by-warehouses`.warehouse.id = `marketplaceInternalNumber` |
 | Contaminants.bank null | Runtime error |
 | Неполная api-key проверка | Security |
