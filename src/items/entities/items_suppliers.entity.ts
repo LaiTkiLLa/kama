@@ -1,8 +1,8 @@
-import { Column, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { Items } from './items.entity';
 import { Suppliers } from '../../info/entities/suppliers.entity';
+import { ItemCharacteristics } from './item-characteristics.entity';
 
-@Index(['itemId', 'supplierId'], { unique: true })
 @Entity({
   name: 'items_suppliers'
 })
@@ -25,6 +25,13 @@ export class ItemsSuppliers {
     nullable: false
   })
   supplierId: number;
+
+  @Column({
+    type: 'int',
+    name: 'item_characteristic_id',
+    nullable: true
+  })
+  itemCharacteristicId: number | null;
 
   //Минимальный заказ у поставщика
   @Column({
@@ -74,6 +81,13 @@ export class ItemsSuppliers {
   @Column({ type: 'varchar', nullable: true })
   volume: string;
 
+  @Column({
+    type: 'timestamptz',
+    nullable: true,
+    name: 'deleted_at'
+  })
+  deletedAt: Date | null;
+
   @ManyToOne(() => Items, item => item.itemsSuppliers, {
     onDelete: 'CASCADE'
   })
@@ -89,4 +103,12 @@ export class ItemsSuppliers {
     name: 'supplier_id'
   })
   supplier: Suppliers;
+
+  @ManyToOne(() => ItemCharacteristics, {
+    onDelete: 'RESTRICT'
+  })
+  @JoinColumn({
+    name: 'item_characteristic_id'
+  })
+  itemCharacteristic: ItemCharacteristics | null;
 }

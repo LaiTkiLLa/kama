@@ -4,11 +4,13 @@ import {
   Entity,
   JoinColumn,
   ManyToOne,
+  OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn
 } from 'typeorm';
 import { Items } from './items.entity';
 import { Characteristics } from './characteristics.entity';
+import { ItemsSuppliers } from './items_suppliers.entity';
 
 @Entity({
   name: 'item_characteristics'
@@ -62,4 +64,7 @@ export class ItemCharacteristics {
   })
   @JoinColumn({ name: 'characteristic_id' })
   characteristic: Characteristics;
+
+  @OneToMany(() => ItemsSuppliers, itemsSupplier => itemsSupplier.itemCharacteristic)
+  itemsSuppliers: ItemsSuppliers[];
 }
