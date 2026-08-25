@@ -691,69 +691,69 @@ export class ItemsService {
         if (!findItem) {
           throw new NotFoundException('Артикул не найден');
         }
-        const supplierLinkFields = {
-          multiplicity: item.multiplicity,
-          boxNumber: item.boxNumber,
-          costInYuan: item.costInYuan,
-          costInYuanWhite: item.costInYuanWhite,
-          assembling: item.assembling,
-          production: item.production,
-          supplierMinimumOrder: item.supplierMinimumOrder,
-          payment: item.payment,
-          dimensionsFact: item.dimensionsFact,
-          dimensionsMasterBox: item.dimensionsMasterBox,
-          volume: item.volume
-        };
-        const activeSupplierLinks = await queryRunner.manager.find(ItemsSuppliers, {
-          where: {
-            itemId: findItem.id,
-            deletedAt: IsNull()
-          }
-        });
-        if (item.supplier) {
-          const findSupplier = await queryRunner.manager.findOne(Suppliers, {
-            where: {
-              title: item.supplier
-            }
-          });
-          if (!findSupplier) {
-            throw new NotFoundException('Поставщик не найден');
-          }
-          const linksWithNewSupplier = activeSupplierLinks.filter(
-            link => link.supplierId === findSupplier.id
-          );
-          const otherSupplierLinks = activeSupplierLinks.filter(link => link.supplierId !== findSupplier.id);
-          if (linksWithNewSupplier.length) {
-            await queryRunner.manager.update(
-              ItemsSuppliers,
-              { id: In(linksWithNewSupplier.map(link => link.id)) },
-              supplierLinkFields
-            );
-            if (otherSupplierLinks.length) {
-              await queryRunner.manager.update(
-                ItemsSuppliers,
-                { id: In(otherSupplierLinks.map(link => link.id)) },
-                { deletedAt: new Date() }
-              );
-            }
-          } else if (otherSupplierLinks.length) {
-            // Смена поставщика: перепривязываем существующие строки, а не insert второго supplier-link.
-            await queryRunner.manager.update(
-              ItemsSuppliers,
-              { id: In(otherSupplierLinks.map(link => link.id)) },
-              {
-                supplierId: findSupplier.id,
-                ...supplierLinkFields
-              }
-            );
-          } else {
-            await queryRunner.manager.insert(ItemsSuppliers, {
-              supplierId: findSupplier.id,
-              itemId: findItem.id,
-              ...supplierLinkFields
-            });
-          }
-        }
+        // const supplierLinkFields = {
+        //   multiplicity: item.multiplicity,
+        //   boxNumber: item.boxNumber,
+        //   costInYuan: item.costInYuan,
+        //   costInYuanWhite: item.costInYuanWhite,
+        //   assembling: item.assembling,
+        //   production: item.production,
+        //   supplierMinimumOrder: item.supplierMinimumOrder,
+        //   payment: item.payment,
+        //   dimensionsFact: item.dimensionsFact,
+        //   dimensionsMasterBox: item.dimensionsMasterBox,
+        //   volume: item.volume
+        // };
+        // const activeSupplierLinks = await queryRunner.manager.find(ItemsSuppliers, {
+        //   where: {
+        //     itemId: findItem.id,
+        //     deletedAt: IsNull()
+        //   }
+        // });
+        // if (item.supplier) {
+        //   const findSupplier = await queryRunner.manager.findOne(Suppliers, {
+        //     where: {
+        //       title: item.supplier
+        //     }
+        //   });
+        //   if (!findSupplier) {
+        //     throw new NotFoundException('Поставщик не найден');
+        //   }
+        //   const linksWithNewSupplier = activeSupplierLinks.filter(
+        //     link => link.supplierId === findSupplier.id
+        //   );
+        //   const otherSupplierLinks = activeSupplierLinks.filter(link => link.supplierId !== findSupplier.id);
+        //   if (linksWithNewSupplier.length) {
+        //     await queryRunner.manager.update(
+        //       ItemsSuppliers,
+        //       { id: In(linksWithNewSupplier.map(link => link.id)) },
+        //       supplierLinkFields
+        //     );
+        //     if (otherSupplierLinks.length) {
+        //       await queryRunner.manager.update(
+        //         ItemsSuppliers,
+        //         { id: In(otherSupplierLinks.map(link => link.id)) },
+        //         { deletedAt: new Date() }
+        //       );
+        //     }
+        //   } else if (otherSupplierLinks.length) {
+        //     // Смена поставщика: перепривязываем существующие строки, а не insert второго supplier-link.
+        //     await queryRunner.manager.update(
+        //       ItemsSuppliers,
+        //       { id: In(otherSupplierLinks.map(link => link.id)) },
+        //       {
+        //         supplierId: findSupplier.id,
+        //         ...supplierLinkFields
+        //       }
+        //     );
+        //   } else {
+        //     await queryRunner.manager.insert(ItemsSuppliers, {
+        //       supplierId: findSupplier.id,
+        //       itemId: findItem.id,
+        //       ...supplierLinkFields
+        //     });
+        //   }
+        // }
         await queryRunner.manager.update(
           Items,
           { id: findItem.id },
