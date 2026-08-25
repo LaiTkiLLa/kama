@@ -15,6 +15,9 @@ export type MarketplaceInfo = {
 };
 
 export type SupplierInfo = {
+  itemSupplierId: number;
+  itemCharacteristicId: number | null;
+  sizeValue: string | null;
   title: string;
   multiplicity: string;
   boxNumber: string;

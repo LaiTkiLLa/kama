@@ -127,6 +127,98 @@ export class ItemsService {
         await manager.update(ItemCharacteristics, row.id, { deletedAt: new Date() });
       }
     }
+
+    await this.syncItemsSupplierSizeRows(manager, itemId);
+  }
+
+  private async getActiveItemSizeCharacteristics(
+    manager: EntityManager,
+    itemId: number
+  ): Promise<ItemCharacteristics[]> {
+    return manager
+      .createQueryBuilder(ItemCharacteristics, 'ic')
+      .innerJoin('ic.characteristic', 'c', 'c.name = :name AND c.deletedAt IS NULL', {
+        name: this.sizeCharacteristicName
+      })
+      .where('ic.itemId = :itemId', { itemId })
+      .andWhere('ic.deletedAt IS NULL')
+      .orderBy('ic.id', 'ASC')
+      .getMany();
+  }
+
+  private pickSupplierLinkFields(source: ItemsSuppliers) {
+    return {
+      supplierMinimumOrder: source.supplierMinimumOrder,
+      boxNumber: source.boxNumber,
+      costInYuan: source.costInYuan,
+      costInYuanWhite: source.costInYuanWhite,
+      multiplicity: source.multiplicity,
+      assembling: source.assembling,
+      production: source.production,
+      payment: source.payment,
+      dimensionsFact: source.dimensionsFact,
+      dimensionsMasterBox: source.dimensionsMasterBox,
+      volume: source.volume
+    };
+  }
+
+  /**
+   * После изменения item_characteristics «Размер» — выровнять строки items_suppliers:
+   * без размеров → одна строка на supplier (item_characteristic_id NULL);
+   * с размерами → одна строка на (supplier, size).
+   */
+  private async syncItemsSupplierSizeRows(manager: EntityManager, itemId: number): Promise<void> {
+    const sizeRows = await this.getActiveItemSizeCharacteristics(manager, itemId);
+    const supplierLinks = await manager.find(ItemsSuppliers, {
+      where: { itemId, deletedAt: IsNull() }
+    });
+    const supplierIds = Array.from(new Set(supplierLinks.map(link => link.supplierId)));
+
+    for (const supplierId of supplierIds) {
+      const linksForSupplier = supplierLinks.filter(link => link.supplierId === supplierId);
+      const nullRow = linksForSupplier.find(link => link.itemCharacteristicId === null);
+      const sizedLinks = linksForSupplier.filter(link => link.itemCharacteristicId !== null);
+      const templateFields = this.pickSupplierLinkFields(nullRow ?? sizedLinks[0] ?? linksForSupplier[0]);
+
+      if (!sizeRows.length) {
+        if (!nullRow && linksForSupplier.length) {
+          await manager.insert(ItemsSuppliers, {
+            itemId,
+            supplierId,
+            itemCharacteristicId: null,
+            ...templateFields
+          });
+        }
+        for (const link of sizedLinks) {
+          await manager.update(ItemsSuppliers, link.id, { deletedAt: new Date() });
+        }
+        continue;
+      }
+
+      if (nullRow) {
+        await manager.update(ItemsSuppliers, nullRow.id, { deletedAt: new Date() });
+      }
+
+      const activeSizeIds = new Set(sizeRows.map(row => row.id));
+
+      for (const sizeRow of sizeRows) {
+        const existing = linksForSupplier.find(link => link.itemCharacteristicId === sizeRow.id);
+        if (!existing) {
+          await manager.insert(ItemsSuppliers, {
+            itemId,
+            supplierId,
+            itemCharacteristicId: sizeRow.id,
+            ...templateFields
+          });
+        }
+      }
+
+      for (const link of sizedLinks) {
+        if (link.itemCharacteristicId && !activeSizeIds.has(link.itemCharacteristicId)) {
+          await manager.update(ItemsSuppliers, link.id, { deletedAt: new Date() });
+        }
+      }
+    }
   }
 
   async createTestItem() {
@@ -245,8 +337,9 @@ export class ItemsService {
           'marketplaceItemSizes',
           'marketplaceItemSizes.deletedAt IS NULL'
         )
-        .leftJoinAndSelect('items.itemsSuppliers', 'itemsSuppliers')
+        .leftJoinAndSelect('items.itemsSuppliers', 'itemsSuppliers', 'itemsSuppliers.deletedAt IS NULL')
         .leftJoinAndSelect('itemsSuppliers.supplier', 'supplier')
+        .leftJoinAndSelect('itemsSuppliers.itemCharacteristic', 'itemCharacteristic')
         .where('items.isArchive = :isArchive', { isArchive: false });
       if (getDirectoryListDto.supplierTitle) {
         queryBuilder.andWhere('supplier.title = :supplierTitle', {
@@ -290,6 +383,9 @@ export class ItemsService {
         if (item.itemsSuppliers.length) {
           for (const itemSupplier of item.itemsSuppliers) {
             suppliersInfo.push({
+              itemSupplierId: itemSupplier.id,
+              itemCharacteristicId: itemSupplier.itemCharacteristicId,
+              sizeValue: itemSupplier.itemCharacteristic?.value ?? null,
               title: itemSupplier.supplier.title,
               multiplicity: itemSupplier.multiplicity,
               boxNumber: itemSupplier.boxNumber,
@@ -471,13 +567,9 @@ export class ItemsService {
         .createQueryBuilder(ItemsSuppliers, 'itemsSuppliers')
         .leftJoinAndSelect('itemsSuppliers.item', 'item')
         .leftJoinAndSelect('itemsSuppliers.supplier', 'supplier')
-        .leftJoinAndSelect(
-          'item.itemCharacteristics',
-          'itemCharacteristics',
-          'itemCharacteristics.deletedAt IS NULL'
-        )
-        .leftJoinAndSelect('itemCharacteristics.characteristic', 'characteristic')
-        .where('item.isArchive = :isArchive', { isArchive: false });
+        .leftJoinAndSelect('itemsSuppliers.itemCharacteristic', 'itemCharacteristic')
+        .where('itemsSuppliers.deletedAt IS NULL')
+        .andWhere('item.isArchive = :isArchive', { isArchive: false });
       if (getErpItemsListDto.withTestArticles === false) {
         queryBuilder.andWhere('item.createdForCalculation = :createdForCalculation', {
           createdForCalculation: false
@@ -489,6 +581,8 @@ export class ItemsService {
           itemId: itemsSupplier.itemId,
           supplierId: itemsSupplier.supplierId,
           itemSupplierId: itemsSupplier.id,
+          itemCharacteristicId: itemsSupplier.itemCharacteristicId,
+          sizeValue: itemsSupplier.itemCharacteristic?.value ?? null,
           supplierMinimumOrder: itemsSupplier.supplierMinimumOrder,
           article: itemsSupplier.item.article,
           title: itemsSupplier.item.title,
@@ -503,14 +597,7 @@ export class ItemsService {
           payment: itemsSupplier.payment,
           dimensionsFact: itemsSupplier.dimensionsFact,
           dimensionsMasterBox: itemsSupplier.dimensionsMasterBox,
-          volume: itemsSupplier.volume,
-          characteristics: itemsSupplier.item.itemCharacteristics.map(el => {
-            return {
-              name: el.characteristic.name,
-              value: el.value,
-              characteristicId: el.characteristicId
-            };
-          })
+          volume: itemsSupplier.volume
         };
       });
     } catch (error) {
@@ -529,7 +616,8 @@ export class ItemsService {
       const ids = updateArrayErpItemsSuppliersListDto.items.map(item => item.itemSupplierId);
       const findItemsSuppliers = await queryRunner.manager.find(ItemsSuppliers, {
         where: {
-          id: In(ids)
+          id: In(ids),
+          deletedAt: IsNull()
         }
       });
       if (findItemsSuppliers.length !== ids.length) {
@@ -549,8 +637,7 @@ export class ItemsService {
             production: item.production,
             assembling: item.assembling,
             dimensionsMasterBox: item.dimensionsMasterBox,
-            dimensionsFact: item.dimensionsFact,
-            volume: item.volume
+            dimensionsFact: item.dimensionsFact
           }
         );
       }
