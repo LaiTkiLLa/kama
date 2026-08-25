@@ -592,9 +592,6 @@ export class ItemsService {
       }
       const findItemsSuppliers = await queryBuilder.orderBy('item.id', 'ASC').getMany();
       return findItemsSuppliers.map(itemsSupplier => {
-        if (itemsSupplier.item.article === '0126-CL-SHR-BRW') {
-          console.log(itemsSupplier);
-        }
         return {
           itemId: itemsSupplier.itemId,
           supplierId: itemsSupplier.supplierId,
@@ -602,6 +599,7 @@ export class ItemsService {
           itemCharacteristicId: itemsSupplier.itemCharacteristicId,
           sizeValue: itemsSupplier.itemCharacteristic?.value ?? null,
           supplierMinimumOrder: itemsSupplier.supplierMinimumOrder,
+          classification: itemsSupplier.item.classification,
           article: itemsSupplier.item.article,
           title: itemsSupplier.item.title,
           category: itemsSupplier.item.category,
