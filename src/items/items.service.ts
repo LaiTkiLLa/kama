@@ -568,11 +568,17 @@ export class ItemsService {
         .leftJoinAndSelect('itemsSuppliers.item', 'item')
         .leftJoinAndSelect('itemsSuppliers.supplier', 'supplier')
         .leftJoinAndSelect('itemsSuppliers.itemCharacteristic', 'itemCharacteristic')
-        .where('itemsSuppliers.deletedAt IS NULL')
+        // Явно deleted_at: string-where по deletedAt иногда не мапится в колонку.
+        .where('itemsSuppliers.deleted_at IS NULL')
         .andWhere('item.isArchive = :isArchive', { isArchive: false });
       if (getErpItemsListDto.withTestArticles === false) {
         queryBuilder.andWhere('item.createdForCalculation = :createdForCalculation', {
           createdForCalculation: false
+        });
+      }
+      if (getErpItemsListDto.supplierTitle) {
+        queryBuilder.andWhere('supplier.title = :supplierTitle', {
+          supplierTitle: getErpItemsListDto.supplierTitle
         });
       }
       const findItemsSuppliers = await queryBuilder.orderBy('item.id', 'ASC').getMany();

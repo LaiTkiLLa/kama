@@ -13,4 +13,8 @@ export class GetErpItemsListDto {
     message: 'Недопустимое значение marketplace'
   })
   marketplace: string = 'WB';
+
+  @IsString()
+  @IsOptional()
+  supplierTitle: string;
 }
