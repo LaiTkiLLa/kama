@@ -26,6 +26,7 @@ import { ItemCharacteristics } from './entities/item-characteristics.entity';
 import { CharacteristicValues } from './entities/characteristic-values.entity';
 import { UpdateErpLogisticInfoDto } from './dto/update-erp-logistic-info.dto';
 import { MarketplaceCategories } from '../info/entities/marketplace-categories.entity';
+import { UpdateArrayErpItemsSuppliersListDto } from './dto/update-erp-items-suppliers-list.dto';
 
 @Injectable()
 export class ItemsService {
@@ -515,6 +516,48 @@ export class ItemsService {
     } catch (error) {
       this.logger.error(error);
       this.logger.error('Не смог получить ERP-список товаров-поставщиков');
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  async updateItemsSuppliersList(updateArrayErpItemsSuppliersListDto: UpdateArrayErpItemsSuppliersListDto) {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    try {
+      const ids = updateArrayErpItemsSuppliersListDto.items.map(item => item.itemSupplierId);
+      const findItemsSuppliers = await queryRunner.manager.find(ItemsSuppliers, {
+        where: {
+          id: In(ids)
+        }
+      });
+      if (findItemsSuppliers.length !== ids.length) {
+        throw new NotFoundException('Не все связи товар-поставщик найдены');
+      }
+      for (const item of updateArrayErpItemsSuppliersListDto.items) {
+        await queryRunner.manager.update(
+          ItemsSuppliers,
+          { id: item.itemSupplierId },
+          {
+            boxNumber: item.boxNumber,
+            multiplicity: item.multiplicity,
+            supplierMinimumOrder: item.supplierMinimumOrder,
+            costInYuan: item.costInYuan,
+            costInYuanWhite: item.costInYuanWhite,
+            payment: item.payment,
+            production: item.production,
+            assembling: item.assembling,
+            dimensionsMasterBox: item.dimensionsMasterBox,
+            dimensionsFact: item.dimensionsFact,
+            volume: item.volume
+          }
+        );
+      }
+      return { success: true };
+    } catch (error) {
+      this.logger.error(error);
+      this.logger.error('Не смог обновить справочник товаров-поставщиков');
       throw error;
     } finally {
       await queryRunner.release();
