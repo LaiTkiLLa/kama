@@ -195,8 +195,10 @@ Backend API (валидация + постановка задачи)
 | Категории (read)           | `InfoService.syncOzonCategories` → `marketplace_categories`; lookup в `getOzonItems` | cron: `POST …/v1/description-category/tree` (whitelist)                  |
 | Атрибуты / карточки (read) | `getOzonItems`, `getOzonTrashItems`                    | `POST …/v4/product/info/attributes`                                    |
 | Цены (read)                | `updateOzonItemsPrices`                                | `POST …/v5/product/info/prices`                                        |
-| Склады                     | `InfoService.getOzonWarehouses`                        | `POST …/v1/warehouse/ozon/list`                                        |
-| Остатки / заказы           | `StocksService`, `OrdersService`                       | seller API                                                             |
+| Склады                     | `InfoService.getOzonWarehouses` (FBO); `getOzonOwnWarehouses` (FBS) | FBO: `POST …/v1/warehouse/ozon/list`; FBS: `POST …/v2/warehouse/list` |
+| Остатки FBO                | `StocksService.getOzonStocks` First/Second             | `POST …/v2/analytics/stock_on_warehouses` (склад по `title`)         |
+| Остатки FBS own            | `StocksService.getOzonOwnStocks` First only (`Озон`)   | `POST …/v1/product/info/warehouse/stocks` (склад по `warehouse_id`)  |
+| Заказы                     | `OrdersService`                                        | seller API                                                           |
 | DTO                        | `OzonItemsInfo`, `OzonCategoryData`, `OzonItemsPrices` | `ozon-items-info.interface.ts`                                         |
 | Mapping                    | Inline в `getOzonItems`                                | offer_id→article, id→marketplace_identifier, sku, category title по `type_id` из БД |
 | Характеристики             | **Нет** отдельного read attributes API в коде          | attributes endpoint возвращает product info                            |

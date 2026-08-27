@@ -5,7 +5,12 @@ import { ItemsService } from '../items/items.service';
 import axios, { AxiosError } from 'axios';
 import { ConfigService } from '@nestjs/config';
 import { InfoService } from '../info/info.service';
-import { OzonStocks, StocksResult } from './interfaces/ozon-stocks.interface';
+import {
+  OwnWarehousesStocksResult,
+  OzonOwnWarehousesStocks,
+  OzonStocks,
+  StocksResult
+} from './interfaces/ozon-stocks.interface';
 import { Stocks } from './entities/stocks.entity';
 import { GetWbOwnWarehousesStocks, GetWbStocksV2 } from './interfaces/wb-stocks.intrerface';
 import { GetCurrentStocksDto } from './dto/get-current-stocks.dto';
@@ -395,6 +400,17 @@ export class StocksService {
     return;
   }
 
+  @Cron('0 */29 * * * *')
+  async getOzonOwnStocksFirst() {
+    const ozonToken = this.configService.get<string>('ozonToken');
+    const clientId = this.configService.get<string>('ozonClientId');
+    if (!ozonToken) return;
+    if (!clientId) return;
+    const findMarketplace = await this.infoService.findMarketplace({ title: 'Озон' });
+    await this.getOzonOwnStocks(clientId, ozonToken, findMarketplace.id);
+    return;
+  }
+
   @Cron('0 */27 * * * *')
   async getOzonStocksSecond() {
     const ozonToken = this.configService.get<string>('ozonTamovToken');
@@ -601,6 +617,107 @@ export class StocksService {
       }
     } catch (error) {
       this.logger.error('Не смог обновить остатки Yandex');
+      this.logger.error(error);
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  async getOzonOwnStocks(clientId: string, ozonToken: string, marketplaceId: number) {
+    const headers = {
+      'Client-Id': clientId,
+      'Api-Key': ozonToken
+    };
+    const urlStocks = 'https://api-seller.ozon.ru/v1/product/info/warehouse/stocks';
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    try {
+      const findOwnWarehouses = await queryRunner.manager.find(Warehouses, {
+        where: {
+          type: 'FBS',
+          marketplaceId
+        }
+      });
+      const warehousesMap = new Map<string, number>(
+        findOwnWarehouses.map(warehouse => [warehouse.marketplaceInternalNumber, warehouse.id])
+      );
+      const stocks: OwnWarehousesStocksResult[] = [];
+      for (const warehouse of findOwnWarehouses) {
+        let hasMoreData = true;
+        let cursor = '';
+        while (hasMoreData) {
+          const { data }: { data: OzonOwnWarehousesStocks } = await axios.post(
+            urlStocks,
+            {
+              limit: 1000,
+              cursor,
+              warehouse_id: Number(warehouse.marketplaceInternalNumber)
+            },
+            { headers }
+          );
+
+          for (const item of data.stocks ?? []) {
+            stocks.push({
+              article: item.offer_id,
+              sku: String(item.sku),
+              reserved: item.reserved,
+              current: item.free_stock,
+              promised: item.present,
+              warehouse: String(item.warehouse_id)
+            });
+          }
+          if (!data.has_next) {
+            hasMoreData = false;
+          } else {
+            cursor = data.cursor;
+          }
+        }
+      }
+      for (const stock of stocks) {
+        const findWarehouseId = warehousesMap.get(stock.warehouse);
+        if (!findWarehouseId) continue;
+        const findMarketplaceItem = await queryRunner.manager
+          .createQueryBuilder(MarketplaceItems, 'mpItems')
+          .where('mpItems.marketplaceId = :marketplaceId', { marketplaceId })
+          .andWhere('mpItems.sku = :sku', {
+            sku: stock.sku
+          })
+          .getOne();
+        if (!findMarketplaceItem) {
+          continue;
+        }
+        const findStock = await queryRunner.manager
+          .createQueryBuilder(Stocks, 'stocks')
+          .where("DATE(created_at) = DATE('now')")
+          .andWhere('stocks.marketplaceItemId = :marketplaceItemId', {
+            marketplaceItemId: findMarketplaceItem.id
+          })
+          .andWhere('stocks.warehouseId = :warehouseId', { warehouseId: findWarehouseId })
+          .getOne();
+        if (findStock) {
+          await queryRunner.manager.update(
+            Stocks,
+            { id: findStock.id },
+            {
+              currentValue: stock.current,
+              reserved: stock.reserved,
+              promised: stock.promised
+            }
+          );
+        } else {
+          const createStock = queryRunner.manager.create(Stocks, {
+            warehouseId: findWarehouseId,
+            currentValue: stock.current,
+            reserved: stock.reserved,
+            promised: stock.promised,
+            marketplaceId,
+            marketplaceItemId: findMarketplaceItem.id
+          });
+          await queryRunner.manager.save(Stocks, createStock);
+        }
+      }
+    } catch (error) {
+      this.logger.error('Не смог обновить остатки FBS Ozon');
       this.logger.error(error);
     } finally {
       await queryRunner.release();

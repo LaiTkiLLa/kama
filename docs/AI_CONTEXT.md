@@ -78,7 +78,7 @@ Yandex Tamov: cards/stocks/orders/stop-list PATCH/trash ✔.
 | Issue | Суть |
 |-------|------|
 | Ozon Tamov warehouses | ✔ First/Second cron; lookup `marketplaceInternalNumber` + `marketplaceId` |
-| Ozon stocks warehouse resolve | по `title` + `marketplaceId`; без find-or-create; skip если склада нет (нужен warehouses cron) |
+| Ozon stocks warehouse resolve | FBO (`getOzonStocks`): по `title` + `marketplaceId`; без find-or-create. FBS own (`getOzonOwnStocks`): по `marketplaceInternalNumber` + `marketplaceId`, склады `type=FBS` |
 | Ozon Tamov prices / trash | ✔ First/Second crons; credentials `ozon*` / `ozonTamov*`; mp by title |
 | Stop-list PATCH | ✔ WB / `Озон` / Yandex / Ozon Tamov / Yandex Tamov |
 | Directory PATCH | ✔ WB / `Озон` / Yandex / Ozon Tamov / Yandex Tamov |
@@ -86,6 +86,7 @@ Yandex Tamov: cards/stocks/orders/stop-list PATCH/trash ✔.
 | Card sync find by article | без `created_for_calculation = false` — риск test item |
 | Duplicate `marketplace_items` | **FACT:** Yandex remap `marketSku` при том же `offerId` → второй listing: `getYandexItems` ищет только по `(marketplace_identifier, marketplace_id)`, не по `(item_id, marketplace_id)`. Cleanup: `npm run dedup:yandex-listings` (`-- --apply` пишет БД). Unique index всё ещё отложен (`178940`). Cron **не** чинили — дубли могут появиться снова |
 | Ozon warehouses cron | FBO: `/v1/warehouse/ozon/list` + FULL_FILLMENT. FBS/rFBS: `/v2/warehouse/list` → `type=FBS` (`getOzonOwnWarehouses` First/Second) |
+| Ozon FBS own stocks | ✔ First (`Озон`, `ozon*`): `getOzonOwnStocksFirst` → `POST /v1/product/info/warehouse/stocks`. Tamov Second — ещё нет |
 
 ---
 
@@ -99,6 +100,7 @@ Drop `marketplace_id` на `stocks`/`orders_v2`; force cutover без мигра
 
 | Дата | Итог |
 |------|------|
+| 2026-08-27 | Ozon FBS own stocks cron для 1 кабинета (`Озон`): `getOzonOwnStocksFirst` / `getOzonOwnStocks`; API `/v1/product/info/warehouse/stocks`; lookup склада по `marketplaceInternalNumber` |
 | 2026-08-26 | Мой склад FBS v1: schema `moysklad_*` (`178945`); outbox create/cancel по mapping; WB only |
 | 2026-08-06 | AI-ready docs; Sheets; field split; stop-list v1 off |
 | 2026-08-07 | M1–M4; send_status mp-centric; Yandex Tamov card/stocks/orders |
