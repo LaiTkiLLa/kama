@@ -60,7 +60,7 @@ Marketplace-independent: `id`, `article`, `articleOld`, `ownCategory`, classific
 5. **Prices:** schema + hourly crons на mp для WB, `Озон` и **Ozon Tamov** (First/Second).
 6. **DB:** 1 item на article; `stocks`/`orders_v2` без `item_id`.
 7. **Ozon Tamov:** cards/stocks/orders_v2/warehouses/prices/trash sync ✔; stop-list/directory PATCH ✔.
-8. **Warehouses multi-cabinet (DECISION):** lookup/create всегда в scope `marketplaceId`. Ozon stocks: find по `title` + `marketplaceId`, без auto-create (нужен prior warehouses cron). Orders Ozon: `marketplaceInternalNumber` + `marketplaceId`.
+8. **Warehouses multi-cabinet (DECISION):** lookup/create всегда в scope `marketplaceId`. Ozon FBO stocks (`getOzonStocks`): find по `title` + `marketplaceId`, без auto-create (нужен prior warehouses cron). Ozon FBS own stocks (`getOzonOwnStocks`, пока только кабинет `Озон`): find по `marketplaceInternalNumber` + `marketplaceId` среди `type=FBS`. Orders Ozon: `marketplaceInternalNumber` + `marketplaceId`.
 9. **Warehouse delete (FACT, 2026-08-24):** hard-delete склада с существующими `stocks`/`orders_v2` → ошибка FK (`RESTRICT`, `1789430000000`). Soft-delete = `warehouses.deleted_at`.
 10. **Ozon warehouses cron (FACT, 2026-08-24):** запрос только `warehouse_types: ['FULL_FILLMENT']`.
 
@@ -70,6 +70,8 @@ Marketplace-independent: `id`, `article`, `articleOld`, `ownCategory`, classific
 | ------------------------------- | ---------------------------- | ---------------------------------- |
 | Prices                          | `updateOzonItemsPricesFirst` | `updateOzonItemsPricesSecond`      |
 | Trash (ARCHIVED → `deleted_at`) | `getOzonTrashItemsFirst`     | `getOzonTrashItemsSecond`          |
+| Stocks FBO                      | `getOzonStocksFirst`         | `getOzonStocksSecond`              |
+| Stocks FBS own                  | `getOzonOwnStocksFirst`      | □ ещё нет                          |
 
 Обновление всегда scoped by `marketplaceId` найденного `marketplaces.title`.
 
