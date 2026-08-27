@@ -27,5 +27,8 @@ export const configuration = () => ({
   yandexBusinessId: process.env.yandexBusinessId,
   yandexTamovToken: process.env.yandexTamovToken,
   yandexTamovCLientId: process.env.yandexTamovCLientId,
-  yandexTamovBusinessId: process.env.yandexTamovBusinessId
+  yandexTamovBusinessId: process.env.yandexTamovBusinessId,
+  moyskladToken: process.env.moyskladToken,
+  moyskladOrganizationId: process.env.moyskladOrganizationId,
+  moyskladAgentId: process.env.moyskladAgentId
 });

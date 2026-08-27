@@ -11,6 +11,7 @@ import { Statuses } from './entities/statuses.entity';
 import { GetStatusesListDto } from './dto/get-statuses-list.dto';
 import { GetWbOwnWarehouses, GetWbWarehouses } from './interfaces/wb-warehouses.interface';
 import { OzonWarehouses } from './interfaces/ozon-warehouses.interface';
+import { OzonOwnWarehouses } from './interfaces/ozon-own-warehouses.interface';
 import { Contaminants } from './entities/contaminants.entity';
 import { Suppliers } from './entities/suppliers.entity';
 import { UpdateSupplierDto } from './dto/update-supplier.dto';
@@ -511,6 +512,24 @@ export class InfoService {
     return;
   }
 
+  @Cron(CronExpression.EVERY_30_MINUTES)
+  async getOzonWarehousesFBSFirst() {
+    const ozonToken = this.configService.get<string>('ozonToken');
+    const clientId = this.configService.get<string>('ozonClientId');
+    if (!ozonToken || !clientId) return;
+    await this.getOzonOwnWarehouses(clientId, ozonToken, 'Озон');
+    return;
+  }
+
+  @Cron(CronExpression.EVERY_30_MINUTES)
+  async getOzonWarehousesFBSSecond() {
+    const ozonToken = this.configService.get<string>('ozonTamovToken');
+    const clientId = this.configService.get<string>('ozonTamovClientId');
+    if (!ozonToken || !clientId) return;
+    await this.getOzonOwnWarehouses(clientId, ozonToken, 'Ozon Tamov');
+    return;
+  }
+
   @Cron(CronExpression.EVERY_HOUR)
   async syncOzonCategories() {
     const ozonToken = this.configService.get<string>('ozonToken');
@@ -874,6 +893,76 @@ export class InfoService {
     } catch (error) {
       this.logger.error(error);
       this.logger.error(`Не смог получить склады FBO ${mpTitle}`);
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  async getOzonOwnWarehouses(clientId: string, ozonToken: string, mpTitle: string) {
+    let data: OzonOwnWarehouses;
+    try {
+      const warehousesUrl = 'https://api-seller.ozon.ru/v2/warehouse/list';
+      const response = await axios.post<OzonOwnWarehouses>(
+        warehousesUrl,
+        {
+          limit: 200
+        },
+        {
+          headers: {
+            'Client-Id': clientId,
+            'Api-Key': ozonToken
+          }
+        }
+      );
+      data = response.data;
+    } catch (error) {
+      this.logger.error(error);
+      this.logger.error('Не смог получить склады FBS Озон по АПИ');
+      return;
+    }
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    try {
+      const findMarketplace = await queryRunner.manager.findOne(Marketplaces, {
+        where: {
+          title: mpTitle
+        }
+      });
+      if (!findMarketplace) {
+        this.logger.error(`Не нашел ${mpTitle} в маркетплейсах`);
+        return;
+      }
+      for (const warehouse of data.warehouses) {
+        const findWarehouse = await queryRunner.manager.findOne(Warehouses, {
+          where: {
+            marketplaceInternalNumber: String(warehouse.warehouse_id),
+            marketplaceId: findMarketplace.id
+          }
+        });
+        if (!findWarehouse) {
+          const createWarehouse = queryRunner.manager.create(Warehouses, {
+            title: warehouse.name,
+            marketplaceInternalNumber: String(warehouse.warehouse_id),
+            type: 'FBS',
+            marketplaceId: findMarketplace.id
+          });
+          await queryRunner.manager.save(Warehouses, createWarehouse);
+        } else {
+          await queryRunner.manager.update(
+            Warehouses,
+            { id: findWarehouse.id },
+            {
+              title: warehouse.name,
+              marketplaceInternalNumber: String(warehouse.warehouse_id),
+              type: 'FBS',
+              marketplaceId: findMarketplace.id
+            }
+          );
+        }
+      }
+    } catch (error) {
+      this.logger.error(error);
+      this.logger.error(`Не смог получить склады FBS ${mpTitle}`);
     } finally {
       await queryRunner.release();
     }
