@@ -3,7 +3,7 @@
 > Оперативные решения. При противоречии с кодом — верить коду.  
 > Обновляет разработчик; AI может предложить дополнение.
 
-Связанные: [`PROJECT_CONTEXT.md`](PROJECT_CONTEXT.md), [`domain/items-and-marketplace-items.md`](domain/items-and-marketplace-items.md), [`roadmap/items-marketplace-items-migration.md`](roadmap/items-marketplace-items-migration.md), [`roadmap/marketplace-product-creation.md`](roadmap/marketplace-product-creation.md).
+Связанные: [`PROJECT_CONTEXT.md`](PROJECT_CONTEXT.md), [`domain/items-and-marketplace-items.md`](domain/items-and-marketplace-items.md), [`roadmap/items-marketplace-items-migration.md`](roadmap/items-marketplace-items-migration.md), [`roadmap/marketplace-product-creation.md`](roadmap/marketplace-product-creation.md), [`roadmap/moysklad-fbs.md`](roadmap/moysklad-fbs.md).
 
 ---
 
@@ -69,6 +69,7 @@ Yandex Tamov: cards/stocks/orders/stop-list PATCH/trash ✔.
 | **Справочник категорий МП** | ✔ schema `marketplace_categories` (`1789420000000`); sync cron WB/Ozon по whitelist (`WB_CATEGORY_PARENTS`, `OZON_CATEGORY`); API для GAS — backlog |
 | Warehouse FK RESTRICT | ✔ `1789430000000` (`orders_v2` + `stocks` → `warehouses`) |
 | Yandex listing dedup | one-off `scripts/dedup-yandex-marketplace-items.ts` (keep = актуальный `marketSku`); unique index ещё нет |
+| **Мой склад FBS (WB)** | schema ✔ `1789450000000` (mappings / item_links / outbox); client + stock push + worker — дальше; Ozon позже. См. [`roadmap/moysklad-fbs.md`](roadmap/moysklad-fbs.md) |
 
 ---
 
@@ -84,7 +85,7 @@ Yandex Tamov: cards/stocks/orders/stop-list PATCH/trash ✔.
 | Price API limit 1000 | ✔ достаточно (≤~400 SKU/кабинет); pagination не делаем |
 | Card sync find by article | без `created_for_calculation = false` — риск test item |
 | Duplicate `marketplace_items` | **FACT:** Yandex remap `marketSku` при том же `offerId` → второй listing: `getYandexItems` ищет только по `(marketplace_identifier, marketplace_id)`, не по `(item_id, marketplace_id)`. Cleanup: `npm run dedup:yandex-listings` (`-- --apply` пишет БД). Unique index всё ещё отложен (`178940`). Cron **не** чинили — дубли могут появиться снова |
-| Ozon warehouses cron | **FACT (2026-08-24):** в API только `warehouse_types: ['FULL_FILLMENT']` |
+| Ozon warehouses cron | FBO: `/v1/warehouse/ozon/list` + FULL_FILLMENT. FBS/rFBS: `/v2/warehouse/list` → `type=FBS` (`getOzonOwnWarehouses` First/Second) |
 
 ---
 
@@ -98,6 +99,7 @@ Drop `marketplace_id` на `stocks`/`orders_v2`; force cutover без мигра
 
 | Дата | Итог |
 |------|------|
+| 2026-08-26 | Мой склад FBS v1: schema `moysklad_*` (`178945`); outbox create/cancel по mapping; WB only |
 | 2026-08-06 | AI-ready docs; Sheets; field split; stop-list v1 off |
 | 2026-08-07 | M1–M4; send_status mp-centric; Yandex Tamov card/stocks/orders |
 | 2026-08-10 | M5 prod; price crons → mp; Ozon Tamov; warehouses/stocks scoped by `marketplaceId` |
