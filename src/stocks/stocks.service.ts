@@ -57,6 +57,11 @@ export class StocksService {
         suppliers: getCurrentStocksDto.suppliers
       });
     }
+    if (getCurrentStocksDto?.warehouseType) {
+      queryBuilder.andWhere('warehouse.type = :warehouseType', {
+        warehouseType: getCurrentStocksDto.warehouseType
+      });
+    }
     const findItemsWithStocks = await queryBuilder.getMany();
     const excludeWarehouses = [
       18, 1146895, 16, 59, 95, 1146938, 1146932, 1146912, 19, 1147083, 1146906, 242582, 158, 1146879, 67,
@@ -400,6 +405,17 @@ export class StocksService {
     return;
   }
 
+  @Cron('0 */27 * * * *')
+  async getOzonStocksSecond() {
+    const ozonToken = this.configService.get<string>('ozonTamovToken');
+    const clientId = this.configService.get<string>('ozonTamovClientId');
+    if (!ozonToken) return;
+    if (!clientId) return;
+    const findMarketplace = await this.infoService.findMarketplace({ title: 'Ozon Tamov' });
+    await this.getOzonStocks(clientId, ozonToken, findMarketplace.id);
+    return;
+  }
+
   @Cron('0 */29 * * * *')
   async getOzonOwnStocksFirst() {
     const ozonToken = this.configService.get<string>('ozonToken');
@@ -411,14 +427,14 @@ export class StocksService {
     return;
   }
 
-  @Cron('0 */27 * * * *')
-  async getOzonStocksSecond() {
+  @Cron('0 */31 * * * *')
+  async getOzonOwnStocksSecond() {
     const ozonToken = this.configService.get<string>('ozonTamovToken');
     const clientId = this.configService.get<string>('ozonTamovClientId');
     if (!ozonToken) return;
     if (!clientId) return;
     const findMarketplace = await this.infoService.findMarketplace({ title: 'Ozon Tamov' });
-    await this.getOzonStocks(clientId, ozonToken, findMarketplace.id);
+    await this.getOzonOwnStocks(clientId, ozonToken, findMarketplace.id);
     return;
   }
 

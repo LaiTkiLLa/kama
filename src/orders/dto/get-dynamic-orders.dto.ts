@@ -10,6 +10,13 @@ export class GetDynamicOrdersDto {
   })
   marketplace: string;
 
+  @IsString({ message: 'warehouseType тип данных должен быть string' })
+  @IsIn(['FBS', 'FBO'], {
+    message: 'Недопустимое значение warehouseType'
+  })
+  @IsOptional()
+  warehouseType: 'FBS' | 'FBO';
+
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
