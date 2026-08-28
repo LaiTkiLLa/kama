@@ -662,7 +662,7 @@ export class StocksService {
               sku: String(item.sku),
               reserved: item.reserved,
               current: item.free_stock,
-              promised: item.present,
+              promised: 0,
               warehouse: String(item.warehouse_id)
             });
           }
