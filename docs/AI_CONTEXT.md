@@ -70,6 +70,7 @@ Yandex Tamov: cards/stocks/orders/stop-list PATCH/trash ✔.
 | Warehouse FK RESTRICT | ✔ `1789430000000` (`orders_v2` + `stocks` → `warehouses`) |
 | Yandex listing dedup | one-off `scripts/dedup-yandex-marketplace-items.ts` (keep = актуальный `marketSku`); unique index ещё нет |
 | **Мой склад FBS (WB)** | schema ✔ `1789450000000` (mappings / item_links / outbox); client + stock push + worker — дальше; Ozon позже. См. [`roadmap/moysklad-fbs.md`](roadmap/moysklad-fbs.md) |
+| **In-app LLM agent** | spike: `POST /api/ai/chat`, DeepSeek (`DEEPSEEK_API_KEY`), tool `get_order_statistics` → `orders_v2`. Auth / лимиты / multi-turn — backlog. См. [`ai/in-app-agent.md`](ai/in-app-agent.md). **Не путать** с [`ai/agent-guide.md`](ai/agent-guide.md) (Cursor). |
 
 ---
 
@@ -100,6 +101,7 @@ Drop `marketplace_id` на `stocks`/`orders_v2`; force cutover без мигра
 
 | Дата | Итог |
 |------|------|
+| 2026-08-28 | In-app LLM agent (spike): модуль `src/ai`, DeepSeek, `POST /api/ai/chat`, tool статистики заказов; env `DEEPSEEK_API_KEY`; docs [`ai/in-app-agent.md`](ai/in-app-agent.md) |
 | 2026-08-27 | Ozon FBS own stocks cron для 1 кабинета (`Озон`): `getOzonOwnStocksFirst` / `getOzonOwnStocks`; API `/v1/product/info/warehouse/stocks`; lookup склада по `marketplaceInternalNumber` |
 | 2026-08-26 | Мой склад FBS v1: schema `moysklad_*` (`178945`); outbox create/cancel по mapping; WB only |
 | 2026-08-06 | AI-ready docs; Sheets; field split; stop-list v1 off |

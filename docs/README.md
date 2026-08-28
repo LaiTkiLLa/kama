@@ -29,7 +29,8 @@ Backend-сервис синхронизации товаров, остатков
 | Модель Items ↔ MarketplaceItems | [`domain/items-and-marketplace-items.md`](domain/items-and-marketplace-items.md) |
 | Статус миграции модели | [`roadmap/items-marketplace-items-migration.md`](roadmap/items-marketplace-items-migration.md) |
 | Решения продукта / что нельзя ломать | [`AI_CONTEXT.md`](AI_CONTEXT.md) |
-| Ограничения для AI | [`.cursor/rules/architecture.mdc`](../.cursor/rules/architecture.mdc) + [`ai/agent-guide.md`](ai/agent-guide.md) |
+| Ограничения для AI (Cursor) | [`.cursor/rules/architecture.mdc`](../.cursor/rules/architecture.mdc) + [`ai/agent-guide.md`](ai/agent-guide.md) |
+| In-app LLM agent | [`ai/in-app-agent.md`](ai/in-app-agent.md) |
 | Краткий обзор проекта | [`PROJECT_CONTEXT.md`](PROJECT_CONTEXT.md) |
 
 Код важнее устаревшего текста в docs. При расхождении — исследовать repository и обновить документ.
@@ -47,6 +48,7 @@ Backend-сервис синхронизации товаров, остатков
 | Стоп-лист / автостатусы / listing fields (M4b) | domain Items/MP + roadmap + `src/items/items.service.ts` (v2 read only; dual-write gap) |
 | Интеграции МП | `src/items`, `src/stocks`, `src/orders`, `src/info` |
 | Архитектурные изменения | agent-guide → Implementation Plan → явное подтверждение |
+| In-app LLM agent / DeepSeek | [`ai/in-app-agent.md`](ai/in-app-agent.md) → `src/ai/**` |
 
 ---
 
@@ -59,7 +61,8 @@ Backend-сервис синхронизации товаров, остатков
 - [`domain/items-and-marketplace-items.md`](domain/items-and-marketplace-items.md) — доменная модель и transition
 - [`roadmap/items-marketplace-items-migration.md`](roadmap/items-marketplace-items-migration.md) — статус миграции Items/MP
 - [`roadmap/google-sheets-api.md`](roadmap/google-sheets-api.md) — отдельный roadmap API для Google Sheets / GAS
-- [`ai/agent-guide.md`](ai/agent-guide.md) — workflow для AI Agent
+- [`ai/agent-guide.md`](ai/agent-guide.md) — workflow для Cursor AI Agent (разработка репо)
+- [`ai/in-app-agent.md`](ai/in-app-agent.md) — in-app LLM agent (DeepSeek, GAS)
 - [`.cursor/rules/architecture.mdc`](../.cursor/rules/architecture.mdc) — жёсткие правила агента
 
 ### Планируется (ещё не создано)

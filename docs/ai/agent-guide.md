@@ -1,6 +1,7 @@
 # AI Agent Guide
 
-Руководство для AI Agent по работе с репозиторием **kama**.  
+Руководство для **Cursor AI Agent** по работе с репозиторием **kama** (разработка кода).  
+Runtime LLM-агент внутри NestJS (DeepSeek, GAS) — отдельно: [`in-app-agent.md`](in-app-agent.md).  
 Жёсткие ограничения: `[.cursor/rules/architecture.mdc](../../.cursor/rules/architecture.mdc)`.  
 Оперативная память: `[../AI_CONTEXT.md](../AI_CONTEXT.md)`.  
 Обзор: `[../PROJECT_CONTEXT.md](../PROJECT_CONTEXT.md)`.  

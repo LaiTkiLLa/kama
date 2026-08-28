@@ -49,7 +49,7 @@ PostgreSQL
 - HTTP и фоновые sync-задачи работают **в одном процессе**.
 - Схема БД только через TypeORM migrations (`synchronize: false`).
 
-Подробнее: планируется `docs/architecture/` (ещё не создано). Модули сейчас: `Items`, `Orders`, `Stocks`, `Info`.
+Подробнее: планируется `docs/architecture/` (ещё не создано). Модули сейчас: `Items`, `Orders`, `Stocks`, `Info`, `Ai` (spike), `Moysklad`.
 
 ---
 
@@ -64,6 +64,7 @@ PostgreSQL
 | Остатки                                    | `src/stocks` | sync снимков + API current / by-warehouses       |
 | Заказы                                     | `src/orders` | sync в `orders_v2` + API динамики                |
 | Справочники и склады                       | `src/info`   | marketplaces, warehouses, statuses, suppliers, … |
+| In-app LLM agent (spike)                   | `src/ai`     | `POST /api/ai/chat`; DeepSeek + tool-calling к domain services |
 
 
 ---
@@ -101,6 +102,7 @@ PostgreSQL
 | Yandex Market Partner API   | offer-mappings, склады, остатки, заказы (2 кабинета)   |
 | PostgreSQL                  | хранилище                                              |
 | Google Sheets / Apps Script | единственный UI (FACT)                                 |
+| DeepSeek API                | in-app LLM (`src/ai`); env `DEEPSEEK_API_KEY` (spike)  |
 
 
 **FACT:** вторые кабинеты:
@@ -150,6 +152,7 @@ Gaps обоих Tamov: stop-list PATCH / trash; у Ozon Tamov дополните
 
 - Навигация: `[README.md](README.md)`
 - Оперативная память / решения: `[AI_CONTEXT.md](AI_CONTEXT.md)`
-- AI workflow: `[ai/agent-guide.md](ai/agent-guide.md)`
+- AI workflow (Cursor): `[ai/agent-guide.md](ai/agent-guide.md)`
+- In-app LLM agent: `[ai/in-app-agent.md](ai/in-app-agent.md)`
 - Правила агента: `[.cursor/rules/architecture.mdc](../.cursor/rules/architecture.mdc)`
 
