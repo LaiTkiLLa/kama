@@ -22,5 +22,5 @@ export interface GetDynamicOrders {
   totalOrdersAboveAvg: number;
   daysAboveAvg: number;
   speedSalesAboveAvg: number;
-  wbOwnWarehouses: { title: string; value: number }[];
+  ownWarehouses: { title: string; value: number }[];
 }

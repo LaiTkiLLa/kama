@@ -80,7 +80,7 @@ export class OrdersService {
           totalOrdersAboveAvg: 0,
           daysAboveAvg: 0,
           speedSalesAboveAvg: 0,
-          wbOwnWarehouses: item.wbOwnWarehouses
+          ownWarehouses: item.ownWarehouses
         });
       }
 

@@ -74,14 +74,14 @@ export class StocksService {
         quantityFull: number;
         inWayToClient: number;
         inWayFromClient: number;
-        wbOwnWarehouses: { title: string; value: number }[];
+        ownWarehouses: { title: string; value: number }[];
       }>(
         (stAcc, stock) => {
           if (excludeWarehouses.includes(stock.warehouseId)) {
             return stAcc;
           }
           if (stock.warehouse.type === 'FBS') {
-            stAcc.wbOwnWarehouses.push({
+            stAcc.ownWarehouses.push({
               title: stock.warehouse.title,
               value: stock.currentValue
             });
@@ -95,7 +95,7 @@ export class StocksService {
           quantityFull: 0,
           inWayToClient: 0,
           inWayFromClient: 0,
-          wbOwnWarehouses: []
+          ownWarehouses: []
         }
       );
       return {
@@ -107,7 +107,7 @@ export class StocksService {
         inWayFromClient: stocksResult.inWayFromClient,
         quantityFull: stocksResult.quantityFull,
         sku: mpItem.sku,
-        wbOwnWarehouses: stocksResult.wbOwnWarehouses,
+        ownWarehouses: stocksResult.ownWarehouses,
         mpItem: mpItem.id,
         title: mpItem.title
       };
