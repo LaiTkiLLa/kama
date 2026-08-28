@@ -49,6 +49,7 @@ export class OrdersService {
       const responseStocks = await this.stocksService.getStocks(
         {
           marketplace: getDynamicOrdersDto.marketplace,
+          warehouseType: getDynamicOrdersDto.warehouseType,
           suppliers: getDynamicOrdersDto?.suppliers?.length ? getDynamicOrdersDto.suppliers : undefined
         },
         queryRunner

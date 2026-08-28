@@ -12,4 +12,11 @@ export class GetCurrentStocksDto {
   @IsString({ each: true })
   @ArrayMinSize(1)
   suppliers?: string[];
+
+  @IsString({ message: 'warehouseType тип данных должен быть string' })
+  @IsIn(['FBS', 'FBO'], {
+    message: 'Недопустимое значение warehouseType'
+  })
+  @IsOptional()
+  warehouseType: 'FBS' | 'FBO';
 }
