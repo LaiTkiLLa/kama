@@ -12,3 +12,8 @@ export interface OrderStatistics {
   totalPrice: number;
   totalPayout: number;
 }
+
+export class GetOrdersStatisticsByMarketplaceDto {
+  dateFrom: string;
+  dateTo: string;
+}
