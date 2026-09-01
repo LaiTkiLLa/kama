@@ -1,8 +1,9 @@
 export interface GetOrderStatisticsDto {
   dateFrom: Date;
   dateTo: Date;
-  marketplaceId?: number;
-  warehouseId?: number;
+  marketplaceTitle?: string;
+  warehouseTitle?: string;
+  warehouseType?: 'FBO' | 'FBS';
 }
 
 export interface OrderStatistics {
