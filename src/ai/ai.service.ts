@@ -13,7 +13,11 @@ export class AiService {
 
   async chat(message: string) {
     const tools = this.toolRegistry.getAll();
-    const currentDate = new Date().toISOString();
+    const currentDate = new Intl.DateTimeFormat('ru-RU', {
+      timeZone: 'Europe/Moscow',
+      dateStyle: 'full',
+      timeStyle: 'long'
+    }).format(new Date());
 
     const messages: LlmMessage[] = [
       {
@@ -25,6 +29,15 @@ export class AiService {
 Используй эту дату как источник истины.
 Относительные даты ("сегодня", "вчера", "позавчера", "завтра")
 вычисляй относительно неё.
+
+Отвечай непосредственно на вопрос пользователя.
+Не добавляй дополнительную информацию, которую пользователь не запрашивал.
+Если пользователь спрашивает количество заказов, сообщи количество заказов.
+Не выводи totalQuantity, totalPrice или totalPayout,
+если пользователь явно не спрашивал об этих показателях.
+
+Не показывай пользователю технические детали работы tools.
+Не упоминай названия tools, tool calls, JSON или внутренние параметры.
       `.trim()
       },
       {
@@ -40,7 +53,9 @@ export class AiService {
       });
 
       if (!response.toolCalls?.length) {
-        return response;
+        return {
+          answer: response.content
+        };
       }
 
       messages.push(response.rawMessage);

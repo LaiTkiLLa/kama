@@ -1,5 +1,9 @@
 import { DataSource } from 'typeorm';
-import { GetOrderStatisticsDto, OrderStatistics } from '../dto/get-order-statistics.dto';
+import {
+  GetOrdersStatisticsByMarketplaceDto,
+  GetOrderStatisticsDto,
+  OrderStatistics
+} from '../dto/get-order-statistics.dto';
 import { OrdersV2 } from '../entities/orders_v2.entity';
 import { Injectable } from '@nestjs/common';
 
@@ -51,5 +55,29 @@ export class OrdersStatisticsService {
       totalPrice: Number(result.totalPrice),
       totalPayout: Number(result.totalPayout)
     };
+  }
+
+  async getStatisticsByMarketplace(params: GetOrdersStatisticsByMarketplaceDto) {
+    const { dateFrom, dateTo } = params;
+
+    const result = await this.dataSource
+      .createQueryBuilder()
+      .from(OrdersV2, 'orders')
+      .leftJoin('orders.marketplace', 'marketplace')
+      .select('marketplace.title', 'marketplaceTitle')
+      .addSelect('COUNT(orders.id)', 'ordersCount')
+      .where('orders.marketplaceCreatedAt >= :dateFrom', { dateFrom })
+      .andWhere('orders.marketplaceCreatedAt < :dateTo', { dateTo })
+      .groupBy('marketplace.title')
+      .orderBy('COUNT(orders.id)', 'DESC')
+      .getRawMany<{
+        ordersCount: string;
+        marketplaceTitle: string;
+      }>();
+
+    return result.map(item => ({
+      marketplaceTitle: item.marketplaceTitle,
+      ordersCount: Number(item.ordersCount)
+    }));
   }
 }

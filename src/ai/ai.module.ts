@@ -6,6 +6,7 @@ import { GetOrderStatisticsTool } from './tools/orders/get-order-statistics.tool
 import { AiToolRegistry } from './tools/ai-tool.registry';
 import { DeepSeekToolMapper } from './providers/deepseek/deepseek-tool.mapper';
 import { OrdersModule } from '../orders/orders.module';
+import { GetOrderStatisticsByMarketplaceTool } from './tools/orders/get-order-statistics-by-marketplace.tool';
 
 @Module({
   imports: [OrdersModule],
@@ -18,12 +19,17 @@ import { OrdersModule } from '../orders/orders.module';
       useExisting: DeepseekProvider
     },
     GetOrderStatisticsTool,
+    GetOrderStatisticsByMarketplaceTool,
     {
       provide: AiToolRegistry,
-      inject: [GetOrderStatisticsTool],
-      useFactory: (getOrderStatisticsTool: GetOrderStatisticsTool) => {
+      inject: [GetOrderStatisticsTool, GetOrderStatisticsByMarketplaceTool],
+      useFactory: (
+        getOrderStatisticsTool: GetOrderStatisticsTool,
+        getOrderStatisticsByMarketplaceTool: GetOrderStatisticsByMarketplaceTool
+      ) => {
         const registry = new AiToolRegistry();
         registry.register(getOrderStatisticsTool);
+        registry.register(getOrderStatisticsByMarketplaceTool);
         return registry;
       }
     },
