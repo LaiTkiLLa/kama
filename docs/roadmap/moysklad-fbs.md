@@ -52,3 +52,5 @@ Seed mapping — SQL после миграции (не хардкодить `war
 | Enqueue + worker customerorder | □ |
 | Ozon FBS warehouses sync | ✔ `/v2/warehouse/list` → `type=FBS` |
 | Ozon FBS stock push / orders | □ later |
+
+**FACT (2026-09-07):** sync Ozon FBS **в `orders_v2`** уже есть (`OrdersService.getOrdersFbsOzon`, `/v4/posting/fbs/list`, оба кабинета). Это **не** Мой склад: outbox `create_customer_order` / stock push на Ozon по-прежнему later. Не включать Ozon `warehouse_id` в `moysklad_warehouse_mappings`, пока worker не готов — иначе insert в `orders_v2` начнёт энкать МС-заказы.

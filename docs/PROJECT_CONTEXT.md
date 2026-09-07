@@ -98,7 +98,7 @@ PostgreSQL
 | Система                     | Назначение                                             |
 | --------------------------- | ------------------------------------------------------ |
 | Wildberries Seller APIs     | карточки, trash, цены, склады, остатки, заказы         |
-| Ozon Seller API             | атрибуты, archive, цены, склады, остатки, FBO postings |
+| Ozon Seller API             | атрибуты, archive, цены, склады, остатки, FBO + FBS postings |
 | Yandex Market Partner API   | offer-mappings, склады, остатки, заказы (2 кабинета)   |
 | PostgreSQL                  | хранилище                                              |
 | Google Sheets / Apps Script | единственный UI (FACT)                                 |

@@ -34,7 +34,7 @@ Changelog M5: [`../migrations/m5-consolidation-changelog.md`](../migrations/m5-c
 | Price crons WB + Озон + **Ozon Tamov** | ✔ (pagination не нужна: ≤~400 SKU) |
 | Product hide `items.isArchive` / listing `deleted_at` | ✔ оба уровня |
 | **Ozon Tamov** (`ozonTamov*`) | ✔ cards/stocks/orders/warehouses/prices/trash/stop-list; DTO + dynamic orders |
-| Warehouse resolve (multi-cabinet) | ✔ всегда с `marketplaceId` (Ozon FBO stocks: title+mp; Ozon FBS own: internalNumber+mp; orders: internalNumber+mp) |
+| Warehouse resolve (multi-cabinet) | ✔ всегда с `marketplaceId` (Ozon FBO stocks: title+mp; Ozon FBS own: internalNumber+mp; orders FBO/FBS: internalNumber+mp) |
 | Ozon Tamov directory PATCH | ✔ |
 | Yandex Tamov sync | ✔ cards/stocks/orders/stop-list PATCH/trash |
 | Stocks Sheets | ✔ `GET /api/stocks/by-warehouses`; by-date **не возвращаем** |
