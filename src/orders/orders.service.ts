@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { DataSource, QueryRunner } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
-import { GetOrdersOzonV2, GetOrdersResult } from './interfaces/get-orders-ozon.interface';
+import { GetOrdersFbsOzon, GetOrdersOzonV2, GetOrdersResult } from './interfaces/get-orders-ozon.interface';
 import { ItemsService } from '../items/items.service';
 import { InfoService } from '../info/info.service';
 import { GetOrdersWb } from './interfaces/get-orders-wb.interface';
@@ -724,7 +724,7 @@ export class OrdersService {
     return;
   }
 
-  @Cron('2 * * * *')
+  @Cron(CronExpression.EVERY_HOUR)
   async getOrdersOzonSecond() {
     const ozonToken = this.configService.get<string>('ozonTamovToken');
     const clientId = this.configService.get<string>('ozonTamovClientId');
@@ -944,6 +944,219 @@ export class OrdersService {
     } catch (error) {
       this.logger.error(error);
       this.logger.error(`Не смог скачать заказы Ozon ${marketplaceId}`);
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  @Cron('0 */39 * * * *')
+  async getOrdersOzonFbsFirst() {
+    const ozonToken = this.configService.get<string>('ozonToken');
+    const clientId = this.configService.get<string>('ozonClientId');
+    if (!ozonToken || !clientId) {
+      this.logger.error('Не найден токен озона или id клиента Ozon');
+      return;
+    }
+    const findMarketplace = await this.infoService.findMarketplace({ title: 'Озон' });
+    await this.getOrdersFbsOzon(ozonToken, clientId, findMarketplace.id);
+    return;
+  }
+
+  @Cron('0 */37 * * * *')
+  async getOrdersOzonFbsSecond() {
+    const ozonToken = this.configService.get<string>('ozonTamovToken');
+    const clientId = this.configService.get<string>('ozonTamovClientId');
+    if (!ozonToken || !clientId) {
+      this.logger.error('Не найден токен озона или id клиента Ozon Tamov');
+      return;
+    }
+    const findMarketplace = await this.infoService.findMarketplace({ title: 'Ozon Tamov' });
+    await this.getOrdersFbsOzon(ozonToken, clientId, findMarketplace.id);
+    return;
+  }
+
+  async getOrdersFbsOzon(ozonToken: string, clientId: string, marketplaceId: number) {
+    const headers = {
+      'Client-Id': clientId,
+      'Api-Key': ozonToken
+    };
+    const ozonUrlOrders = 'https://api-seller.ozon.ru/v4/posting/fbs/list';
+
+    const lastMonth = new Date();
+    lastMonth.setDate(lastMonth.getDate() - 2);
+    lastMonth.setHours(3, 0, 0, 0);
+
+    const todayEvening = new Date();
+    todayEvening.setDate(todayEvening.getDate() + 1);
+    todayEvening.setHours(2, 59, 59, 999);
+
+    let hasMoreData = true;
+    let cursor = '';
+
+    const orders: GetOrdersResult[] = [];
+    try {
+      while (hasMoreData) {
+        const response = await axios.post<GetOrdersFbsOzon>(
+          ozonUrlOrders,
+          {
+            dir: 'ASC',
+            filter: {
+              since: lastMonth,
+              to: todayEvening
+            },
+            limit: 100,
+            cursor,
+            with: {
+              analytics_data: true,
+              financial_data: true
+            }
+          },
+          { headers }
+        );
+        if (!response.data.has_next) {
+          hasMoreData = false;
+        }
+        if (!response.data.postings.length) {
+          hasMoreData = false;
+        }
+        cursor = response.data.cursor;
+        for (const order of response.data.postings) {
+          orders.push({
+            warehouseId: order.delivery_method?.warehouse_id ?? 0,
+            warehouseTitle: order.delivery_method?.warehouse ?? '',
+            cancelReasonId: order.cancellation?.cancel_reason_id ?? 0,
+            createdAt: order.in_process_at ?? '',
+            orderId: order.order_id,
+            postingNumber: order.posting_number,
+            orderNumber: order.order_number,
+            status: order.status,
+            substatus: order.substatus,
+            city: order.analytics_data?.city ?? '',
+            products: (order.products ?? []).map(product => {
+              const findProductFinancialInfo = order.financial_data?.products?.find(
+                el => el.product_id === product.sku
+              );
+              const financialInfo = {
+                payout: 0,
+                oldPrice: 0,
+                totalDiscountValue: 0,
+                totalDiscountPercent: 0,
+                commission: {
+                  amount: 0,
+                  percent: 0
+                },
+                clusterFrom: '',
+                clusterTo: ''
+              };
+              if (findProductFinancialInfo) {
+                financialInfo.payout = findProductFinancialInfo.payout;
+                financialInfo.oldPrice = findProductFinancialInfo.old_price;
+                financialInfo.totalDiscountValue = findProductFinancialInfo.total_discount_value;
+                financialInfo.totalDiscountPercent = findProductFinancialInfo.total_discount_percent;
+                financialInfo.commission.amount = findProductFinancialInfo.commission?.amount ?? 0;
+                financialInfo.commission.percent = findProductFinancialInfo.commission?.percent ?? 0;
+                financialInfo.clusterFrom = order.financial_data?.cluster_from ?? '';
+                financialInfo.clusterTo = order.financial_data?.cluster_to ?? '';
+              }
+              return {
+                offerId: product.offer_id,
+                name: product.name,
+                sku: product.sku,
+                quantity: product.quantity,
+                price: Number(product.price?.amount ?? 0),
+                ...financialInfo
+              };
+            })
+          });
+        }
+      }
+    } catch (error) {
+      this.logger.error(error);
+      this.logger.error(`Не смог получить данные по заказам Озон FBS ${marketplaceId}`);
+    }
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    try {
+      for (const order of orders) {
+        const findWarehouse = await queryRunner.manager.findOne(Warehouses, {
+          where: {
+            marketplaceInternalNumber: String(order.warehouseId),
+            marketplaceId
+          }
+        });
+        if (!findWarehouse) {
+          this.logger.warn(
+            `Ozon FBS ${marketplaceId}: склад ${order.warehouseId} не найден, posting ${order.postingNumber}`
+          );
+          continue;
+        }
+        for (const item of order.products) {
+          const findMarketplaceItem = await queryRunner.manager
+            .createQueryBuilder(MarketplaceItems, 'mpItems')
+            .where('mpItems.marketplaceId = :marketplaceId', { marketplaceId })
+            .andWhere('mpItems.sku = :sku', {
+              sku: String(item.sku)
+            })
+            .getOne();
+          if (!findMarketplaceItem) {
+            this.logger.warn(
+              `Ozon FBS ${marketplaceId}: listing не найден sku=${item.sku} offerId=${item.offerId}, posting ${order.postingNumber}`
+            );
+            continue;
+          }
+          const findOrder = await queryRunner.manager.findOne(OrdersV2, {
+            where: {
+              marketplaceOrderIdentification: String(order.orderId),
+              marketplaceOrderPostingNumber: String(order.postingNumber),
+              marketplaceItemId: findMarketplaceItem.id
+            }
+          });
+          if (!findOrder) {
+            const createOrder = queryRunner.manager.create(OrdersV2, {
+              marketplaceOrderIdentification: String(order.orderId),
+              marketplaceOrderNumber: String(order.orderNumber),
+              marketplaceOrderPostingNumber: order.postingNumber,
+              status: order.status,
+              quantity: item.quantity,
+              price: item.price,
+              oldPrice: item.oldPrice,
+              payout: item.payout,
+              discountValue: item.totalDiscountValue,
+              discountPercent: item.totalDiscountPercent,
+              commissionPercent: item.commission.percent,
+              commissionValue: item.commission.amount,
+              clusterFrom: item.clusterFrom,
+              clusterTo: item.clusterTo,
+              cancelReasonId: order.cancelReasonId,
+              city: order.city,
+              warehouseId: findWarehouse.id,
+              marketplaceId,
+              marketplaceCreatedAt: order.createdAt,
+              marketplaceItemId: findMarketplaceItem.id
+            });
+            await queryRunner.manager.save(OrdersV2, createOrder);
+          } else {
+            await queryRunner.manager.update(OrdersV2, findOrder.id, {
+              status: order.status,
+              quantity: item.quantity,
+              price: item.price,
+              oldPrice: item.oldPrice,
+              payout: item.payout,
+              discountValue: item.totalDiscountValue,
+              discountPercent: item.totalDiscountPercent,
+              commissionPercent: item.commission.percent,
+              commissionValue: item.commission.amount,
+              clusterFrom: item.clusterFrom,
+              clusterTo: item.clusterTo,
+              cancelReasonId: order.cancelReasonId,
+              city: order.city
+            });
+          }
+        }
+      }
+    } catch (error) {
+      this.logger.error(error);
+      this.logger.error(`Не смог сохранить заказы Ozon FBS ${marketplaceId}`);
     } finally {
       await queryRunner.release();
     }

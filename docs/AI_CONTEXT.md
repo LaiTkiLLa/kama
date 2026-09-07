@@ -88,6 +88,7 @@ Yandex Tamov: cards/stocks/orders/stop-list PATCH/trash ✔.
 | Duplicate `marketplace_items` | **FACT:** Yandex remap `marketSku` при том же `offerId` → второй listing: `getYandexItems` ищет только по `(marketplace_identifier, marketplace_id)`, не по `(item_id, marketplace_id)`. Cleanup: `npm run dedup:yandex-listings` (`-- --apply` пишет БД). Unique index всё ещё отложен (`178940`). Cron **не** чинили — дубли могут появиться снова |
 | Ozon warehouses cron | FBO: `/v1/warehouse/ozon/list` + FULL_FILLMENT. FBS/rFBS: `/v2/warehouse/list` → `type=FBS` (`getOzonOwnWarehouses` First/Second) |
 | Ozon FBS own stocks | ✔ First (`Озон`, `ozon*`): `getOzonOwnStocksFirst` → `POST /v1/product/info/warehouse/stocks`. Tamov Second — ещё нет |
+| Ozon FBS orders | ✔ First/Second: `getOrdersOzonFbsFirst` / `getOrdersOzonFbsSecond` → `getOrdersFbsOzon`; API `POST /v4/posting/fbs/list` (cursor, `postings` на верхнем уровне — не `result` как в v3). Склад: `delivery_method.warehouse_id` → `warehouses.marketplaceInternalNumber` + `marketplaceId` (`type=FBS`). Listing: `marketplace_items.sku`. Окно дат ~2 суток (как FBO; статус старше окна не обновится). **Не путать** с Мой склад FBS (`roadmap/moysklad-fbs.md` — Ozon outbox ещё later) |
 
 ---
 
@@ -101,6 +102,7 @@ Drop `marketplace_id` на `stocks`/`orders_v2`; force cutover без мигра
 
 | Дата | Итог |
 |------|------|
+| 2026-09-07 | Ozon FBS orders → `orders_v2`: `/v4/posting/fbs/list`, cron First (`Озон`) / Second (`Ozon Tamov`); склад по `delivery_method.warehouse_id`. Мой склад Ozon FBS по-прежнему later |
 | 2026-09-01 | AI tools → zod: `AiTool.parameters` = zod-схема (`z.toJSONSchema` для DeepSeek), `AiToolExecutor` (lookup + parse + validate), схемы в `src/ai/tools/orders/dto/`; DTO статистики из orders удалены (orders теперь типизирован от ai-схем). Tool `get_order_statistics_by_marketplace`. Telegram-спайк удалён (`src/telegram`, `nestjs-telegraf`/`telegraf`) |
 | 2026-08-28 | In-app LLM agent (spike): модуль `src/ai`, DeepSeek, `POST /api/ai/chat`, tool статистики заказов; env `DEEPSEEK_API_KEY`; docs [`ai/in-app-agent.md`](ai/in-app-agent.md) |
 | 2026-08-27 | Ozon FBS own stocks cron для 1 кабинета (`Озон`): `getOzonOwnStocksFirst` / `getOzonOwnStocks`; API `/v1/product/info/warehouse/stocks`; lookup склада по `marketplaceInternalNumber` |
