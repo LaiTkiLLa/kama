@@ -7,6 +7,7 @@ import { AiToolRegistry } from './tools/ai-tool.registry';
 import { DeepSeekToolMapper } from './providers/deepseek/deepseek-tool.mapper';
 import { OrdersModule } from '../orders/orders.module';
 import { GetOrderStatisticsByMarketplaceTool } from './tools/orders/get-order-statistics-by-marketplace.tool';
+import { AiToolExecutor } from './tools/ai-tool-executor';
 
 @Module({
   imports: [OrdersModule],
@@ -14,6 +15,7 @@ import { GetOrderStatisticsByMarketplaceTool } from './tools/orders/get-order-st
   providers: [
     AiService,
     DeepseekProvider,
+    AiToolExecutor,
     {
       provide: 'LLM_PROVIDER',
       useExisting: DeepseekProvider

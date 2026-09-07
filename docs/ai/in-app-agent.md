@@ -5,7 +5,7 @@
 
 Связанные: [`../AI_CONTEXT.md`](../AI_CONTEXT.md), [`../PROJECT_CONTEXT.md`](../PROJECT_CONTEXT.md), [`../README.md`](../README.md).
 
-Последнее обновление: 2026-08-28.
+Последнее обновление: 2026-09-01.
 
 ---
 
@@ -26,9 +26,10 @@
 | Модуль `AiModule`, endpoint `POST /api/ai/chat` | ✔ spike |
 | Провайдер DeepSeek (`deepseek-chat`) | ✔ |
 | Tool `get_order_statistics` → `orders_v2` | ✔ |
+| Tool `get_order_statistics_by_marketplace` → `orders_v2` | ✔ |
+| Валидация аргументов tools (zod, `AiToolExecutor`) | ✔ (2026-09-01) |
 | Auth (`api-key`) на chat | □ backlog |
 | Лимит итераций tool-loop, таймаут | □ backlog |
-| Валидация аргументов tools | □ backlog |
 | История диалога (multi-turn) | □ backlog |
 | Write-tools (stop-list, цены, PATCH) | ✖ без явного плана |
 
@@ -105,8 +106,9 @@ AiService          (tool loop: LLM → execute tools → LLM …)
         ↓
 ┌───────────────────┴────────────────────┐
 │ LlmProvider (DeepseekProvider)         │  ← DEEPSEEK_API_KEY
-│ AiToolRegistry                         │
-│   └─ get_order_statistics              │
+│ AiToolExecutor → AiToolRegistry        │  ← zod-валидация аргументов
+│   ├─ get_order_statistics              │
+│   └─ get_order_statistics_by_marketplace
 │         └─ OrdersStatisticsService     │  ← orders_v2
 └────────────────────────────────────────┘
 ```
@@ -117,11 +119,19 @@ AiService          (tool loop: LLM → execute tools → LLM …)
 |------|------|------|
 | Controller | `src/ai/ai.controller.ts` | HTTP |
 | Orchestration | `src/ai/ai.service.ts` | system prompt, цикл tool-calls |
+| Executor | `src/ai/tools/ai-tool-executor.ts` | lookup tool в registry, `JSON.parse` аргументов, zod-валидация, вызов `execute` |
 | Provider | `src/ai/providers/deepseek.provider.ts` | вызов DeepSeek API |
 | Tools | `src/ai/tools/**` | контракт tool + registry |
+| Schemas | `src/ai/tools/orders/dto/*.schema.ts` | zod-схемы аргументов (source of truth для LLM и типов) |
 | Domain | `src/orders/services/orders-statistics.service.ts` | SQL к `orders_v2` |
 
 **DECISION (spike):** провайдер LLM отделён от tools; смена модели/вендора — через реализацию `LlmProvider`, без правок домена.
+
+**DECISION (2026-09-01):** параметры tool описываются zod-схемой (`AiTool.parameters: z.ZodType`), а не рукописной JSON Schema. Для провайдера JSON Schema генерируется через `z.toJSONSchema()` в `DeepSeekToolMapper`. Схема — единый источник: описание для LLM (`.describe(...)`), runtime-валидация (`.parse`) и статические типы (`z.infer`). Интерфейсы `GetOrderStatisticsDto` / `GetOrdersStatisticsByMarketplaceDto` удалены; `OrdersStatisticsService` типизирован `GetOrderStatisticsArgs` / `GetOrdersStatisticsByMarketplaceArgs` из схем.
+
+**FACT:** из-за этого `src/orders` импортирует типы из `src/ai/tools/orders/dto/` — доменный модуль зависит от ai-модуля. Пока принято как компромисс spike; при росте — вынести типы аргументов в orders или в общий слой.
+
+**FACT:** валидация выполняется дважды: в `AiToolExecutor.execute` и повторно внутри `execute` каждого tool (`Schema.parse(args)`). Избыточно, но безвредно.
 
 ---
 
@@ -131,20 +141,29 @@ AiService          (tool loop: LLM → execute tools → LLM …)
 
 **FACT:** агрегат по `orders_v2`: количество заказов, сумма `quantity`, `price`, `payout` за период `[dateFrom, dateTo)`.
 
-Параметры (JSON Schema для LLM):
+Параметры (zod-схема `GetOrderStatisticsSchema`, `src/ai/tools/orders/dto/get-order-statistics.schema.ts`):
 
 | Поле | Тип | Обязательное | Описание |
 |------|-----|--------------|----------|
-| `dateFrom` | string (ISO 8601) | да | начало периода |
-| `dateTo` | string (ISO 8601) | да | конец периода (exclusive в SQL) |
-| `marketplaceId` | number | нет | фильтр по `orders_v2.marketplace_id` |
-| `warehouseId` | number | нет | фильтр по `orders_v2.warehouse_id` |
+| `dateFrom` | string (`z.iso.datetime({ local: true, offset: true })`) | да | начало периода |
+| `dateTo` | string (`z.iso.datetime({ local: true, offset: true })`) | да | конец периода (exclusive в SQL) |
+| `marketplaceTitle` | string | нет | каноническое название маркетплейса (`"Озон"`, `"WB"`, `"Yandex"`, `"Yandex Tamov"`, `"Ozon Tamov"`); нормализацию делает LLM по описанию поля |
+| `warehouseTitle` | string | нет | название конкретного склада, только если явно указан пользователем |
+| `warehouseType` | `'FBO' \| 'FBS'` | нет | тип склада («наш склад» → FBS, «склад маркетплейса» → FBO) |
 
 **FACT:** фильтр по дате — поле `marketplace_created_at` (timestamptz).
 
 **FACT:** отменённые заказы **не исключаются** (как в части существующей логики `getOrders`). При интерпретации цифр агентом учитывать.
 
 **FACT:** system prompt передаёт текущую дату и `Europe/Moscow`; границы «сегодня» / «вчера» модель вычисляет относительно неё. SQL использует timestamptz — возможен сдвиг на границе суток без явной нормализации TZ в запросе.
+
+### `get_order_statistics_by_marketplace`
+
+**FACT:** количество заказов в разрезе маркетплейсов за период; без фильтров по складу/маркетплейсу.
+
+Параметры (zod-схема `GetOrdersStatisticsByMarketplaceSchema`): `dateFrom`, `dateTo` — оба обязательные, `z.iso.datetime({ local: true, offset: true })`.
+
+**FACT (fixed, 2026-09-01):** изначально схемы использовали `z.iso.date()` (только `YYYY-MM-DD`), тогда как описания велят LLM передавать `2026-08-26T00:00:00` — валидация падала бы на каждом вызове. Исправлено на `z.iso.datetime({ local: true, offset: true })`: принимает локальное время без зоны, со смещением и `Z`. Date-only строки (`2026-08-26`) **не** принимаются — описания требуют полный datetime.
 
 ---
 
@@ -161,9 +180,10 @@ AiService          (tool loop: LLM → execute tools → LLM …)
 ## Добавление нового tool (когда понадобится)
 
 1. Domain-логика в соответствующем модуле (`src/orders`, `src/stocks`, …) — отдельный service method.
-2. Класс tool в `src/ai/tools/<domain>/`, implements `AiTool`.
-3. Регистрация в `AiModule` → `AiToolRegistry`.
-4. Обновить этот документ (таблица tools) и при необходимости [`../AI_CONTEXT.md`](../AI_CONTEXT.md).
+2. Zod-схема аргументов в `src/ai/tools/<domain>/dto/<tool>.schema.ts` (+ `z.infer`-тип); описания полей для LLM — через `.describe(...)`.
+3. Класс tool в `src/ai/tools/<domain>/`, implements `AiTool` (`parameters` = zod-схема).
+4. Регистрация в `AiModule` → `AiToolRegistry`.
+5. Обновить этот документ (таблица tools) и при необходимости [`../AI_CONTEXT.md`](../AI_CONTEXT.md).
 
 ---
 
@@ -180,4 +200,5 @@ AiService          (tool loop: LLM → execute tools → LLM …)
 
 | Дата | Итог |
 |------|------|
+| 2026-09-01 | Zod-валидация аргументов tools: `AiTool.parameters: z.ZodType`, `AiToolExecutor`, схемы в `src/ai/tools/orders/dto/`; JSON Schema через `z.toJSONSchema`; DTO в orders удалены. Tool `get_order_statistics_by_marketplace`. Удалён Telegram-спайк (`src/telegram`, deps `nestjs-telegraf`/`telegraf`) |
 | 2026-08-28 | Spike: `AiModule`, DeepSeek, `POST /api/ai/chat`, tool `get_order_statistics` |

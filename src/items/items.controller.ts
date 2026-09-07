@@ -9,6 +9,7 @@ import { UpdateErpLogisticInfoDto } from './dto/update-erp-logistic-info.dto';
 import { CreateProductDto } from './dto/create-product.dto';
 import { ProductCreationService } from './product-creation/product-creation.service';
 import { UpdateArrayErpItemsSuppliersListDto } from './dto/update-erp-items-suppliers-list.dto';
+import { AddItemToSupplierDto } from './dto/add-item-to-supplier.dto';
 
 @Controller('items')
 export class ItemsController {
@@ -86,5 +87,13 @@ export class ItemsController {
   @Post('create-on-marketplaces')
   async createProduct(@Headers('api-key') apiKey: string, @Body() createProductDto: CreateProductDto) {
     return this.productCreationService.createProduct(createProductDto);
+  }
+
+  @Post('add-to-supplier')
+  async addItemToSupplier(
+    @Headers('api-key') apiKey: string,
+    @Body() addItemToSupplierDto: AddItemToSupplierDto
+  ) {
+    return this.itemsService.addToSupplier(addItemToSupplierDto);
   }
 }
