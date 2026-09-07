@@ -31,8 +31,7 @@ import { TelegramModule } from './telegram/telegram.module';
     StocksModule,
     InfoModule,
     AiModule,
-    MoyskladModule,
-    TelegramModule
+    MoyskladModule
   ]
 })
 export class AppModule {}
