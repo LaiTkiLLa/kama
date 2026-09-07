@@ -1,12 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { AiTool } from './ai-tool.interface';
 import { OrdersStatisticsService } from '../../../orders/services/orders-statistics.service';
-import { GetOrdersStatisticsByMarketplaceDto } from '../../../orders/dto/get-order-statistics.dto';
+import { GetOrdersStatisticsByMarketplaceSchema } from './dto/get-orders-statistics-by-marketplace.schema';
 
 @Injectable()
 export class GetOrderStatisticsByMarketplaceTool implements AiTool {
   readonly name = 'get_order_statistics_by_marketplace';
-
+  readonly schema = GetOrdersStatisticsByMarketplaceSchema;
   readonly description = `
 Получает количество заказов в разрезе маркетплейсов за указанный период.
 
@@ -39,33 +39,13 @@ export class GetOrderStatisticsByMarketplaceTool implements AiTool {
 Для этого используй get_order_statistics.
 `;
 
-  readonly parameters = {
-    type: 'object' as const,
-
-    properties: {
-      dateFrom: {
-        type: 'string',
-        description: `
-Начало периода в формате ISO 8601.
-`
-      },
-
-      dateTo: {
-        type: 'string',
-        description: `
-Конец периода в формате ISO 8601.
-`
-      }
-    },
-
-    required: ['dateFrom', 'dateTo']
-  };
+  readonly parameters = GetOrdersStatisticsByMarketplaceSchema;
 
   constructor(private readonly ordersStatisticsService: OrdersStatisticsService) {}
 
   async execute(args: unknown): Promise<unknown> {
-    return this.ordersStatisticsService.getStatisticsByMarketplace(
-      args as GetOrdersStatisticsByMarketplaceDto
-    );
+    const validatedArgs = GetOrdersStatisticsByMarketplaceSchema.parse(args);
+
+    return this.ordersStatisticsService.getStatisticsByMarketplace(validatedArgs);
   }
 }

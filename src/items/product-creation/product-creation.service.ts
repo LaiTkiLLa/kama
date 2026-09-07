@@ -11,6 +11,7 @@ import {
   MARKETPLACE_CARD_PUBLISHERS,
   MarketplaceCardPublisher
 } from './publishers/marketplace-card-publisher.interface';
+import { AddItemToSupplierDto } from '../dto/add-item-to-supplier.dto';
 
 @Injectable()
 export class ProductCreationService {

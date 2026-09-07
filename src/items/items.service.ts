@@ -1,6 +1,12 @@
-import { ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  Logger,
+  NotFoundException
+} from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { DataSource, EntityManager, In, IsNull, QueryFailedError } from 'typeorm';
+import { DataSource, EntityManager, In, IsNull } from 'typeorm';
 import axios from 'axios';
 import { InfoService } from '../info/info.service';
 import { ConfigService } from '@nestjs/config';
@@ -27,6 +33,7 @@ import { CharacteristicValues } from './entities/characteristic-values.entity';
 import { UpdateErpLogisticInfoDto } from './dto/update-erp-logistic-info.dto';
 import { MarketplaceCategories } from '../info/entities/marketplace-categories.entity';
 import { UpdateArrayErpItemsSuppliersListDto } from './dto/update-erp-items-suppliers-list.dto';
+import { AddItemToSupplierDto } from './dto/add-item-to-supplier.dto';
 
 @Injectable()
 export class ItemsService {
@@ -361,7 +368,10 @@ export class ItemsService {
           createdForCalculation: false
         });
       }
-      const findItems = await queryBuilder.orderBy('items.id', 'ASC').getMany();
+      const findItems = await queryBuilder
+        .orderBy('items.id', 'ASC')
+        .addOrderBy('itemsSuppliers.id', 'ASC')
+        .getMany();
       return findItems.map(item => {
         const marketplacesInfo: MarketplaceInfo[] = [];
         marketplacesInfo.push(
@@ -881,6 +891,52 @@ export class ItemsService {
     } catch (error) {
       this.logger.error(error);
       this.logger.error('Не смог обновить логистическую информацию');
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  async addToSupplier(addItemToSupplierDto: AddItemToSupplierDto) {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+    try {
+      const findItem = await queryRunner.manager.findOne(Items, {
+        where: { article: addItemToSupplierDto.article }
+      });
+      if (!findItem) {
+        throw new BadRequestException('Товар не найден');
+      }
+      const findSupplier = await queryRunner.manager.findOne(Suppliers, {
+        where: {
+          title: addItemToSupplierDto.supplier
+        }
+      });
+      if (!findSupplier) {
+        throw new BadRequestException('Поставщик не найден');
+      }
+      const findPair = await queryRunner.manager.findOne(ItemsSuppliers, {
+        where: {
+          itemId: findItem.id,
+          supplierId: findSupplier.id,
+          deletedAt: IsNull()
+        }
+      });
+      if (findPair) {
+        throw new ConflictException('У поставщика уже есть этот товар');
+      }
+      const createSupplierItem = queryRunner.manager.create(ItemsSuppliers, {
+        itemId: findItem.id,
+        supplierId: findSupplier.id
+      });
+      await queryRunner.manager.save(ItemsSuppliers, createSupplierItem);
+      await queryRunner.commitTransaction();
+      return { id: createSupplierItem.id };
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      this.logger.error('Не смог добавить товар поставщику');
+      this.logger.error(error);
       throw error;
     } finally {
       await queryRunner.release();

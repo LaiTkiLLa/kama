@@ -1,17 +1,15 @@
 import { DataSource } from 'typeorm';
-import {
-  GetOrdersStatisticsByMarketplaceDto,
-  GetOrderStatisticsDto,
-  OrderStatistics
-} from '../dto/get-order-statistics.dto';
+import { OrderStatistics } from '../dto/get-order-statistics.dto';
 import { OrdersV2 } from '../entities/orders_v2.entity';
 import { Injectable } from '@nestjs/common';
+import { GetOrderStatisticsArgs } from '../../ai/tools/orders/dto/get-order-statistics.schema';
+import { GetOrdersStatisticsByMarketplaceArgs } from '../../ai/tools/orders/dto/get-orders-statistics-by-marketplace.schema';
 
 @Injectable()
 export class OrdersStatisticsService {
   constructor(private readonly dataSource: DataSource) {}
 
-  async getStatistics(params: GetOrderStatisticsDto): Promise<OrderStatistics> {
+  async getStatistics(params: GetOrderStatisticsArgs): Promise<OrderStatistics> {
     const { dateFrom, dateTo, marketplaceTitle, warehouseTitle, warehouseType } = params;
 
     const query = this.dataSource
@@ -57,7 +55,7 @@ export class OrdersStatisticsService {
     };
   }
 
-  async getStatisticsByMarketplace(params: GetOrdersStatisticsByMarketplaceDto) {
+  async getStatisticsByMarketplace(params: GetOrdersStatisticsByMarketplaceArgs) {
     const { dateFrom, dateTo } = params;
 
     const result = await this.dataSource

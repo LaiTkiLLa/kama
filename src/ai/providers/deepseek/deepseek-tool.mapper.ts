@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { AiTool } from '../../tools/orders/ai-tool.interface';
+import { z } from 'zod';
 
 @Injectable()
 export class DeepSeekToolMapper {
@@ -9,7 +10,7 @@ export class DeepSeekToolMapper {
       function: {
         name: tool.name,
         description: tool.description,
-        parameters: tool.parameters
+        parameters: z.toJSONSchema(tool.parameters)
       }
     };
   }

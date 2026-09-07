@@ -1,11 +1,9 @@
+import { z } from 'zod';
+
 export interface AiTool {
   name: string;
   description: string;
-  parameters: {
-    type: 'object';
-    properties: Record<string, unknown>;
-    required?: string[];
-  };
+  parameters: z.ZodType;
 
   execute(args: unknown): Promise<unknown>;
 }

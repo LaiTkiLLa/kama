@@ -2,13 +2,15 @@ import { Inject, Injectable } from '@nestjs/common';
 import { LlmProvider } from './contracts/llm-provider.interface';
 import { AiToolRegistry } from './tools/ai-tool.registry';
 import { LlmMessage } from './contracts/llm-message.interface';
+import { AiToolExecutor } from './tools/ai-tool-executor';
 
 @Injectable()
 export class AiService {
   constructor(
     @Inject('LLM_PROVIDER')
     private readonly llmProvider: LlmProvider,
-    private readonly toolRegistry: AiToolRegistry
+    private readonly toolRegistry: AiToolRegistry,
+    private readonly toolExecutor: AiToolExecutor
   ) {}
 
   async chat(message: string) {
@@ -61,15 +63,7 @@ export class AiService {
       messages.push(response.rawMessage);
 
       for (const toolCall of response.toolCalls) {
-        const tool = this.toolRegistry.get(toolCall.name);
-
-        if (!tool) {
-          throw new Error(`Tool "${toolCall.name}" not found`);
-        }
-
-        const args = JSON.parse(toolCall.arguments);
-
-        const result = await tool.execute(args);
+        const result = await this.toolExecutor.execute(toolCall);
 
         messages.push({
           role: 'tool',
