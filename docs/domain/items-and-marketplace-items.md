@@ -28,9 +28,9 @@ Item (marketplace-independent, 1 на article)
 
 ### Поля на `items` (DECISION, 2026-08-10)
 
-Marketplace-independent: `id`, `article`, `articleOld`, `ownCategory`, classification/virality, логистика/сроки (`consolidation`, `fullfillmentAcceptance`, `marketplaceAcceptance`, `buffer`, `daysDeliveryToRussia`, `transportType`, `deliveryMethod`), себестоимость/таможня (`costInRub`, `codeTNVED`, …), `ownImagesUrl`, `downloadCalculationMethod`, `wbCreatedAt`, audit.
+Marketplace-independent: `id`, `article`, `articleOld`, `ownCategory`, classification/virality, логистика/сроки (`consolidation`, `fullfillmentAcceptance`, `marketplaceAcceptance`, `buffer`, `daysDeliveryToRussia`, `transportType`, `deliveryMethod`), себестоимость/таможня (`costInRub`, `codeTNVED`, …), `downloadCalculationMethod`, `wbCreatedAt`, audit.
 
-**На `items_suppliers` (supplier-link, не item-level):** Phase 2 — `supplierMinimumOrder`, `boxNumber`, `costInYuan`, `costInYuanWhite`, `multiplicity`, `assembling`, `production`. Phase 3 — `payment`, `dimensionsFact`, `dimensionsMasterBox`, `volume`. Dual-write на `items` **снят** (`1789370000000`). **Phase 4 (`1789440000000`):** nullable `item_characteristic_id` (размер «Размер» → FK `item_characteristics`); `deleted_at`; unique partial indexes — без размеров одна строка на `(item_id, supplier_id)`, с размерами — одна на `(item_id, supplier_id, item_characteristic_id)`.
+**На `items_suppliers` (supplier-link, не item-level):** Phase 2 — `supplierMinimumOrder`, `boxNumber`, `costInYuan`, `costInYuanWhite`, `multiplicity`, `assembling`, `production`. Phase 3 — `payment`, `dimensionsFact`, `dimensionsMasterBox`, `volume`. `ownImagesUrl` (`1789460000000`; backfill на все строки связи, drop с `items`). Dual-write на `items` **снят** (`1789370000000`). **Phase 4 (`1789440000000`):** nullable `item_characteristic_id` (размер «Размер» → FK `item_characteristics`); `deleted_at`; unique partial indexes — без размеров одна строка на `(item_id, supplier_id)`, с размерами — одна на `(item_id, supplier_id, item_characteristic_id)`.
 
 **Drop с `items` (`1789370000000`):** Phase 3 (`payment`, `dimensions_fact`, `dimensions_master_box`, `volume`); устаревшие габариты (`volume_master_box`, `volume_per_unit`, `weight_per_unit`, `density`); планирование (`replenishment_period`, `remaining_balance`).
 

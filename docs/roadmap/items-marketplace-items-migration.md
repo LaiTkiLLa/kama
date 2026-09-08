@@ -2,7 +2,7 @@
 
 > [`../domain/items-and-marketplace-items.md`](../domain/items-and-marketplace-items.md) · [`../AI_CONTEXT.md`](../AI_CONTEXT.md)
 
-Последнее обновление: 2026-08-24.
+Последнее обновление: 2026-09-08.
 
 ---
 
@@ -65,6 +65,7 @@ Changelog M5: [`../migrations/m5-consolidation-changelog.md`](../migrations/m5-c
 - [x] backfill размеров в `item_characteristics` из `marketplace_item_sizes` (`1789360000000`; `name='0'` = one-size)
 - [x] directory PATCH для Tamov (`Yandex Tamov` / `Ozon Tamov` в `updateArrayDirectoryItemsInfoV2`)
 - [x] drop с `items` Phase 3 + obsolete + `replenishment_period` / `remaining_balance` (`1789370000000`)
+- [x] `ownImagesUrl` → `items_suppliers` (`1789460000000`); backfill на все строки связи; drop с `items`
 - [ ] sync marketplace characteristics из WB/Ozon; Ozon sizes; soft-delete пропавших sizes
 - [x] Yandex Tamov: trash sync (`getYandexTrashItemsFirst` / `Second`; soft-delete `marketplace_items.deleted_at`)
 - [x] Warehouse FK: `orders_v2`/`stocks`.`warehouse_id` `onDelete RESTRICT` (`1789430000000`)

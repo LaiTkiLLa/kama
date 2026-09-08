@@ -42,8 +42,9 @@ find-or-create MarketplaceItems по (marketplace_identifier, marketplace_id)
 
 | Уровень                           | Entity              | Роль                                                                                                                                               |
 | --------------------------------- | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Product (marketplace-independent) | `items`             | 1 строка на `article` (`created_for_calculation = false`); логистика, себестоимость, classification, `isArchive`, `ownImagesUrl`, `wbCreatedAt`, … |
+| Product (marketplace-independent) | `items`             | 1 строка на `article` (`created_for_calculation = false`); логистика, себестоимость, classification, `isArchive`, `wbCreatedAt`, … |
 | Listing (marketplace-specific)    | `marketplace_items` | N listings на item — по одному на `(item_id, marketplace_id)`; identity, listing, prices, `send_status_id`, `deleted_at`                           |
+| Supplier-link                     | `items_suppliers`   | supplier-fields + `ownImagesUrl` (`1789460000000`)                                                                                 |
 
 Целевая модель из domain doc:
 
@@ -60,7 +61,7 @@ Item (1 на article)
 
 ### Поля `items` — marketplace-independent (FACT)
 
-Из entity + domain doc: `article`, `articleOld`, `title`, `category` (product-level, backfill с WB — migration `1789209600000`), `ownCategory`, classification/virality, логистика/сроки (`consolidation`, `payment`, `buffer`, …), себестоимость/таможня (`costInRub`, `codeTNVED`, …), габариты/объём (`dimensionsFact`, `dimensionsMasterBox`, `volume`, …), `ownImagesUrl`, `downloadCalculationMethod`, `wbCreatedAt`, `isArchive`, `createdForCalculation`, audit.
+Из entity + domain doc: `article`, `articleOld`, `title`, `category` (product-level, backfill с WB — migration `1789209600000`), `ownCategory`, classification/virality, логистика/сроки (`consolidation`, `payment`, `buffer`, …), себестоимость/таможня (`costInRub`, `codeTNVED`, …), габариты/объём (`dimensionsFact`, `dimensionsMasterBox`, `volume`, …), `downloadCalculationMethod`, `wbCreatedAt`, `isArchive`, `createdForCalculation`, audit. `ownImagesUrl` — на `items_suppliers` (`1789460000000`).
 
 **FACT:** MP identity/listing/prices/`send_status_id` с `items` **сняты** (M5 prod).
 
@@ -278,7 +279,7 @@ Mapping: `marketSku`, `marketModelId`, `marketCategoryId`, `marketCategoryName`,
 
 ### Что создаётся один раз (FACT + target)
 
-На `items` (marketplace-independent): минимум `article`; опционально поля directory (`title`, `category`, `ownCategory`, classification, logistics, `ownImagesUrl`, …); связь `items_suppliers` — **NEEDS DECISION** обязательность при create.
+На `items` (marketplace-independent): минимум `article`; опционально поля directory (`title`, `category`, `ownCategory`, classification, logistics, …); `ownImagesUrl` — на `items_suppliers`; связь `items_suppliers` — **NEEDS DECISION** обязательность при create.
 
 ### Что создаётся per marketplace (FACT + target)
 
@@ -315,7 +316,7 @@ Mapping: `marketSku`, `marketModelId`, `marketCategoryId`, `marketCategoryName`,
 
 ### Общие vs marketplace-specific поля для create payload
 
-**FACT (общие, уже на `items` или directory DTO):** `article`, `articleOld`, `title`, `category`, `ownCategory`, classification, logistics/cost fields, `ownImagesUrl`, `codeTNVED`, dimensions fact / master box, supplier link fields (`items_suppliers`).
+**FACT (общие, уже на `items` или directory DTO):** `article`, `articleOld`, `title`, `category`, `ownCategory`, classification, logistics/cost fields, `codeTNVED`, dimensions fact / master box, supplier link fields (`items_suppliers`, включая `ownImagesUrl`).
 
 **FACT (marketplace-specific, уже на `marketplace_items` или sync):** `category`, `title`, `color`, `dimensions`, `volume`, `barcode`, `sku`, `imageUrl`, prices (post-create).
 
@@ -433,7 +434,7 @@ Sheets показывает requestId; poll status / refresh row
 
 #### Общие (FACT — поля существуют в `items` / directory DTO)
 
-`article` (required), `articleOld`, `title`, `category`, `ownCategory`, `classification`, `ownImagesUrl`, `codeTNVED`, logistics/cost поля из `UpdateDirectoryItemInfoDto`, supplier block (`supplier`, `multiplicity`, `boxNumber`, … на `items_suppliers`).
+`article` (required), `articleOld`, `title`, `category`, `ownCategory`, `classification`, `codeTNVED`, logistics/cost поля из `UpdateDirectoryItemInfoDto`, supplier block (`supplier`, `multiplicity`, `boxNumber`, `ownImagesUrl`, … на `items_suppliers`).
 
 #### Marketplace-specific (FACT — поля sync пишет в `marketplace_items`; обязательность для create — NEEDS VERIFICATION)
 

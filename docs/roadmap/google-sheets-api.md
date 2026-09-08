@@ -100,7 +100,7 @@ Sheets **не должна** знать схему БД. API отдаёт ста
 | Items | `GET /api/items/erp/list` | `items` + `marketplace_items` выбранного MP | **Да** для ERP/Sheets (~400 items) | Пока без incremental; listing fields зависят от `marketplace` (default WB) |
 | Items | `PATCH /api/items/erp/logistics-info` | `items` | Да для ERP logistics write-back | батч `items[]`; `id` = PK; поля на `items` (не mp listing) |
 | Items | `GET /api/items/erp/suppliers-items/list` | `items_suppliers`, `items`, `suppliers`, `marketplace_item_sizes` | **Да** для таблицы item↔supplier | Одна строка на `(supplier, size)`; `skus` с выбранного MP (default WB) |
-| Items | `PATCH /api/items/erp/suppliers-items/list` | `items_suppliers` | **Да** для ERP/Sheets write-back supplier-fields | батч `items[]`; `itemSupplierId` = PK; optional `supplier` (title); `volume` в PATCH DTO **нет** (есть в GET) |
+| Items | `PATCH /api/items/erp/suppliers-items/list` | `items_suppliers` | **Да** для ERP/Sheets write-back supplier-fields | батч `items[]`; `itemSupplierId` = PK; optional `supplier` (title); `ownImagesUrl` в PATCH; `volume` в PATCH DTO **нет** (есть в GET) |
 | Items | `GET /api/items/v2/stop-list` | `marketplace_items`, `items`, stocks/orders aggregates | Нет как общий каталог | Операционный stop-list |
 | Items | `PATCH /api/items/directory/info` | `items`, `marketplace_items`, `items_suppliers` | Write-back из Sheets | Supplier-fields на **`items_suppliers`**; link — `supplierId` + fields |
 | Suppliers | `GET /api/info/suppliers` | `suppliers`, `banks` | Да для полного справочника | Нет audit timestamps в API |
@@ -219,6 +219,8 @@ PATCH /api/info/suppliers/:id
 **Phase 3 (FACT, 2026-08-13, dual-write):** на связь дополнительно:
 `payment`, `dimensionsFact`, `dimensionsMasterBox`, `volume` (все nullable, без default; `payment` на `items` был NOT NULL DEFAULT 10).
 
+**`ownImagesUrl` (FACT, 2026-09-08):** на `items_suppliers` (`1789460000000`); backfill на все строки связи по `item_id`; drop с `items`.
+
 **Не на связи:** `volumeMasterBox`, `volumePerUnit`, `weightPerUnit`, `density`, `replenishmentPeriod`, `remainingBalance` — **dropped** с `items` (`1789370000000`). Directory/ERP list их не отдают.
 
 Миграции:
@@ -236,21 +238,21 @@ PATCH /api/info/suppliers/:id
 - WB sync `syncItemSizeCharacteristics` → `syncItemsSupplierSizeRows` поддерживает строки при появлении/удалении размеров.
 
 **Read/write (FACT):**
-- `GET /api/items/directory/list` — supplier-fields + Phase 3 с `items_suppliers[0]`
-- `PATCH /api/items/directory/info` — supplier-link только на `items_suppliers` (legacy; dual-write на `items` **снят** `178937`). Per-size write — через ERP PATCH. Dead DTO planning/габариты (`planTime`, `volumePerUnit`, `density`, `replenishmentPeriod`, …) сняты; `whitelist` отбрасывает, если GAS ещё шлёт.
+- `GET /api/items/directory/list` — supplier-fields + Phase 3 + `ownImagesUrl` с `items_suppliers[0]`
+- `PATCH /api/items/directory/info` — supplier-link только на `items_suppliers` (legacy; dual-write на `items` **снят** `178937`). `ownImagesUrl` fan-out на все active `items_suppliers` товара. Per-size write — через ERP PATCH. Dead DTO planning/габариты (`planTime`, `volumePerUnit`, `density`, `replenishmentPeriod`, …) сняты; `whitelist` отбрасывает, если GAS ещё шлёт.
 - `GET /api/items/erp/suppliers-items/list` — flat list: **одна строка на `(supplier-link, size)`**; `itemCharacteristicId` / `sizeValue` nullable; `skus` из `marketplace_item_sizes.metadata.skus` выбранного MP (query `marketplace`, default WB)
 - `PATCH /api/items/erp/suppliers-items/list` — батч update по `itemSupplierId` (PK `items_suppliers`, только `deleted_at IS NULL`):
-  - supplier-fields: `boxNumber`, `multiplicity`, `supplierMinimumOrder`, `costInYuan`, `costInYuanWhite`, `payment`, `production`, `assembling`, `dimensionsMasterBox`, `dimensionsFact`
+  - supplier-fields: `boxNumber`, `multiplicity`, `supplierMinimumOrder`, `costInYuan`, `costInYuanWhite`, `payment`, `production`, `assembling`, `dimensionsMasterBox`, `dimensionsFact`, `ownImagesUrl`
   - optional `supplier` (title из справочника) → резолв в `supplierId`; неизвестный title → `404`
   - не меняет `itemId` / `itemCharacteristicId`
   - `volume` в PATCH **не принимается** (поле остаётся на entity / в GET)
   - unique partial indexes: смена поставщика на уже занятую пару `(item, supplier[, size])` → DB unique error (явный `409` в коде пока нет)
 
-**GET `/api/items/erp/suppliers-items/list` response:** `itemId`, `supplierId`, `itemSupplierId`, `itemCharacteristicId`, `sizeValue`, `skus[]`, `article`, `title`, `category`, `supplierTitle`, `supplierMinimumOrder`, `boxNumber`, `costInYuan`, `costInYuanWhite`, `multiplicity`, `assembling`, `production`, `payment`, `dimensionsFact`, `dimensionsMasterBox`, `volume`.
+**GET `/api/items/erp/suppliers-items/list` response:** `itemId`, `supplierId`, `itemSupplierId`, `itemCharacteristicId`, `sizeValue`, `skus[]`, `article`, `title`, `category`, `supplierTitle`, `supplierMinimumOrder`, `boxNumber`, `costInYuan`, `costInYuanWhite`, `multiplicity`, `assembling`, `production`, `payment`, `dimensionsFact`, `dimensionsMasterBox`, `volume`, `ownImagesUrl`.
 
 Match `skus`: `sizeValue` ↔ `normalize(mpSize.value || mpSize.name)`; без размера — `name = '0'` (one-size) или первый size.
 
-**PATCH `/api/items/erp/suppliers-items/list` body:** `{ items: [{ itemSupplierId, supplier?, supplierMinimumOrder?, boxNumber?, costInYuan?, costInYuanWhite?, multiplicity?, assembling?, production?, payment?, dimensionsFact?, dimensionsMasterBox? }] }` → `{ success: true }`.
+**PATCH `/api/items/erp/suppliers-items/list` body:** `{ items: [{ itemSupplierId, supplier?, supplierMinimumOrder?, boxNumber?, costInYuan?, costInYuanWhite?, multiplicity?, assembling?, production?, payment?, dimensionsFact?, dimensionsMasterBox?, ownImagesUrl? }] }` → `{ success: true }`.
 
 `supplier` — title (`supplierTitle` из GET); если передан — резолвится в `supplierId`. Не найден → `404`. Несуществующий / soft-deleted `itemSupplierId` → `404`.
 
@@ -442,6 +444,7 @@ Filter: `marketplaceId IS NOT NULL`. Нет query по MP. Auth header прин�
 - [ ] Создать paginated orders list (raw `orders_v2`), не ломая `/orders/dynamic`.
 - [ ] Stocks: date/history + pagination; выровнять warehouse `id` со справочником.
 - [x] Drop с `items`: Phase 3 + obsolete габариты + `replenishment_period` / `remaining_balance` (`1789370000000`).
+- [x] `ownImagesUrl` → `items_suppliers` (`1789460000000`); ERP GET/PATCH; directory `[0]` / fan-out.
 - [ ] Единый api-key guard на Sheets routes (`/info/warehouses` пока без проверки).
 - [ ] Документировать контракт в `docs/` (после первой реализации).
 - [ ] Нагрузочная проверка объёма orders/stocks на prod (**NEEDS VERIFICATION** counts).
@@ -539,6 +542,7 @@ Filter: `marketplaceId IS NOT NULL`. Нет query по MP. Auth header прин�
 
 | Дата | Итог |
 |------|------|
+| 2026-09-08 | `ownImagesUrl` → `items_suppliers` (`1789460000000`); ERP GET/PATCH + directory `[0]` / fan-out write |
 | 2026-08-25 | ERP PATCH suppliers-items: optional `supplier` (title → `supplierId`); `volume` убран из PATCH DTO; Phase 4 size-rows + `skus` на GET |
 | 2026-08-18 | ERP logistics PATCH `/api/items/erp/logistics-info` (батч `items[]`); `transport_type` / `delivery_method` на `items` (`1789390000000`) |
 | 2026-08-13 | Phase 3: `payment`/`dimensionsFact`/`dimensionsMasterBox`/`volume` → `items_suppliers` (`1789320000000`); dual-write; `volumeMasterBox`/`volumePerUnit`/`weightPerUnit`/`density` остаются на `items` до drop |

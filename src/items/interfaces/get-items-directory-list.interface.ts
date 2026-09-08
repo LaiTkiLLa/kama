@@ -30,4 +30,5 @@ export type SupplierInfo = {
   assembling: number;
   production: number;
   supplierMinimumOrder: number;
+  ownImagesUrl: string | null;
 };
