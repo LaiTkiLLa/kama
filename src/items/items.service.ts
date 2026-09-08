@@ -165,7 +165,8 @@ export class ItemsService {
       payment: source.payment,
       dimensionsFact: source.dimensionsFact,
       dimensionsMasterBox: source.dimensionsMasterBox,
-      volume: source.volume
+      volume: source.volume,
+      ownImagesUrl: source.ownImagesUrl
     };
   }
 
@@ -417,7 +418,8 @@ export class ItemsService {
               payment: itemSupplier.payment,
               assembling: itemSupplier.assembling,
               production: itemSupplier.production,
-              supplierMinimumOrder: itemSupplier.supplierMinimumOrder
+              supplierMinimumOrder: itemSupplier.supplierMinimumOrder,
+              ownImagesUrl: itemSupplier.ownImagesUrl
             });
           }
         }
@@ -437,7 +439,7 @@ export class ItemsService {
           wbCreatedAt: item.wbCreatedAt,
           costInYuan: item.itemsSuppliers.length ? item.itemsSuppliers[0].costInYuan : null,
           costInRub: item.costInRub,
-          ownImagesUrl: item.ownImagesUrl,
+          ownImagesUrl: item.itemsSuppliers.length ? item.itemsSuppliers[0].ownImagesUrl : null,
           transportRateUsd: item.transportRateUsd,
           dutyPercentage: item.dutyPercentage,
           tariffWeight: item.tariffWeight,
@@ -623,7 +625,8 @@ export class ItemsService {
           payment: itemsSupplier.payment,
           dimensionsFact: itemsSupplier.dimensionsFact,
           dimensionsMasterBox: itemsSupplier.dimensionsMasterBox,
-          volume: itemsSupplier.volume
+          volume: itemsSupplier.volume,
+          ownImagesUrl: itemsSupplier.ownImagesUrl
         };
       });
     } catch (error) {
@@ -666,6 +669,7 @@ export class ItemsService {
           assembling: number;
           dimensionsMasterBox: string;
           dimensionsFact: string;
+          ownImagesUrl: string;
           supplierId?: number;
         } = {
           boxNumber: item.boxNumber,
@@ -677,7 +681,8 @@ export class ItemsService {
           production: item.production,
           assembling: item.assembling,
           dimensionsMasterBox: item.dimensionsMasterBox,
-          dimensionsFact: item.dimensionsFact
+          dimensionsFact: item.dimensionsFact,
+          ownImagesUrl: item.ownImagesUrl
         };
         if (item.supplier) {
           const findSupplier = await queryRunner.manager.findOne(Suppliers, {
@@ -788,7 +793,6 @@ export class ItemsService {
             classification: item.classification,
             articleOld: item.articleOld,
             costInRub: item.costInRub,
-            ownImagesUrl: item.ownImagesUrl,
             transportRateUsd: item.transportRateUsd,
             dutyPercentage: item.dutyPercentage,
             tariffWeight: item.tariffWeight,
@@ -803,6 +807,11 @@ export class ItemsService {
             calculationType: item.calculationType,
             downloadCalculationMethod: item.downloadCalculationMethod
           }
+        );
+        await queryRunner.manager.update(
+          ItemsSuppliers,
+          { itemId: findItem.id, deletedAt: IsNull() },
+          { ownImagesUrl: item.ownImagesUrl }
         );
         for (const mpItem of findItem.marketplaceItems) {
           if (mpItem.marketplace.title === 'WB') {

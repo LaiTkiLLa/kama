@@ -55,6 +55,10 @@ export class UpdateErpItemSuppliersListDto {
 
   @IsString()
   @IsOptional()
+  ownImagesUrl: string;
+
+  @IsString()
+  @IsOptional()
   supplier: string;
 }
 

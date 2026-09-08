@@ -81,6 +81,9 @@ export class ItemsSuppliers {
   @Column({ type: 'varchar', nullable: true })
   volume: string;
 
+  @Column({ type: 'text', nullable: true, name: 'own_images_url' })
+  ownImagesUrl: string | null;
+
   @Column({
     type: 'timestamptz',
     nullable: true,

@@ -21,8 +21,8 @@ Yandex Tamov: cards/stocks/orders/stop-list PATCH/trash ✔.
 - `items` + `marketplace_items`; возврат к `item == listing` **запрещён**.
 - **1 item на article** (кроме `created_for_calculation = true`).
 - Marketplace-specific на `marketplace_items`: identity, listing, prices (`discount` = %), `send_status_id`, `deleted_at`.
-- Marketplace-independent на `items`: article, логистика/себестоимость/classification, `wbCreatedAt`, `ownImagesUrl`, **`isArchive`**.
-- Supplier-link на `items_suppliers`: Phase 2 supplier-fields + Phase 3 `payment` / `dimensionsFact` / `dimensionsMasterBox` / `volume`. Dual-write на `items` **снят** (`1789370000000`). Phase 4 (`178944`): per-size rows (`item_characteristic_id`) + `deleted_at`; ERP `PATCH /api/items/erp/suppliers-items/list` может менять `supplierId` по title (`supplier`).
+- Marketplace-independent на `items`: article, логистика/себестоимость/classification, `wbCreatedAt`, **`isArchive`**.
+- Supplier-link на `items_suppliers`: Phase 2 supplier-fields + Phase 3 `payment` / `dimensionsFact` / `dimensionsMasterBox` / `volume` + `ownImagesUrl` (`1789460000000`). Dual-write на `items` **снят** (`1789370000000`). Phase 4 (`178944`): per-size rows (`item_characteristic_id`) + `deleted_at`; ERP `PATCH /api/items/erp/suppliers-items/list` может менять `supplierId` по title (`supplier`).
 - **Два уровня скрытия (DECISION, 2026-08-10):**
   - `marketplace_items.deleted_at` — архив **listing**.
   - `items.isArchive` — скрытие **товара** в directory. Optional rename → `isDeleted` позже.
@@ -102,6 +102,7 @@ Drop `marketplace_id` на `stocks`/`orders_v2`; force cutover без мигра
 
 | Дата | Итог |
 |------|------|
+| 2026-09-08 | `ownImagesUrl` → `items_suppliers` (`1789460000000`); backfill на все строки связи; drop с `items`; ERP PATCH / directory read+fan-out write |
 | 2026-09-07 | Ozon FBS orders → `orders_v2`: `/v4/posting/fbs/list`, cron First (`Озон`) / Second (`Ozon Tamov`); склад по `delivery_method.warehouse_id`. Мой склад Ozon FBS по-прежнему later |
 | 2026-09-01 | AI tools → zod: `AiTool.parameters` = zod-схема (`z.toJSONSchema` для DeepSeek), `AiToolExecutor` (lookup + parse + validate), схемы в `src/ai/tools/orders/dto/`; DTO статистики из orders удалены (orders теперь типизирован от ai-схем). Tool `get_order_statistics_by_marketplace`. Telegram-спайк удалён (`src/telegram`, `nestjs-telegraf`/`telegraf`) |
 | 2026-08-28 | In-app LLM agent (spike): модуль `src/ai`, DeepSeek, `POST /api/ai/chat`, tool статистики заказов; env `DEEPSEEK_API_KEY`; docs [`ai/in-app-agent.md`](ai/in-app-agent.md) |
