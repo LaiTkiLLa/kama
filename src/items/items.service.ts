@@ -808,11 +808,6 @@ export class ItemsService {
             downloadCalculationMethod: item.downloadCalculationMethod
           }
         );
-        await queryRunner.manager.update(
-          ItemsSuppliers,
-          { itemId: findItem.id, deletedAt: IsNull() },
-          { ownImagesUrl: item.ownImagesUrl }
-        );
         for (const mpItem of findItem.marketplaceItems) {
           if (mpItem.marketplace.title === 'WB') {
             await queryRunner.manager.update(
