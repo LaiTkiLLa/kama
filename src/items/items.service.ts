@@ -881,7 +881,7 @@ export class ItemsService {
       for (const item of updateErpInfoDto.items) {
         const existingItem = itemsMap.get(item.id);
 
-        if (!existingItem?.createdForCalculation) {
+        if (!existingItem?.createdForCalculation || item.category === undefined) {
           continue;
         }
         await queryRunner.manager.update(

@@ -575,7 +575,10 @@ export class OrdersService {
     try {
       for (const order of response.data.orders) {
         const findWarehouse = await queryRunner.manager.findOne(Warehouses, {
-          where: { title: String(order.warehouseId) }
+          where: {
+            marketplaceInternalNumber: String(order.warehouseId),
+            marketplaceId: findMarketplace.id
+          }
         });
         if (!findWarehouse) {
           console.log('wb fbs task !findWarehouse', order.warehouseId);
@@ -620,10 +623,10 @@ export class OrdersService {
     return;
   }
 
-  @Cron('0 50 * * * *')
+  @Cron('0 55 * * * *')
   async getWbFbsArchiveTasks() {
     const apiToken = this.configService.get<string>('wbToken');
-    const urlOrders = 'https://marketplace-api.wildberries.ru/api/v3/orders/new';
+    const urlOrders = 'https://marketplace-api.wildberries.ru/api/v3/orders';
     const findMarketplace = await this.infoService.findMarketplace({ title: 'WB' });
     if (!findMarketplace) {
       this.logger.error('WB не найден среди МП. Не удалось получить архивные сборочные задания');
@@ -669,7 +672,10 @@ export class OrdersService {
       }
       for (const order of ordersResult) {
         const findWarehouse = await queryRunner.manager.findOne(Warehouses, {
-          where: { title: String(order.warehouseId) }
+          where: {
+            marketplaceInternalNumber: String(order.warehouseId),
+            marketplaceId: findMarketplace.id
+          }
         });
         if (!findWarehouse) {
           console.log('wb fbs task !findWarehouse', order.warehouseId);
