@@ -538,7 +538,6 @@ export class ItemsService {
           id: item.id,
           article: item.article,
           title: item.title,
-          category: item.category,
           ownCategory: item.ownCategory,
           image: wbListing?.imageUrl ?? '',
           color: wbListing?.color ?? '',
@@ -559,6 +558,7 @@ export class ItemsService {
             return {
               marketplaceItemId: mpItem.id,
               marketplaceTitle: mpItem.marketplace.title,
+              category: mpItem.category,
               marketplaceItemSizes: (mpItem.marketplaceItemSizes ?? []).map(el => {
                 return {
                   sizeId: el.id,
