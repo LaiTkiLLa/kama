@@ -29,3 +29,39 @@ export interface GetOrdersWb {
   gNumber: string;
   srid: string;
 }
+
+export interface GetNewFbsTasksWb {
+  orders: {
+    salePrice: number;
+    requiredMeta: [];
+    optionalMeta: string[];
+    deliveryType: string;
+    comment: string;
+    orderUid: string;
+    article: string;
+    colorCode: string;
+    rid: string;
+    createdAt: string;
+    offices: string[];
+    skus: string[];
+    id: number;
+    warehouseId: number;
+    nmId: number;
+    chrtId: number;
+    price: number;
+    convertedPrice: number;
+    currencyCode: number;
+    convertedCurrencyCode: number;
+    cargoType: number;
+    crossBorderType: number;
+    isZeroOrder: boolean;
+    options: {
+      isB2B: boolean;
+    };
+    isPickupPointShipmentAllowed: boolean;
+    officeId: number;
+    finalPrice: number;
+    convertedFinalPrice: number;
+  }[];
+  next: number;
+}
