@@ -10,6 +10,7 @@ import { CreateProductDto } from './dto/create-product.dto';
 import { ProductCreationService } from './product-creation/product-creation.service';
 import { UpdateArrayErpItemsSuppliersListDto } from './dto/update-erp-items-suppliers-list.dto';
 import { AddItemToSupplierDto } from './dto/add-item-to-supplier.dto';
+import { UpdateErpInfoDto } from './dto/update-erp-info.dto';
 
 @Controller('items')
 export class ItemsController {
@@ -66,6 +67,11 @@ export class ItemsController {
     @Query() getErpItemsListDto: GetErpItemsListDto
   ) {
     return this.itemsService.getSuppliersItemsErpList(getErpItemsListDto);
+  }
+
+  @Patch('erp/list')
+  async updateItemsList(@Headers('api-key') apiKey: string, @Body() updateErpInfoDto: UpdateErpInfoDto) {
+    return this.itemsService.updateItemsList(updateErpInfoDto);
   }
 
   @Patch('erp/suppliers-items/list')

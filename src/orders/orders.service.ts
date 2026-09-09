@@ -5,7 +5,7 @@ import axios from 'axios';
 import { GetOrdersFbsOzon, GetOrdersOzonV2, GetOrdersResult } from './interfaces/get-orders-ozon.interface';
 import { ItemsService } from '../items/items.service';
 import { InfoService } from '../info/info.service';
-import { GetOrdersWb } from './interfaces/get-orders-wb.interface';
+import { GetNewFbsTasksWb, GetOrdersWb } from './interfaces/get-orders-wb.interface';
 import {
   GetOrdersYandex,
   GetOrdersYandexV2,
@@ -530,7 +530,6 @@ export class OrdersService {
             OrdersV2,
             { id: findOrder.id },
             {
-              quantity: 1,
               price: order.finishedPrice,
               oldPrice: order.totalPrice,
               payout: order.finishedPrice,
@@ -538,11 +537,9 @@ export class OrdersService {
               discountPercent: order.discountPercent,
               commissionPercent: order.spp,
               commissionValue: Number((order.spp * order.priceWithDisc).toFixed(2)),
-              clusterFrom: order.warehouseName,
               clusterTo: order.oblastOkrugName,
               cancelReasonId: order.isCancel ? 999 : undefined,
               city: order.regionName,
-              warehouseId: findWarehouse.id,
               marketplaceId: findMarketplace.id,
               marketplaceCreatedAt: new Date(order.date + '+03:00')
             }
@@ -552,6 +549,165 @@ export class OrdersService {
     } catch (error) {
       this.logger.error(error);
       this.logger.error('Не смог получить заказы WB');
+    } finally {
+      await queryRunner.release();
+    }
+    return;
+  }
+
+  @Cron('0 50 * * * *')
+  async getWbFbsTasks() {
+    const apiToken = this.configService.get<string>('wbToken');
+    const urlOrders = 'https://marketplace-api.wildberries.ru/api/v3/orders/new';
+    const response = await axios.get<GetNewFbsTasksWb>(urlOrders, {
+      params: {},
+      headers: {
+        Authorization: apiToken
+      }
+    });
+    const findMarketplace = await this.infoService.findMarketplace({ title: 'WB' });
+    if (!findMarketplace) {
+      this.logger.error('WB не найден среди МП. Не удалось получить новые сборочные задания');
+      return;
+    }
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    try {
+      for (const order of response.data.orders) {
+        const findWarehouse = await queryRunner.manager.findOne(Warehouses, {
+          where: { title: String(order.warehouseId) }
+        });
+        if (!findWarehouse) {
+          console.log('wb fbs task !findWarehouse', order.warehouseId);
+          continue;
+        }
+        const findMarketplaceItem = await queryRunner.manager
+          .createQueryBuilder(MarketplaceItems, 'mpItems')
+          .leftJoinAndSelect('mpItems.item', 'item')
+          .where('mpItems.marketplaceId = :marketplaceId', { marketplaceId: findMarketplace.id })
+          .andWhere('mpItems.marketplaceIdentifier = :marketplaceIdentifier', {
+            marketplaceIdentifier: String(order.nmId)
+          })
+          .getOne();
+        if (!findMarketplaceItem) {
+          continue;
+        }
+        const findOrder = await queryRunner.manager.findOne(OrdersV2, {
+          where: {
+            marketplaceOrderIdentification: order.rid,
+            marketplaceItemId: findMarketplaceItem.id
+          }
+        });
+        if (!findOrder) {
+          continue;
+        }
+
+        await queryRunner.manager.update(
+          OrdersV2,
+          { id: findOrder.id },
+          {
+            warehouseId: findWarehouse.id,
+            clusterFrom: findWarehouse.title
+          }
+        );
+      }
+    } catch (error) {
+      this.logger.error(error);
+      this.logger.error('Не смог получить новые задания на сборку');
+    } finally {
+      await queryRunner.release();
+    }
+    return;
+  }
+
+  @Cron('0 50 * * * *')
+  async getWbFbsArchiveTasks() {
+    const apiToken = this.configService.get<string>('wbToken');
+    const urlOrders = 'https://marketplace-api.wildberries.ru/api/v3/orders/new';
+    const findMarketplace = await this.infoService.findMarketplace({ title: 'WB' });
+    if (!findMarketplace) {
+      this.logger.error('WB не найден среди МП. Не удалось получить архивные сборочные задания');
+      return;
+    }
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    let hasMoreData = true;
+    let next = 0;
+    const ordersResult: {
+      rid: string;
+      nmId: string;
+      warehouseId: number;
+    }[] = [];
+    try {
+      while (hasMoreData) {
+        const response = await axios.get<GetNewFbsTasksWb>(urlOrders, {
+          params: {
+            next,
+            limit: 1000
+          },
+          headers: {
+            Authorization: apiToken
+          }
+        });
+        if (!response.data.orders.length) {
+          hasMoreData = false;
+          break;
+        }
+        for (const order of response.data.orders) {
+          ordersResult.push({
+            rid: order.rid,
+            nmId: String(order.nmId),
+            warehouseId: order.warehouseId
+          });
+        }
+        if (response.data.next) {
+          hasMoreData = true;
+          next = response.data.next;
+        } else {
+          hasMoreData = false;
+        }
+      }
+      for (const order of ordersResult) {
+        const findWarehouse = await queryRunner.manager.findOne(Warehouses, {
+          where: { title: String(order.warehouseId) }
+        });
+        if (!findWarehouse) {
+          console.log('wb fbs task !findWarehouse', order.warehouseId);
+          continue;
+        }
+        const findMarketplaceItem = await queryRunner.manager
+          .createQueryBuilder(MarketplaceItems, 'mpItems')
+          .leftJoinAndSelect('mpItems.item', 'item')
+          .where('mpItems.marketplaceId = :marketplaceId', { marketplaceId: findMarketplace.id })
+          .andWhere('mpItems.marketplaceIdentifier = :marketplaceIdentifier', {
+            marketplaceIdentifier: order.nmId
+          })
+          .getOne();
+        if (!findMarketplaceItem) {
+          continue;
+        }
+        const findOrder = await queryRunner.manager.findOne(OrdersV2, {
+          where: {
+            marketplaceOrderIdentification: order.rid,
+            marketplaceItemId: findMarketplaceItem.id
+          }
+        });
+        if (!findOrder) {
+          continue;
+        }
+
+        await queryRunner.manager.update(
+          OrdersV2,
+          { id: findOrder.id },
+          {
+            warehouseId: findWarehouse.id,
+            clusterFrom: findWarehouse.title
+          }
+        );
+      }
+    } catch (error) {
+      this.logger.error(error);
+      this.logger.error('Не смог получить архивные задания на сборку');
     } finally {
       await queryRunner.release();
     }

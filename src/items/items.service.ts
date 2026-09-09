@@ -34,6 +34,7 @@ import { UpdateErpLogisticInfoDto } from './dto/update-erp-logistic-info.dto';
 import { MarketplaceCategories } from '../info/entities/marketplace-categories.entity';
 import { UpdateArrayErpItemsSuppliersListDto } from './dto/update-erp-items-suppliers-list.dto';
 import { AddItemToSupplierDto } from './dto/add-item-to-supplier.dto';
+import { UpdateErpInfoDto } from './dto/update-erp-info.dto';
 
 @Injectable()
 export class ItemsService {
@@ -856,6 +857,45 @@ export class ItemsService {
     } catch (error) {
       this.logger.error(error);
       this.logger.error('Не смог обновить справочник товаров');
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  async updateItemsList(updateErpInfoDto: UpdateErpInfoDto) {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    try {
+      const findItems = await queryRunner.manager
+        .createQueryBuilder(Items, 'items')
+        .where('items.id IN (:...ids)', { ids: updateErpInfoDto.items.map(item => item.id) })
+        .getMany();
+
+      if (findItems.length !== updateErpInfoDto.items.length) {
+        throw new NotFoundException('Не все товары найдены');
+      }
+
+      const itemsMap = new Map(findItems.map(item => [item.id, item]));
+
+      for (const item of updateErpInfoDto.items) {
+        const existingItem = itemsMap.get(item.id);
+
+        if (!existingItem?.createdForCalculation) {
+          continue;
+        }
+        await queryRunner.manager.update(
+          Items,
+          { id: item.id },
+          {
+            category: item.category
+          }
+        );
+      }
+      return { success: true };
+    } catch (error) {
+      this.logger.error(error);
+      this.logger.error('Не смог обновить информацию по товарам');
       throw error;
     } finally {
       await queryRunner.release();
