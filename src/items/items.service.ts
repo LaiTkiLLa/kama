@@ -527,6 +527,8 @@ export class ItemsService {
         )
         .leftJoinAndSelect('marketplaceItems.marketplace', 'marketplace')
         .where('items.isArchive = :isArchive', { isArchive: false });
+
+      console.log(getErpItemsListDto.withTestArticles);
       if (getErpItemsListDto.withTestArticles === false) {
         queryBuilder.andWhere('items.createdForCalculation = :createdForCalculation', {
           createdForCalculation: false
@@ -869,14 +871,10 @@ export class ItemsService {
     try {
       const ids = updateErpInfoDto.items.map(item => item.id);
 
-      console.log('ids', ids);
-
       const findItems = await queryRunner.manager
         .createQueryBuilder(Items, 'items')
         .where('items.id IN (:...ids)', { ids })
         .getMany();
-
-      console.log('findItems', findItems.length);
 
       if (findItems.length !== ids.length) {
         throw new NotFoundException('Не все товары найдены');
