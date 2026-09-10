@@ -643,6 +643,7 @@ export class OrdersService {
     }[] = [];
     try {
       while (hasMoreData) {
+        await new Promise(resolve => setTimeout(resolve, 5000));
         const response = await axios.get<GetNewFbsTasksWb>(urlOrders, {
           params: {
             next,
