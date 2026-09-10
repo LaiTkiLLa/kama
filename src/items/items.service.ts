@@ -867,12 +867,18 @@ export class ItemsService {
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     try {
+      const ids = updateErpInfoDto.items.map(item => item.id);
+
+      console.log('ids', ids);
+
       const findItems = await queryRunner.manager
         .createQueryBuilder(Items, 'items')
-        .where('items.id IN (:...ids)', { ids: updateErpInfoDto.items.map(item => item.id) })
+        .where('items.id IN (:...ids)', { ids })
         .getMany();
 
-      if (findItems.length !== updateErpInfoDto.items.length) {
+      console.log('findItems', findItems.length);
+
+      if (findItems.length !== ids.length) {
         throw new NotFoundException('Не все товары найдены');
       }
 
