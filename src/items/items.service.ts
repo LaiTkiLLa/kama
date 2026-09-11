@@ -528,10 +528,10 @@ export class ItemsService {
         .leftJoinAndSelect('marketplaceItems.marketplace', 'marketplace')
         .where('items.isArchive = :isArchive', { isArchive: false });
 
-      console.log(getErpItemsListDto.withTestArticles);
-      if (getErpItemsListDto.withTestArticles === false) {
+      // withTestArticles: не передан → все товары; true → только тестовые; false → только реальные
+      if (typeof getErpItemsListDto.withTestArticles === 'boolean') {
         queryBuilder.andWhere('items.createdForCalculation = :createdForCalculation', {
-          createdForCalculation: false
+          createdForCalculation: getErpItemsListDto.withTestArticles
         });
       }
       const findItems = await queryBuilder.orderBy('items.id', 'ASC').getMany();
