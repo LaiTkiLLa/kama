@@ -527,6 +527,8 @@ export class ItemsService {
         )
         .leftJoinAndSelect('marketplaceItems.marketplace', 'marketplace')
         .where('items.isArchive = :isArchive', { isArchive: false });
+
+      console.log(getErpItemsListDto.withTestArticles);
       if (getErpItemsListDto.withTestArticles === false) {
         queryBuilder.andWhere('items.createdForCalculation = :createdForCalculation', {
           createdForCalculation: false
@@ -866,40 +868,51 @@ export class ItemsService {
   async updateItemsList(updateErpInfoDto: UpdateErpInfoDto) {
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
+    await queryRunner.startTransaction();
     try {
-      const ids = updateErpInfoDto.items.map(item => item.id);
+      const mpItemsId = updateErpInfoDto.items.map(item => item.mpItemId);
 
-      console.log('ids', ids);
-
-      const findItems = await queryRunner.manager
-        .createQueryBuilder(Items, 'items')
-        .where('items.id IN (:...ids)', { ids })
+      const findMpItems = await queryRunner.manager
+        .createQueryBuilder(MarketplaceItems, 'mpItems')
+        .leftJoinAndSelect('mpItems.item', 'item')
+        .where('mpItems.id IN (:...ids)', { ids: mpItemsId })
         .getMany();
 
-      console.log('findItems', findItems.length);
-
-      if (findItems.length !== ids.length) {
+      if (findMpItems.length !== mpItemsId.length) {
         throw new NotFoundException('Не все товары найдены');
       }
 
-      const itemsMap = new Map(findItems.map(item => [item.id, item]));
+      const mpItemsMap = new Map(findMpItems.map(mpItem => [mpItem.id, mpItem]));
 
-      for (const item of updateErpInfoDto.items) {
-        const existingItem = itemsMap.get(item.id);
-
-        if (!existingItem?.createdForCalculation || item.category === undefined) {
+      for (const dtoItem of updateErpInfoDto.items) {
+        const existingMpItem = mpItemsMap.get(dtoItem.mpItemId);
+        if (!existingMpItem) {
           continue;
         }
-        await queryRunner.manager.update(
-          Items,
-          { id: item.id },
-          {
-            category: item.category
-          }
-        );
+
+        // marketplace-specific: категория listing. Для реальных товаров приходит из sync МП,
+        // поэтому руками правим только тестовые (createdForCalculation).
+        if (existingMpItem.item?.createdForCalculation && dtoItem.category !== undefined) {
+          await queryRunner.manager.update(
+            MarketplaceItems,
+            { id: existingMpItem.id },
+            { category: dtoItem.category }
+          );
+        }
+
+        // marketplace-independent: собственная категория на items
+        if (dtoItem.ownCategory !== undefined) {
+          await queryRunner.manager.update(
+            Items,
+            { id: existingMpItem.itemId },
+            { ownCategory: dtoItem.ownCategory }
+          );
+        }
       }
+      await queryRunner.commitTransaction();
       return { success: true };
     } catch (error) {
+      await queryRunner.rollbackTransaction();
       this.logger.error(error);
       this.logger.error('Не смог обновить информацию по товарам');
       throw error;

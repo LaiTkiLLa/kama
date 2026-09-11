@@ -11,11 +11,15 @@ import {
 
 export class ItemInfoDto {
   @IsNumber()
-  id: number;
+  mpItemId: number;
 
   @IsString()
   @IsOptional()
   category: string;
+
+  @IsString()
+  @IsOptional()
+  ownCategory: string;
 }
 
 export class UpdateErpInfoDto {
