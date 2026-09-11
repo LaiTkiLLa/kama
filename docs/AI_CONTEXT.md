@@ -70,7 +70,7 @@ Yandex Tamov: cards/stocks/orders/stop-list PATCH/trash ✔.
 | Warehouse FK RESTRICT | ✔ `1789430000000` (`orders_v2` + `stocks` → `warehouses`) |
 | Yandex listing dedup | one-off `scripts/dedup-yandex-marketplace-items.ts` (keep = актуальный `marketSku`); unique index ещё нет |
 | **Мой склад FBS (WB)** | schema ✔ `1789450000000` (mappings / item_links / outbox); client + stock push + worker — дальше; Ozon позже. См. [`roadmap/moysklad-fbs.md`](roadmap/moysklad-fbs.md) |
-| **In-app LLM agent** | spike: `POST /api/ai/chat`, DeepSeek (`DEEPSEEK_API_KEY`), tools `get_order_statistics` / `get_order_statistics_by_marketplace` → `orders_v2`; zod-валидация аргументов (`AiToolExecutor`; даты — `z.iso.datetime({ local: true, offset: true })`). Auth / лимиты / multi-turn — backlog. См. [`ai/in-app-agent.md`](ai/in-app-agent.md). **Не путать** с [`ai/agent-guide.md`](ai/agent-guide.md) (Cursor). |
+| **In-app LLM agent** | spike: `POST /api/ai/chat`, DeepSeek (`DEEPSEEK_API_KEY`), tools `get_order_statistics` / `get_order_statistics_by_marketplace` / `compare_order_periods` (два периода одним запросом, разницу считает LLM) → `orders_v2`; фильтры `marketplaceTitle` (общий `z.enum`), `article` (`items.article` через `marketplace_items`), склад; zod-валидация аргументов (`AiToolExecutor`; даты — `z.iso.datetime({ local: true, offset: true })`). Auth / лимиты / multi-turn — backlog. См. [`ai/in-app-agent.md`](ai/in-app-agent.md). **Не путать** с [`ai/agent-guide.md`](ai/agent-guide.md) (Cursor). |
 
 ---
 
@@ -102,6 +102,7 @@ Drop `marketplace_id` на `stocks`/`orders_v2`; force cutover без мигра
 
 | Дата | Итог |
 |------|------|
+| 2026-09-11 | AI tool `compare_order_periods` (`CompareOrderPeriodsTool`, `OrdersStatisticsService.comparePeriods`): агрегаты `orders_v2` за два периода, условные `COUNT/SUM(CASE …)` в одном запросе. Фильтр `article` во всех AI tools статистики; `marketplaceTitle` → `z.enum` (`marketplace-title.schema.ts`) |
 | 2026-09-08 | `ownImagesUrl` → `items_suppliers` (`1789460000000`); backfill на все строки связи; drop с `items`; ERP PATCH / directory read+fan-out write |
 | 2026-09-07 | Ozon FBS orders → `orders_v2`: `/v4/posting/fbs/list`, cron First (`Озон`) / Second (`Ozon Tamov`); склад по `delivery_method.warehouse_id`. Мой склад Ozon FBS по-прежнему later |
 | 2026-09-01 | AI tools → zod: `AiTool.parameters` = zod-схема (`z.toJSONSchema` для DeepSeek), `AiToolExecutor` (lookup + parse + validate), схемы в `src/ai/tools/orders/dto/`; DTO статистики из orders удалены (orders теперь типизирован от ai-схем). Tool `get_order_statistics_by_marketplace`. Telegram-спайк удалён (`src/telegram`, `nestjs-telegraf`/`telegraf`) |

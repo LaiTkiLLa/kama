@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { MarketplaceTitleSchema } from './marketplace-title.schema';
 
 export const GetOrderStatisticsSchema = z.object({
   dateFrom: z.iso.datetime({ local: true, offset: true }).describe(
@@ -13,7 +14,7 @@ export const GetOrderStatisticsSchema = z.object({
 Например, для 26 августа:
 2026-08-27T00:00:00
 Не используй 23:59:59, если можно указать начало следующего дня.`),
-  marketplaceTitle: z.string().optional().describe(`
+  marketplaceTitle: MarketplaceTitleSchema.optional().describe(`
   Каноническое название маркетплейса из базы данных.
 Допустимые значения:
 "Озон"
@@ -28,6 +29,18 @@ export const GetOrderStatisticsSchema = z.object({
 "Yandex Tamov", "Яндекс Тамов" → "Yandex Tamov"
 "Ozon Tamov", "Озон Тамов" → "Ozon Tamov"
 Если пользователь не указал маркетплейс, не передавай это поле.`),
+  article: z.string().optional().describe(`
+Артикул товара.
+
+Передавай артикул, который явно указал пользователь.
+Не изменяй значение артикула и не придумывай его.
+
+Примеры:
+"артикул 12345" → "12345"
+"по артикулу ABC-123" → "ABC-123"
+
+Если пользователь не указал артикул, не передавай это поле.
+`),
   warehouseTitle: z.string().optional().describe(`
   Название конкретного склада.
 Передавай только название, которое пользователь явно указал
