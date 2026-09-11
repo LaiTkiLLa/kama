@@ -636,6 +636,8 @@ export class OrdersService {
     await queryRunner.connect();
     let hasMoreData = true;
     let next = 0;
+    // Unix timestamp (сек), UTC: 10 дней назад от момента запроса
+    const dateFrom = Math.floor(Date.now() / 1000) - 10 * 24 * 60 * 60;
     const ordersResult: {
       rid: string;
       nmId: string;
@@ -647,7 +649,8 @@ export class OrdersService {
         const response = await axios.get<GetNewFbsTasksWb>(urlOrders, {
           params: {
             next,
-            limit: 1000
+            limit: 1000,
+            dateFrom
           },
           headers: {
             Authorization: apiToken
