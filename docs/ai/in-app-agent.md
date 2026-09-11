@@ -5,7 +5,7 @@
 
 Связанные: [`../AI_CONTEXT.md`](../AI_CONTEXT.md), [`../PROJECT_CONTEXT.md`](../PROJECT_CONTEXT.md), [`../README.md`](../README.md).
 
-Последнее обновление: 2026-09-01.
+Последнее обновление: 2026-09-11.
 
 ---
 
@@ -27,6 +27,8 @@
 | Провайдер DeepSeek (`deepseek-chat`) | ✔ |
 | Tool `get_order_statistics` → `orders_v2` | ✔ |
 | Tool `get_order_statistics_by_marketplace` → `orders_v2` | ✔ |
+| Tool `compare_order_periods` → `orders_v2` | ✔ (2026-09-11) |
+| Фильтр `article` во всех tools статистики (`orders_v2 → marketplace_items → items.article`) | ✔ (2026-09-11) |
 | Валидация аргументов tools (zod, `AiToolExecutor`) | ✔ (2026-09-01) |
 | Auth (`api-key`) на chat | □ backlog |
 | Лимит итераций tool-loop, таймаут | □ backlog |
@@ -108,7 +110,8 @@ AiService          (tool loop: LLM → execute tools → LLM …)
 │ LlmProvider (DeepseekProvider)         │  ← DEEPSEEK_API_KEY
 │ AiToolExecutor → AiToolRegistry        │  ← zod-валидация аргументов
 │   ├─ get_order_statistics              │
-│   └─ get_order_statistics_by_marketplace
+│   ├─ get_order_statistics_by_marketplace
+│   └─ compare_order_periods             │
 │         └─ OrdersStatisticsService     │  ← orders_v2
 └────────────────────────────────────────┘
 ```
@@ -122,7 +125,7 @@ AiService          (tool loop: LLM → execute tools → LLM …)
 | Executor | `src/ai/tools/ai-tool-executor.ts` | lookup tool в registry, `JSON.parse` аргументов, zod-валидация, вызов `execute` |
 | Provider | `src/ai/providers/deepseek.provider.ts` | вызов DeepSeek API |
 | Tools | `src/ai/tools/**` | контракт tool + registry |
-| Schemas | `src/ai/tools/orders/dto/*.schema.ts` | zod-схемы аргументов (source of truth для LLM и типов) |
+| Schemas | `src/ai/tools/orders/dto/*.schema.ts` | zod-схемы аргументов (source of truth для LLM и типов); общий enum маркетплейсов — `marketplace-title.schema.ts` |
 | Domain | `src/orders/services/orders-statistics.service.ts` | SQL к `orders_v2` |
 
 **DECISION (spike):** провайдер LLM отделён от tools; смена модели/вендора — через реализацию `LlmProvider`, без правок домена.
@@ -147,11 +150,16 @@ AiService          (tool loop: LLM → execute tools → LLM …)
 |------|-----|--------------|----------|
 | `dateFrom` | string (`z.iso.datetime({ local: true, offset: true })`) | да | начало периода |
 | `dateTo` | string (`z.iso.datetime({ local: true, offset: true })`) | да | конец периода (exclusive в SQL) |
-| `marketplaceTitle` | string | нет | каноническое название маркетплейса (`"Озон"`, `"WB"`, `"Yandex"`, `"Yandex Tamov"`, `"Ozon Tamov"`); нормализацию делает LLM по описанию поля |
+| `marketplaceTitle` | `MarketplaceTitleSchema` (enum `'Озон' \| 'WB' \| 'Yandex' \| 'Yandex Tamov' \| 'Ozon Tamov'`) | нет | каноническое название маркетплейса; нормализацию делает LLM по описанию поля |
+| `article` | string | нет | артикул товара (`items.article`), точное совпадение; только если явно указан пользователем |
 | `warehouseTitle` | string | нет | название конкретного склада, только если явно указан пользователем |
 | `warehouseType` | `'FBO' \| 'FBS'` | нет | тип склада («наш склад» → FBS, «склад маркетплейса» → FBO) |
 
 **FACT:** фильтр по дате — поле `marketplace_created_at` (timestamptz).
+
+**FACT (2026-09-11):** фильтр `article` — через `LEFT JOIN orders.marketplaceItem → marketplaceItem.item`, условие `item.article = :article` (строгое равенство, без `ILIKE`/trim). Join'ы добавлены безусловно (many-to-one, строки не размножают); заказы без `marketplace_item_id` при фильтре по артикулу отсекаются. Аналогично в `get_order_statistics_by_marketplace` и `compare_order_periods`.
+
+**DECISION (2026-09-11):** `marketplaceTitle` во всех схемах — `z.enum` из общего `MarketplaceTitleSchema` (`src/ai/tools/orders/dto/marketplace-title.schema.ts`), а не `z.string()`: нераспознанное название отклоняется на валидации, а не уходит в SQL пустым результатом. Список значений — `MARKETPLACE_TITLES`; при добавлении кабинета менять там.
 
 **FACT:** отменённые заказы **не исключаются** (как в части существующей логики `getOrders`). При интерпретации цифр агентом учитывать.
 
@@ -161,9 +169,34 @@ AiService          (tool loop: LLM → execute tools → LLM …)
 
 **FACT:** количество заказов в разрезе маркетплейсов за период; без фильтров по складу/маркетплейсу.
 
-Параметры (zod-схема `GetOrdersStatisticsByMarketplaceSchema`): `dateFrom`, `dateTo` — оба обязательные, `z.iso.datetime({ local: true, offset: true })`.
+Параметры (zod-схема `GetOrdersStatisticsByMarketplaceSchema`): `dateFrom`, `dateTo` — оба обязательные, `z.iso.datetime({ local: true, offset: true })`; `article` — опциональный, string (см. `get_order_statistics`).
 
 **FACT (fixed, 2026-09-01):** изначально схемы использовали `z.iso.date()` (только `YYYY-MM-DD`), тогда как описания велят LLM передавать `2026-08-26T00:00:00` — валидация падала бы на каждом вызове. Исправлено на `z.iso.datetime({ local: true, offset: true })`: принимает локальное время без зоны, со смещением и `Z`. Date-only строки (`2026-08-26`) **не** принимаются — описания требуют полный datetime.
+
+### `compare_order_periods`
+
+**FACT:** сравнение агрегатов `orders_v2` за два периода одним SQL-запросом: `OrdersStatisticsService.comparePeriods` возвращает `{ period1: OrderStatistics; period2: OrderStatistics }` — для каждого периода `ordersCount`, `totalQuantity`, `totalPrice`, `totalPayout` (тот же набор, что у `get_order_statistics`).
+
+Файлы: tool `src/ai/tools/orders/compare-order-periods.tool.ts` (`CompareOrderPeriodsTool`), схема `src/ai/tools/orders/dto/compare-order-periods.schema.ts` (`CompareOrderPeriodsSchema`).
+
+Параметры:
+
+| Поле | Тип | Обязательное | Описание |
+|------|-----|--------------|----------|
+| `period1DateFrom` | `z.iso.datetime({ local: true, offset: true })` | да | начало первого периода (inclusive) |
+| `period1DateTo` | `z.iso.datetime({ local: true, offset: true })` | да | конец первого периода (exclusive) |
+| `period2DateFrom` | `z.iso.datetime({ local: true, offset: true })` | да | начало второго периода (inclusive) |
+| `period2DateTo` | `z.iso.datetime({ local: true, offset: true })` | да | конец второго периода (exclusive) |
+| `marketplaceTitle` | `MarketplaceTitleSchema` (enum) | нет | общий фильтр для обоих периодов |
+| `article` | string | нет | общий фильтр для обоих периодов (`items.article`, точное совпадение) |
+| `warehouseTitle` | string | нет | общий фильтр для обоих периодов |
+| `warehouseType` | `'FBO' \| 'FBS'` | нет | общий фильтр для обоих периодов |
+
+**DECISION:** порядок периодов задаёт пользователь, backend его не меняет: «сравни август с июлем» → `period1` = август, `period2` = июль. Периоды могут быть разной длины и могут пересекаться — заказ из пересечения учитывается в обоих.
+
+**DECISION:** разницу / процент изменения считает LLM, не backend. Формула в description tool: `(period1 − period2) / period2 × 100`; при `period2 = 0` процент не считается, сравнение по абсолютным значениям.
+
+**FACT:** реализация — один запрос с условными агрегатами (`COUNT(CASE …)` / `SUM(CASE …)`) по `marketplace_created_at`, `WHERE` ограничен объединением обоих интервалов. Фильтры по маркетплейсу/складу/артикулу — те же, что в `get_order_statistics` (`marketplace.title`, `warehouse.title`, `warehouse.type`, `item.article`). Отменённые заказы не исключаются; замечание про TZ из `get_order_statistics` применимо.
 
 ---
 
@@ -200,5 +233,6 @@ AiService          (tool loop: LLM → execute tools → LLM …)
 
 | Дата | Итог |
 |------|------|
+| 2026-09-11 | Tool `compare_order_periods` (`CompareOrderPeriodsTool`, `OrdersStatisticsService.comparePeriods`): агрегаты за два периода одним запросом; сравнение/проценты — на стороне LLM. Фильтр `article` во всех трёх tools (`orders_v2 → marketplace_items → items.article`). `marketplaceTitle` → общий `z.enum` (`marketplace-title.schema.ts`) |
 | 2026-09-01 | Zod-валидация аргументов tools: `AiTool.parameters: z.ZodType`, `AiToolExecutor`, схемы в `src/ai/tools/orders/dto/`; JSON Schema через `z.toJSONSchema`; DTO в orders удалены. Tool `get_order_statistics_by_marketplace`. Удалён Telegram-спайк (`src/telegram`, deps `nestjs-telegraf`/`telegraf`) |
 | 2026-08-28 | Spike: `AiModule`, DeepSeek, `POST /api/ai/chat`, tool `get_order_statistics` |

@@ -8,6 +8,7 @@ import { DeepSeekToolMapper } from './providers/deepseek/deepseek-tool.mapper';
 import { OrdersModule } from '../orders/orders.module';
 import { GetOrderStatisticsByMarketplaceTool } from './tools/orders/get-order-statistics-by-marketplace.tool';
 import { AiToolExecutor } from './tools/ai-tool-executor';
+import { CompareOrderPeriodsTool } from './tools/orders/compare-order-periods.tool';
 
 @Module({
   imports: [OrdersModule],
@@ -22,16 +23,19 @@ import { AiToolExecutor } from './tools/ai-tool-executor';
     },
     GetOrderStatisticsTool,
     GetOrderStatisticsByMarketplaceTool,
+    CompareOrderPeriodsTool,
     {
       provide: AiToolRegistry,
-      inject: [GetOrderStatisticsTool, GetOrderStatisticsByMarketplaceTool],
+      inject: [GetOrderStatisticsTool, GetOrderStatisticsByMarketplaceTool, CompareOrderPeriodsTool],
       useFactory: (
         getOrderStatisticsTool: GetOrderStatisticsTool,
-        getOrderStatisticsByMarketplaceTool: GetOrderStatisticsByMarketplaceTool
+        getOrderStatisticsByMarketplaceTool: GetOrderStatisticsByMarketplaceTool,
+        compareOrderPeriodsTool: CompareOrderPeriodsTool
       ) => {
         const registry = new AiToolRegistry();
         registry.register(getOrderStatisticsTool);
         registry.register(getOrderStatisticsByMarketplaceTool);
+        registry.register(compareOrderPeriodsTool);
         return registry;
       }
     },
