@@ -134,7 +134,7 @@ Response ERP (FACT, 2026-08-13, logistics 2026-08-18):
 - с `items`: `id`, `article`, `title`, `category`, `ownCategory`, `consolidation`, `fullfillmentAcceptance`, `marketplaceAcceptance`, `daysDeliveryToRussia`, `transportRateUsd`, `dutyPercentage`, `costCalculationType`, `calculationType`, `downloadCalculationMethod`, `transportType`, `deliveryMethod`
 - с активного listing выбранного MP (`deletedAt IS NULL`): `image`, `color`, `barcode`, `chrtId`
 - query: `marketplace` optional, default `'WB'` (`Озон` / `WB` / `Yandex` / `Ozon Tamov` / `Yandex Tamov`)
-- filter: `isArchive = false`; optional `withTestArticles=false` → exclude `createdForCalculation`
+- filter: `isArchive = false`; optional `withTestArticles`: не передан → все товары, `true` → только `createdForCalculation`, `false` → только реальные
 - объём ~400 rows — pagination не требуется (**FACT**, владелец)
 
 **PATCH `/api/items/erp/logistics-info` (FACT, 2026-08-18):** батч partial update логистики. Body `{ items: [{ id, …fields }] }`, `id` = PK `items`. Поля: `consolidation`, `daysDeliveryToRussia`, `fullfillmentAcceptance`, `marketplaceAcceptance`, `costCalculationType`, `downloadCalculationMethod`, `calculationType`, `transportType`, `deliveryMethod`. Новые колонки `transport_type` / `delivery_method` — миграция `1789390000000`. Directory PATCH эти два поля пока не пишет.
