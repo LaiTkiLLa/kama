@@ -5,6 +5,7 @@ import { InfoModule } from '../info/info.module';
 import { ProductCreationService } from './product-creation/product-creation.service';
 import { WbCardPublisher } from './product-creation/publishers/wb-card-publisher.service';
 import { MARKETPLACE_CARD_PUBLISHERS } from './product-creation/publishers/marketplace-card-publisher.interface';
+import { ItemsAiToolsService } from './services/items-ai-tools.service';
 
 @Module({
   imports: [InfoModule],
@@ -16,9 +17,10 @@ import { MARKETPLACE_CARD_PUBLISHERS } from './product-creation/publishers/marke
       provide: MARKETPLACE_CARD_PUBLISHERS,
       useFactory: (wbCardPublisher: WbCardPublisher) => [wbCardPublisher],
       inject: [WbCardPublisher]
-    }
+    },
+    ItemsAiToolsService
   ],
   controllers: [ItemsController],
-  exports: [ItemsService]
+  exports: [ItemsService, ItemsAiToolsService]
 })
 export class ItemsModule {}

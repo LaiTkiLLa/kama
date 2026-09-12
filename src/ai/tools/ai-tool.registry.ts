@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { AiTool } from './orders/ai-tool.interface';
+import { AiTool } from './ai-tool.interface';
 
 @Injectable()
 export class AiToolRegistry {

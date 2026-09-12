@@ -70,7 +70,7 @@ Yandex Tamov: cards/stocks/orders/stop-list PATCH/trash ✔.
 | Warehouse FK RESTRICT | ✔ `1789430000000` (`orders_v2` + `stocks` → `warehouses`) |
 | Yandex listing dedup | one-off `scripts/dedup-yandex-marketplace-items.ts` (keep = актуальный `marketSku`); unique index ещё нет |
 | **Мой склад FBS (WB)** | schema ✔ `1789450000000` (mappings / item_links / outbox); client + stock push + worker — дальше; Ozon позже. См. [`roadmap/moysklad-fbs.md`](roadmap/moysklad-fbs.md) |
-| **In-app LLM agent** | spike: `POST /api/ai/chat`, DeepSeek (`DEEPSEEK_API_KEY`), tools `get_order_statistics` / `get_order_statistics_by_marketplace` / `compare_order_periods` (два периода одним запросом, разницу считает LLM) → `orders_v2`; фильтры `marketplaceTitle` (общий `z.enum`), `article` (`items.article` через `marketplace_items`), склад; zod-валидация аргументов (`AiToolExecutor`; даты — `z.iso.datetime({ local: true, offset: true })`). Auth / лимиты / multi-turn — backlog. См. [`ai/in-app-agent.md`](ai/in-app-agent.md). **Не путать** с [`ai/agent-guide.md`](ai/agent-guide.md) (Cursor). |
+| **In-app LLM agent** | spike: `POST /api/ai/chat`, DeepSeek (`DEEPSEEK_API_KEY`), tools `get_order_statistics` / `get_order_statistics_by_marketplace` / `compare_order_periods` (два периода одним запросом, разницу считает LLM) → `orders_v2`; фильтры `marketplaceTitle` (общий `z.enum`), `article` (`items.article` через `marketplace_items`), склад; zod-валидация аргументов (`AiToolExecutor`; даты — `z.iso.datetime({ local: true, offset: true })`). Write-tool `create_test_item` (2026-09-12) → `ItemsAiToolsService.createTestItem` (отдельный сервис, `ItemsService` не менялся): расчётный товар (`created_for_calculation`) с габаритами/категорией; write-tools на реальные данные — по-прежнему без плана нельзя. Auth / лимиты / multi-turn — backlog. См. [`ai/in-app-agent.md`](ai/in-app-agent.md). **Не путать** с [`ai/agent-guide.md`](ai/agent-guide.md) (Cursor). |
 
 ---
 
@@ -102,6 +102,7 @@ Drop `marketplace_id` на `stocks`/`orders_v2`; force cutover без мигра
 
 | Дата | Итог |
 |------|------|
+| 2026-09-12 | AI tool `create_test_item` (`CreateTestItemTool`, первый write-tool): отдельный `ItemsAiToolsService.createTestItem` (`src/items/services/`, в `ItemsModule.exports`) принимает габариты (строки см/кг, regex-валидация) и категорию → `items.category` + `marketplace_items.category`/`dimensions`/`volume` (WB — ceil габаритов, Ozon — фактические); возвращает `{ id, article }`. Legacy `POST /api/items` / `ItemsService.createTestItem` не менялись. `AiTool` interface перенесён в `src/ai/tools/ai-tool.interface.ts` |
 | 2026-09-11 | AI tool `compare_order_periods` (`CompareOrderPeriodsTool`, `OrdersStatisticsService.comparePeriods`): агрегаты `orders_v2` за два периода, условные `COUNT/SUM(CASE …)` в одном запросе. Фильтр `article` во всех AI tools статистики; `marketplaceTitle` → `z.enum` (`marketplace-title.schema.ts`) |
 | 2026-09-08 | `ownImagesUrl` → `items_suppliers` (`1789460000000`); backfill на все строки связи; drop с `items`; ERP PATCH / directory read+fan-out write |
 | 2026-09-07 | Ozon FBS orders → `orders_v2`: `/v4/posting/fbs/list`, cron First (`Озон`) / Second (`Ozon Tamov`); склад по `delivery_method.warehouse_id`. Мой склад Ozon FBS по-прежнему later |
