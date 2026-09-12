@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { AiTool } from './ai-tool.interface';
+import { AiTool } from '../ai-tool.interface';
 import { OrdersStatisticsService } from '../../../orders/services/orders-statistics.service';
 import { GetOrderStatisticsSchema } from './dto/get-order-statistics.schema';
 
