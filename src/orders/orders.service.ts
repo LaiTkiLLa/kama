@@ -19,6 +19,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { Warehouses } from '../info/entities/warehouses.entity';
 import { OrdersV2 } from './entities/orders_v2.entity';
 import { MarketplaceItems } from '../items/entities/marketplace-items.entity';
+import { GetOrdersListDto } from './dto/get-orders-list.dto';
 
 interface ItemOrdersStats {
   marketplace_item_id: string;
@@ -103,6 +104,45 @@ export class OrdersService {
     } catch (error) {
       this.logger.error(error);
       this.logger.error('Не смог получить остатки и заказы');
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  async getOrdersList(getOrdersListDto: GetOrdersListDto) {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    try {
+      const prevDays = this.daysAgo(30);
+      const orders = await this.dataSource.manager
+        .createQueryBuilder(OrdersV2, 'orders')
+        .leftJoinAndSelect('orders.marketplace', 'marketplace')
+        .leftJoinAndSelect('orders.marketplaceItem', 'marketplaceItem')
+        .leftJoinAndSelect('orders.warehouse', 'warehouse')
+        .where('orders.marketplaceCreatedAt >= :prevDays', {
+          prevDays
+        })
+        .andWhere('marketplace.title = :marketplaceTitle', { marketplaceTitle: getOrdersListDto.marketplace })
+        .getMany();
+      return orders.map(order => {
+        return {
+          date: order.marketplaceCreatedAt,
+          marketplaceOrderIdentification: order.marketplaceOrderIdentification,
+          marketplaceOrderNumber: order.marketplaceOrderNumber,
+          itemBarcode: order.marketplaceItem.barcode,
+          quantity: order.quantity,
+          warehouse: {
+            title: order.warehouse.title,
+            type: order.warehouse.type
+          },
+          isCancelled: order.cancelReasonId ? true : false,
+          clusterTo: order.clusterTo
+        };
+      });
+    } catch (error) {
+      this.logger.error(error);
+      this.logger.error('Не смог получить список заказов');
       throw error;
     } finally {
       await queryRunner.release();
@@ -443,7 +483,7 @@ export class OrdersService {
     const urlOrders = 'https://statistics-api.wildberries.ru/api/v1/supplier/orders';
     const response = await axios.get<GetOrdersWb[]>(urlOrders, {
       params: {
-        dateFrom: tenDaysAgo,
+        dateFrom: '2025-12-10T00:00:00Z',
         flag: 0
       },
       headers: {
@@ -504,7 +544,7 @@ export class OrdersService {
           }
           const createOrder = queryRunner.manager.create(OrdersV2, {
             marketplaceOrderIdentification: order.srid,
-            marketplaceOrderNumber: order.srid,
+            marketplaceOrderNumber: order.gNumber,
             marketplaceOrderPostingNumber: String(order.incomeID),
             quantity: 1,
             price: order.finishedPrice,
@@ -530,6 +570,7 @@ export class OrdersService {
             OrdersV2,
             { id: findOrder.id },
             {
+              marketplaceOrderNumber: order.gNumber,
               price: order.finishedPrice,
               oldPrice: order.totalPrice,
               payout: order.finishedPrice,
