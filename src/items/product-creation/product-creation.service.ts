@@ -11,7 +11,6 @@ import {
   MARKETPLACE_CARD_PUBLISHERS,
   MarketplaceCardPublisher
 } from './publishers/marketplace-card-publisher.interface';
-import { AddItemToSupplierDto } from '../dto/add-item-to-supplier.dto';
 
 @Injectable()
 export class ProductCreationService {
@@ -80,7 +79,7 @@ export class ProductCreationService {
     };
   }
 
-  @Cron('0 */1 * * * *')
+  // @Cron('0 */1 * * * *')
   async createMpItems() {
     for (const publisher of this.marketplacePublishers) {
       await this.processPublisherRequests(publisher);

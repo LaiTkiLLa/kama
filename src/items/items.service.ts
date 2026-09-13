@@ -510,6 +510,7 @@ export class ItemsService {
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     try {
+      console.log('getItemsErpList', new Date());
       const queryBuilder = queryRunner.manager
         .createQueryBuilder(Items, 'items')
         .leftJoinAndSelect(
