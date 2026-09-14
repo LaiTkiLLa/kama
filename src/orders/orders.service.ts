@@ -20,6 +20,7 @@ import { Warehouses } from '../info/entities/warehouses.entity';
 import { OrdersV2 } from './entities/orders_v2.entity';
 import { MarketplaceItems } from '../items/entities/marketplace-items.entity';
 import { GetOrdersListDto } from './dto/get-orders-list.dto';
+import { Marketplaces } from '../info/entities/marketplaces.entity';
 
 interface ItemOrdersStats {
   marketplace_item_id: string;
@@ -670,15 +671,10 @@ export class OrdersService {
     return;
   }
 
-  // @Cron('0 55 * * * *')
+  @Cron('0 55 * * * *')
   async getWbFbsArchiveTasks() {
     const apiToken = this.configService.get<string>('wbToken');
     const urlOrders = 'https://marketplace-api.wildberries.ru/api/v3/orders';
-    const findMarketplace = await this.infoService.findMarketplace({ title: 'WB' });
-    if (!findMarketplace) {
-      this.logger.error('WB не найден среди МП. Не удалось получить архивные сборочные задания');
-      return;
-    }
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     let hasMoreData = true;
@@ -691,6 +687,15 @@ export class OrdersService {
       warehouseId: number;
     }[] = [];
     try {
+      const findMarketplace = await queryRunner.manager.findOne(Marketplaces, {
+        where: {
+          title: 'WB'
+        }
+      });
+      if (!findMarketplace) {
+        this.logger.error('WB не найден среди МП. Не удалось получить архивные сборочные задания');
+        return;
+      }
       while (hasMoreData) {
         await new Promise(resolve => setTimeout(resolve, 5000));
         const response = await axios.get<GetNewFbsTasksWb>(urlOrders, {

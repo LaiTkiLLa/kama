@@ -1937,7 +1937,8 @@ export class ItemsService {
                 volume: volumeOzon,
                 title: item.name,
                 imageUrl: item.primary_image,
-                category
+                category,
+                barcode: item.barcode
               }
             );
           }
