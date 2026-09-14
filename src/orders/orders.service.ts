@@ -115,28 +115,34 @@ export class OrdersService {
     await queryRunner.connect();
     try {
       const prevDays = this.daysAgo(30);
-      const orders = await this.dataSource.manager
+      const orders = await queryRunner.manager
         .createQueryBuilder(OrdersV2, 'orders')
         .leftJoinAndSelect('orders.marketplace', 'marketplace')
         .leftJoinAndSelect('orders.marketplaceItem', 'marketplaceItem')
+        .leftJoinAndSelect('marketplaceItem.item', 'item')
         .leftJoinAndSelect('orders.warehouse', 'warehouse')
         .where('orders.marketplaceCreatedAt >= :prevDays', {
           prevDays
         })
         .andWhere('marketplace.title = :marketplaceTitle', { marketplaceTitle: getOrdersListDto.marketplace })
+        .orderBy('orders.marketplaceCreatedAt', 'ASC')
         .getMany();
       return orders.map(order => {
         return {
-          date: order.marketplaceCreatedAt,
+          date: new Intl.DateTimeFormat('ru-RU', {
+            timeZone: 'Europe/Moscow',
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+          }).format(order.marketplaceCreatedAt),
           marketplaceOrderIdentification: order.marketplaceOrderIdentification,
           marketplaceOrderNumber: order.marketplaceOrderNumber,
           itemBarcode: order.marketplaceItem.barcode,
+          itemArticle: order.marketplaceItem.item.article,
           quantity: order.quantity,
-          warehouse: {
-            title: order.warehouse.title,
-            type: order.warehouse.type
-          },
-          isCancelled: order.cancelReasonId ? true : false,
+          warehouse: order.warehouse.title,
+          warehouseType: order.warehouse.type,
+          quantityWithoutCancel: order.cancelReasonId ? 0 : 1,
           clusterTo: order.clusterTo
         };
       });
