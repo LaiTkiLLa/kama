@@ -483,7 +483,7 @@ export class OrdersService {
     const urlOrders = 'https://statistics-api.wildberries.ru/api/v1/supplier/orders';
     const response = await axios.get<GetOrdersWb[]>(urlOrders, {
       params: {
-        dateFrom: '2025-12-10T00:00:00Z',
+        dateFrom: '2026-03-01T00:00:00Z',
         flag: 0
       },
       headers: {
