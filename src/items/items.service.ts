@@ -1102,6 +1102,9 @@ export class ItemsService {
           }
           findArticle.marketplace.push({
             id: item.marketplaceId,
+            sku: item.sku,
+            barcode: item.barcode,
+            identifier: item.marketplaceIdentifier,
             title: item.marketplaceTitle,
             itemId: item.id,
             orders: Number(item.ordersSum),
@@ -1125,6 +1128,9 @@ export class ItemsService {
                 id: item.marketplaceId,
                 title: item.marketplaceTitle,
                 itemId: item.id,
+                sku: item.sku,
+                barcode: item.barcode,
+                identifier: item.marketplaceIdentifier,
                 orders: Number(item.ordersSum),
                 stocks: Number(item.stocksSum),
                 sendStatus: {
