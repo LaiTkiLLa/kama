@@ -671,7 +671,7 @@ export class OrdersService {
     return;
   }
 
-  @Cron('0 55 * * * *')
+  // @Cron('0 55 * * * *')
   async getWbFbsArchiveTasks() {
     const apiToken = this.configService.get<string>('wbToken');
     const urlOrders = 'https://marketplace-api.wildberries.ru/api/v3/orders';
