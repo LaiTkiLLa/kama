@@ -5,7 +5,7 @@
 
 Связанные: [`../AI_CONTEXT.md`](../AI_CONTEXT.md), [`../PROJECT_CONTEXT.md`](../PROJECT_CONTEXT.md), [`../README.md`](../README.md).
 
-Последнее обновление: 2026-09-12.
+Последнее обновление: 2026-09-15.
 
 ---
 
@@ -31,6 +31,7 @@
 | Фильтр `article` во всех tools статистики (`orders_v2 → marketplace_items → items.article`) | ✔ (2026-09-11) |
 | Валидация аргументов tools (zod, `AiToolExecutor`) | ✔ (2026-09-01) |
 | Tool `create_test_item` → `ItemsAiToolsService.createTestItem` (первый write-tool; расчётный товар) | ✔ (2026-09-12) |
+| Tool `get_current_stocks` → `stocks` «сегодня» | ✔ (2026-09-15) |
 | Auth (`api-key`) на chat | □ backlog |
 | Лимит итераций tool-loop, таймаут | □ backlog |
 | История диалога (multi-turn) | □ backlog |
@@ -114,12 +115,14 @@ AiService          (tool loop: LLM → execute tools → LLM …)
 │   ├─ get_order_statistics_by_marketplace
 │   ├─ compare_order_periods             │
 │   │     └─ OrdersStatisticsService     │  ← orders_v2
+│   ├─ get_current_stocks                │
+│   │     └─ StocksStatisticsService     │  ← stocks (снимок «сегодня»)
 │   └─ create_test_item                  │
 │         └─ ItemsAiToolsService         │  ← items / marketplace_items / items_suppliers (write)
 └────────────────────────────────────────┘
 ```
 
-**FACT:** `AiModule` импортирует `OrdersModule` и `ItemsModule`; tools получают domain-сервисы через DI (`OrdersStatisticsService`, `ItemsAiToolsService`) — сервис должен быть в `exports` доменного модуля.
+**FACT:** `AiModule` импортирует `OrdersModule`, `ItemsModule` и `StocksModule`; tools получают domain-сервисы через DI (`OrdersStatisticsService`, `ItemsAiToolsService`, `StocksStatisticsService`) — сервис должен быть в `exports` доменного модуля.
 
 **DECISION (2026-09-12):** domain-логика для AI tools в `items` живёт в отдельном `ItemsAiToolsService` (`src/items/services/items-ai-tools.service.ts`), а не в `ItemsService`: контракт и поведение legacy endpoint'ов (`POST /api/items` и др.) не трогаем. Цена — частичное дублирование `ItemsService.createTestItem` (та же схема listings на все кабинеты + `Системный поставщик`); при правке одного проверять другой.
 
@@ -131,15 +134,15 @@ AiService          (tool loop: LLM → execute tools → LLM …)
 | Orchestration | `src/ai/ai.service.ts` | system prompt, цикл tool-calls |
 | Executor | `src/ai/tools/ai-tool-executor.ts` | lookup tool в registry, `JSON.parse` аргументов, zod-валидация, вызов `execute` |
 | Provider | `src/ai/providers/deepseek.provider.ts` | вызов DeepSeek API |
-| Tools | `src/ai/tools/**` | контракт tool (`ai-tool.interface.ts`) + registry; tools сгруппированы по домену: `orders/`, `items/` |
+| Tools | `src/ai/tools/**` | контракт tool (`ai-tool.interface.ts`) + registry; tools сгруппированы по домену: `orders/`, `items/`, `stocks/` |
 | Schemas | `src/ai/tools/<domain>/dto/*.schema.ts` | zod-схемы аргументов (source of truth для LLM и типов); общий enum маркетплейсов — `orders/dto/marketplace-title.schema.ts` |
-| Domain | `src/orders/services/orders-statistics.service.ts`, `src/items/services/items-ai-tools.service.ts` | SQL к `orders_v2`; создание тестового товара |
+| Domain | `src/orders/services/orders-statistics.service.ts`, `src/items/services/items-ai-tools.service.ts`, `src/stocks/services/stocks-statistics.service.ts` | SQL к `orders_v2`; создание тестового товара; снимок остатков «сегодня» |
 
 **DECISION (spike):** провайдер LLM отделён от tools; смена модели/вендора — через реализацию `LlmProvider`, без правок домена.
 
 **DECISION (2026-09-01):** параметры tool описываются zod-схемой (`AiTool.parameters: z.ZodType`), а не рукописной JSON Schema. Для провайдера JSON Schema генерируется через `z.toJSONSchema()` в `DeepSeekToolMapper`. Схема — единый источник: описание для LLM (`.describe(...)`), runtime-валидация (`.parse`) и статические типы (`z.infer`). Интерфейсы `GetOrderStatisticsDto` / `GetOrdersStatisticsByMarketplaceDto` удалены; `OrdersStatisticsService` типизирован `GetOrderStatisticsArgs` / `GetOrdersStatisticsByMarketplaceArgs` из схем.
 
-**FACT:** из-за этого `src/orders` импортирует типы из `src/ai/tools/orders/dto/` — доменный модуль зависит от ai-модуля. Пока принято как компромисс spike; при росте — вынести типы аргументов в orders или в общий слой. Тот же паттерн у `items`: `ItemsAiToolsService.createTestItem(args: CreateTestItemArgs)` импортирует тип из `src/ai/tools/items/dto/`.
+**FACT:** из-за этого `src/orders` импортирует типы из `src/ai/tools/orders/dto/` — доменный модуль зависит от ai-модуля. Пока принято как компромисс spike; при росте — вынести типы аргументов в orders или в общий слой. Тот же паттерн у `items`: `ItemsAiToolsService.createTestItem(args: CreateTestItemArgs)` импортирует тип из `src/ai/tools/items/dto/`. И у `stocks`: `StocksStatisticsService.getCurrentStocks(args: GetCurrentStocksArgs)` импортирует тип из `src/ai/tools/stocks/dto/`.
 
 **FACT:** валидация выполняется дважды: в `AiToolExecutor.execute` и повторно внутри `execute` каждого tool (`Schema.parse(args)`). Избыточно, но безвредно.
 
@@ -231,6 +234,43 @@ AiService          (tool loop: LLM → execute tools → LLM …)
 
 **NEEDS VERIFICATION:** известный риск из `AI_CONTEXT` «Card sync find by article — без `created_for_calculation = false`» к тестовым артикулам не применим (`тестовый артикул N` не совпадёт с реальным), но unique-ограничений на article нет.
 
+### `get_current_stocks`
+
+**FACT (2026-09-15):** read-only tool. Снимок остатков **на сегодня**: `marketplace_items` + `stocks` за календарный день `CURRENT_DATE`. Ответ — **агрегат** (как order-statistics), не построчный список listing’ов. `article` **опционален**.
+
+Файлы: tool `src/ai/tools/stocks/get-current-stocks.tool.ts` (`GetCurrentStocksTool`), схема `src/ai/tools/stocks/dto/get-current-stocks.schema.ts` (`GetCurrentStocksSchema`), domain `StocksStatisticsService.getCurrentStocks` (`src/stocks/services/stocks-statistics.service.ts`). HTTP `GET /api/stocks/v2/current` / `StocksService.getStocks` **не менялись**.
+
+Параметры (все опциональны):
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| `article` | string | `items.article`, точное совпадение; только если явно указан пользователем |
+| `marketplaceTitle` | `MarketplaceTitleSchema` (enum) | каноническое название кабинета; если не передан — разрез по всем кабинетам в `byMarketplace` |
+| `warehouseTitle` | string | название конкретного склада, только если явно указан |
+| `warehouseType` | `'FBO' \| 'FBS'` | тип склада («наш склад» → FBS, «склад маркетплейса» → FBO) |
+
+**DECISION:** `article` и `marketplaceTitle` опциональны. Без артикула tool возвращает суммы по ассортименту в рамках остальных фильтров, а не дамп SKU. В HTTP `GET /api/stocks/v2/current` маркетплейс обязателен и ответ построчный — контракт AI tool другой намеренно.
+
+**FACT:** форма ответа:
+
+| Поле | Описание |
+|------|----------|
+| `listingsCount` | число listing’ов, попавших под фильтры |
+| `quantityFull` | сумма `stocks.current_value` по неисключённым складам |
+| `inWayToClient` | сумма `stocks.reserved` |
+| `inWayFromClient` | сумма `stocks.promised` |
+| `byMarketplace[]` | те же суммы + `fbsWarehouses` / `fboWarehouses` (`{ title, value }`, value = сумма по `warehouse.title` внутри кабинета; сортировка по value desc) |
+
+**FACT:** окно даты — `stocks.created_at >= CURRENT_DATE AND created_at < CURRENT_DATE + INTERVAL '1 day'`, тот же приём, что `StocksService.getStocks` и `GET /api/stocks/by-warehouses`. Историю / остатки на прошлую дату tool **не** отдаёт (DECISION 2026-08-15: stocks by-date / v1 **не возвращаем**). Описание tool явно запрещает вызов для прошлой даты.
+
+**FACT:** timezone сессии PostgreSQL — `Europe/Moscow` (`SHOW timezone`); `CURRENT_DATE` совпадает с датой в system prompt агента.
+
+**FACT:** отбор listings: `marketplace_items.deleted_at IS NULL`, `items.created_for_calculation = false`. `items.isArchive` **не** фильтруется — как v2/current; в `GET /api/stocks/by-warehouses` `isArchive = false` есть. Поставщики не join'ятся (в v2/current фильтр `suppliers` есть).
+
+**FACT:** hardcoded `excludeWarehouses` скопирован из `StocksService.getStocks` (сравнение с `stocks.warehouse_id` = PK `warehouses.id`). Склады из списка не входят ни в суммы, ни в warehouse-массивы. Список **длиннее**, чем в `getStocksByWarehouse`. Известный mismatch PK vs `marketplaceInternalNumber` — см. [`../roadmap/google-sheets-api.md`](../roadmap/google-sheets-api.md); для этого tool поведение как у v2/current.
+
+**FACT:** join остатков — `LEFT JOIN` на сегодняшний снимок. Listing без остатков сегодня увеличивает `listingsCount`, но даёт 0 в суммах. Фильтры `warehouseTitle` / `warehouseType` в `WHERE` (не в `JOIN ON`) — listing без подходящего склада отсекается.
+
 ---
 
 ## Ограничения и запреты
@@ -245,7 +285,7 @@ AiService          (tool loop: LLM → execute tools → LLM …)
 
 ## Добавление нового tool (когда понадобится)
 
-1. Domain-логика в соответствующем модуле (`src/orders`, `src/items`, …) — метод существующего сервиса (read) или отдельный `*AiToolsService` (AI-specific / write); сервис должен быть в `exports` модуля, иначе Nest не разрешит DI в `AiModule`.
+1. Domain-логика в соответствующем модуле (`src/orders`, `src/items`, `src/stocks`, …) — метод существующего сервиса (read) или отдельный `*AiToolsService` (AI-specific / write); сервис должен быть в `exports` модуля, иначе Nest не разрешит DI в `AiModule`.
 2. Zod-схема аргументов в `src/ai/tools/<domain>/dto/<tool>.schema.ts` (+ `z.infer`-тип); описания полей для LLM — через `.describe(...)`. Импорт — `from 'zod'` (не `zod/index` и т.п.: иначе два экземпляра типов и `parameters` не совместим с `AiTool`).
 3. Класс tool в `src/ai/tools/<domain>/`, implements `AiTool` (`parameters` = zod-схема). `name` / `description` — **присваивать** (`readonly name = '...'`), не аннотировать типом (`readonly name: '...'` оставит `undefined` в runtime → registry положит tool под ключ `undefined`).
 4. Домен-модуль в `imports` `AiModule`; tool в `providers` и в `inject` + `register` фабрики `AiToolRegistry`.
@@ -266,6 +306,7 @@ AiService          (tool loop: LLM → execute tools → LLM …)
 
 | Дата | Итог |
 |------|------|
+| 2026-09-15 | Tool `get_current_stocks` (`GetCurrentStocksTool`, `StocksStatisticsService.getCurrentStocks`): снимок остатков «сегодня»; ответ — агрегат (`listingsCount` / `quantityFull` / `inWay*` + `byMarketplace` со складами); `article` опционален. `StocksService` / HTTP stocks API не менялись. Регистрация в `AiModule` (`StocksModule` в `imports`). System prompt: запрет ASCII-таблиц |
 | 2026-09-12 | Tool `create_test_item` (`CreateTestItemTool`) — первый write-tool: расчётный товар с габаритами и категорией через отдельный `ItemsAiToolsService` (`ItemsModule.exports`); legacy `POST /api/items` / `ItemsService` не тронуты. `AiTool` interface → `src/ai/tools/ai-tool.interface.ts` (из `orders/`); tools сгруппированы по домену (`orders/`, `items/`). System prompt: общие правила для инструментов-действий (не выдумывать параметры, спрашивать недостающие, сообщать результат/ошибку без тех. деталей) |
 | 2026-09-11 | Tool `compare_order_periods` (`CompareOrderPeriodsTool`, `OrdersStatisticsService.comparePeriods`): агрегаты за два периода одним запросом; сравнение/проценты — на стороне LLM. Фильтр `article` во всех трёх tools (`orders_v2 → marketplace_items → items.article`). `marketplaceTitle` → общий `z.enum` (`marketplace-title.schema.ts`) |
 | 2026-09-01 | Zod-валидация аргументов tools: `AiTool.parameters: z.ZodType`, `AiToolExecutor`, схемы в `src/ai/tools/orders/dto/`; JSON Schema через `z.toJSONSchema`; DTO в orders удалены. Tool `get_order_statistics_by_marketplace`. Удалён Telegram-спайк (`src/telegram`, deps `nestjs-telegraf`/`telegraf`) |

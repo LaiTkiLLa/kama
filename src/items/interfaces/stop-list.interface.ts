@@ -25,6 +25,9 @@ export interface StopListResponse {
   ozonIdentifier: string | null;
   marketplace: {
     id: number;
+    sku: string;
+    barcode: string;
+    identifier: string;
     title: string;
     orders: number;
     stocks: number;
