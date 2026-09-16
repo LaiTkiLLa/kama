@@ -144,7 +144,9 @@ export class OrdersService {
           warehouse: order.warehouse.title,
           warehouseType: order.warehouse.type,
           quantityWithoutCancel: order.cancelReasonId ? 0 : 1,
-          clusterTo: order.clusterTo
+          clusterTo: order.clusterTo,
+          itemMpIdentification: order.marketplaceItem.marketplaceIdentifier,
+          itemMpSku: order.marketplaceItem.sku
         };
       });
     } catch (error) {
