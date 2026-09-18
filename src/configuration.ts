@@ -31,5 +31,7 @@ export const configuration = () => ({
   moyskladToken: process.env.moyskladToken,
   moyskladOrganizationId: process.env.moyskladOrganizationId,
   moyskladAgentId: process.env.moyskladAgentId,
-  telegramBotToken: process.env.TELEGRAM_BOT_TOKEN
+  telegramBotToken: process.env.TELEGRAM_BOT_TOKEN,
+  huggingFaceToken: process.env.HUGGING_FACE_TOKEN,
+  QDRANT_URL: process.env.QDRANT_URL
 });

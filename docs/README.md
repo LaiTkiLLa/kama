@@ -31,6 +31,8 @@ Backend-сервис синхронизации товаров, остатков
 | Решения продукта / что нельзя ломать | [`AI_CONTEXT.md`](AI_CONTEXT.md) |
 | Ограничения для AI (Cursor) | [`.cursor/rules/architecture.mdc`](../.cursor/rules/architecture.mdc) + [`ai/agent-guide.md`](ai/agent-guide.md) |
 | In-app LLM agent | [`ai/in-app-agent.md`](ai/in-app-agent.md) |
+| RAG / база знаний агента (Qdrant, HF) | [`ai/rag.md`](ai/rag.md) |
+| Операторская документация (корпус RAG, индексируется) | [`rag/`](rag/) |
 | Краткий обзор проекта | [`PROJECT_CONTEXT.md`](PROJECT_CONTEXT.md) |
 
 Код важнее устаревшего текста в docs. При расхождении — исследовать repository и обновить документ.
@@ -49,6 +51,7 @@ Backend-сервис синхронизации товаров, остатков
 | Интеграции МП | `src/items`, `src/stocks`, `src/orders`, `src/info` |
 | Архитектурные изменения | agent-guide → Implementation Plan → явное подтверждение |
 | In-app LLM agent / DeepSeek | [`ai/in-app-agent.md`](ai/in-app-agent.md) → `src/ai/**` |
+| RAG: индексация docs → Qdrant, retrieval для агента | [`ai/rag.md`](ai/rag.md) → `src/rag/**`; корпус — `docs/rag/*.md` |
 
 ---
 
@@ -63,6 +66,8 @@ Backend-сервис синхронизации товаров, остатков
 - [`roadmap/google-sheets-api.md`](roadmap/google-sheets-api.md) — отдельный roadmap API для Google Sheets / GAS
 - [`ai/agent-guide.md`](ai/agent-guide.md) — workflow для Cursor AI Agent (разработка репо)
 - [`ai/in-app-agent.md`](ai/in-app-agent.md) — in-app LLM agent (DeepSeek, GAS)
+- [`ai/rag.md`](ai/rag.md) — RAG: индексация операторских доков в Qdrant (spike)
+- [`rag/`](rag/) — **операторская** документация по Google Sheets; целиком индексируется `RagModule`, dev-docs сюда не класть
 - [`.cursor/rules/architecture.mdc`](../.cursor/rules/architecture.mdc) — жёсткие правила агента
 
 ### Планируется (ещё не создано)

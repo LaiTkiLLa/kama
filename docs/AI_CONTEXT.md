@@ -71,6 +71,7 @@ Yandex Tamov: cards/stocks/orders/stop-list PATCH/trash ✔.
 | Yandex listing dedup | one-off `scripts/dedup-yandex-marketplace-items.ts` (keep = актуальный `marketSku`); unique index ещё нет |
 | **Мой склад FBS (WB)** | schema ✔ `1789450000000` (mappings / item_links / outbox); client + stock push + worker — дальше; Ozon позже. См. [`roadmap/moysklad-fbs.md`](roadmap/moysklad-fbs.md) |
 | **In-app LLM agent** | spike: `POST /api/ai/chat`, DeepSeek (`DEEPSEEK_API_KEY`), tools `get_order_statistics` / `get_order_statistics_by_marketplace` / `compare_order_periods` (два периода одним запросом, разницу считает LLM) → `orders_v2`; `get_current_stocks` → агрегат снимка `stocks` «сегодня» (`StocksStatisticsService`; `article` опционален; totals + `byMarketplace`); write-tool `create_test_item` (2026-09-12) → `ItemsAiToolsService.createTestItem` (отдельный сервис, `ItemsService` не менялся): расчётный товар (`created_for_calculation`) с габаритами/категорией; write-tools на реальные данные — по-прежнему без плана нельзя. Auth / лимиты / multi-turn — backlog. См. [`ai/in-app-agent.md`](ai/in-app-agent.md). **Не путать** с [`ai/agent-guide.md`](ai/agent-guide.md) (Cursor). |
+| **RAG (база знаний агента)** | spike индексации (2026-09-18): `RagModule` (`src/rag`), `POST /api/rag/index` → `docs/rag/*.md` (операторские доки Sheets) → чанки по заголовкам → HF `paraphrase-multilingual-MiniLM-L12-v2` (384) → Qdrant `documentation`. Env `HUGGING_FACE_TOKEN`, `QDRANT_URL` (обязателен — иначе приложение не стартует), опц. `QDRANT_COLLECTION`. **Retrieval и подключение к `AiService` — ещё нет.** `docs/rag/` — корпус для операторов, dev-docs туда не класть. См. [`ai/rag.md`](ai/rag.md) |
 
 ---
 
@@ -94,7 +95,7 @@ Yandex Tamov: cards/stocks/orders/stop-list PATCH/trash ✔.
 
 ## Не менять без плана
 
-Drop `marketplace_id` на `stocks`/`orders_v2`; force cutover без миграции; возврат stocks by-date/v1; секреты в репо; drop/rename `items.isArchive` без явного решения.
+Drop `marketplace_id` на `stocks`/`orders_v2`; force cutover без миграции; возврат stocks by-date/v1; секреты в репо; drop/rename `items.isArchive` без явного решения. RAG: смена embedding-модели (= размерность вектора = пересоздание коллекции Qdrant); dev-docs в `docs/rag/` (папка индексируется целиком).
 
 ---
 
@@ -102,6 +103,7 @@ Drop `marketplace_id` на `stocks`/`orders_v2`; force cutover без мигра
 
 | Дата | Итог |
 |------|------|
+| 2026-09-18 | RAG spike: `RagModule` (`DocumentLoader` → `Chunker` → `Embedding` (HF) → `Qdrant`), `POST /api/rag/index`; корпус `docs/rag/master-data.md`, `docs/rag/product-creation.md`; deps `@huggingface/inference`, `@qdrant/js-client-rest`. Физически удалён `src/telegram/*` + `nestjs-telegraf`/`telegraf`. Known: старт бэкенда зависит от Qdrant; stale-чанки при переиндексации; лимит 128 токенов модели vs чанки без лимита; `Dockerfile` `node:21` vs engine ≥22 у qdrant-client. См. [`ai/rag.md`](ai/rag.md) |
 | 2026-09-15 | AI tool `get_current_stocks` (`GetCurrentStocksTool`, `StocksStatisticsService.getCurrentStocks`): снимок остатков «сегодня» как агрегат (`listingsCount` / суммы / `byMarketplace`); `article` опционален. HTTP stocks API / `StocksService` не менялись. Регистрация в `AiModule` + `StocksModule.exports` |
 | 2026-09-12 | AI tool `create_test_item` (`CreateTestItemTool`, первый write-tool): отдельный `ItemsAiToolsService.createTestItem` (`src/items/services/`, в `ItemsModule.exports`) принимает габариты (строки см/кг, regex-валидация) и категорию → `items.category` + `marketplace_items.category`/`dimensions`/`volume` (WB — ceil габаритов, Ozon — фактические); возвращает `{ id, article }`. Legacy `POST /api/items` / `ItemsService.createTestItem` не менялись. `AiTool` interface перенесён в `src/ai/tools/ai-tool.interface.ts` |
 | 2026-09-11 | AI tool `compare_order_periods` (`CompareOrderPeriodsTool`, `OrdersStatisticsService.comparePeriods`): агрегаты `orders_v2` за два периода, условные `COUNT/SUM(CASE …)` в одном запросе. Фильтр `article` во всех AI tools статистики; `marketplaceTitle` → `z.enum` (`marketplace-title.schema.ts`) |

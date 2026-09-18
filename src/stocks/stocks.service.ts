@@ -151,7 +151,7 @@ export class StocksService {
         .leftJoinAndSelect('stocks.warehouse', 'warehouse')
         .where('marketplace.title = :marketplace', { marketplace: getStocksByWarehouseDto.marketplace })
         .andWhere('item.isArchive = :isArchive', { isArchive: false })
-        // .andWhere('mpItems.deletedAt IS NULL')
+        .andWhere('mpItems.deletedAt IS NULL')
         .andWhere('item.createdForCalculation = :createdForCalculation', {
           createdForCalculation: false
         })
