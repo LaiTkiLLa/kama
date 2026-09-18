@@ -9,6 +9,6 @@ import { RagController } from './rag.controller';
 @Module({
   controllers: [RagController],
   providers: [RagService, DocumentLoaderService, ChunkerService, EmbeddingService, QdrantService],
-  exports: [EmbeddingService, QdrantService]
+  exports: [RagService]
 })
 export class RagModule {}
