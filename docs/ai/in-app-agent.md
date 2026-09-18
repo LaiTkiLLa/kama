@@ -5,7 +5,7 @@
 
 Связанные: [`../AI_CONTEXT.md`](../AI_CONTEXT.md), [`../PROJECT_CONTEXT.md`](../PROJECT_CONTEXT.md), [`../README.md`](../README.md).
 
-Последнее обновление: 2026-09-15.
+Последнее обновление: 2026-09-18.
 
 ---
 
@@ -33,10 +33,11 @@
 | Tool `create_test_item` → `ItemsAiToolsService.createTestItem` (первый write-tool; расчётный товар) | ✔ (2026-09-12) |
 | Tool `get_current_stocks` → `stocks` «сегодня» | ✔ (2026-09-15) |
 | Auth (`api-key`) на chat | □ backlog |
+| Ошибки tools → `{ error }` для LLM, chat не падает (`AiToolExecutor`) | ✔ (2026-09-18) |
 | Лимит итераций tool-loop, таймаут | □ backlog |
 | История диалога (multi-turn) | □ backlog |
 | Write-tools на реальные данные (stop-list, цены, PATCH, карточки МП) | ✖ без явного плана |
-| RAG-контекст из операторской документации (Qdrant) | □ индексация есть ([`rag.md`](rag.md)), retrieval / tool `search_documentation` — backlog |
+| Tool `search_documentation` → `RagService` (Qdrant + HF embeddings) | ✔ (2026-09-18), см. [`rag.md`](rag.md) |
 
 ---
 
@@ -118,12 +119,14 @@ AiService          (tool loop: LLM → execute tools → LLM …)
 │   │     └─ OrdersStatisticsService     │  ← orders_v2
 │   ├─ get_current_stocks                │
 │   │     └─ StocksStatisticsService     │  ← stocks (снимок «сегодня»)
-│   └─ create_test_item                  │
-│         └─ ItemsAiToolsService         │  ← items / marketplace_items / items_suppliers (write)
+│   ├─ create_test_item                  │
+│   │     └─ ItemsAiToolsService         │  ← items / marketplace_items / items_suppliers (write)
+│   └─ search_documentation             │
+│         └─ RagService                  │  ← HF embeddings + Qdrant (docs/rag/*.md)
 └────────────────────────────────────────┘
 ```
 
-**FACT:** `AiModule` импортирует `OrdersModule`, `ItemsModule` и `StocksModule`; tools получают domain-сервисы через DI (`OrdersStatisticsService`, `ItemsAiToolsService`, `StocksStatisticsService`) — сервис должен быть в `exports` доменного модуля.
+**FACT:** `AiModule` импортирует `OrdersModule`, `ItemsModule`, `StocksModule` и `RagModule`; tools получают domain-сервисы через DI (`OrdersStatisticsService`, `ItemsAiToolsService`, `StocksStatisticsService`, `RagService`) — сервис должен быть в `exports` доменного модуля.
 
 **DECISION (2026-09-12):** domain-логика для AI tools в `items` живёт в отдельном `ItemsAiToolsService` (`src/items/services/items-ai-tools.service.ts`), а не в `ItemsService`: контракт и поведение legacy endpoint'ов (`POST /api/items` и др.) не трогаем. Цена — частичное дублирование `ItemsService.createTestItem` (та же схема listings на все кабинеты + `Системный поставщик`); при правке одного проверять другой.
 
@@ -133,19 +136,23 @@ AiService          (tool loop: LLM → execute tools → LLM …)
 |------|------|------|
 | Controller | `src/ai/ai.controller.ts` | HTTP |
 | Orchestration | `src/ai/ai.service.ts` | system prompt, цикл tool-calls |
-| Executor | `src/ai/tools/ai-tool-executor.ts` | lookup tool в registry, `JSON.parse` аргументов, zod-валидация, вызов `execute` |
+| Executor | `src/ai/tools/ai-tool-executor.ts` | lookup tool в registry, `JSON.parse` аргументов, zod-валидация, вызов `execute`; любая ошибка → `{ error }` (см. ниже) |
 | Provider | `src/ai/providers/deepseek.provider.ts` | вызов DeepSeek API |
-| Tools | `src/ai/tools/**` | контракт tool (`ai-tool.interface.ts`) + registry; tools сгруппированы по домену: `orders/`, `items/`, `stocks/` |
+| Tools | `src/ai/tools/**` | контракт tool (`ai-tool.interface.ts`) + registry; tools сгруппированы по домену: `orders/`, `items/`, `stocks/`, `rag/` |
 | Schemas | `src/ai/tools/<domain>/dto/*.schema.ts` | zod-схемы аргументов (source of truth для LLM и типов); общий enum маркетплейсов — `orders/dto/marketplace-title.schema.ts` |
-| Domain | `src/orders/services/orders-statistics.service.ts`, `src/items/services/items-ai-tools.service.ts`, `src/stocks/services/stocks-statistics.service.ts` | SQL к `orders_v2`; создание тестового товара; снимок остатков «сегодня» |
+| Domain | `src/orders/services/orders-statistics.service.ts`, `src/items/services/items-ai-tools.service.ts`, `src/stocks/services/stocks-statistics.service.ts`, `src/rag/rag.service.ts` | SQL к `orders_v2`; создание тестового товара; снимок остатков «сегодня»; поиск по документации |
 
 **DECISION (spike):** провайдер LLM отделён от tools; смена модели/вендора — через реализацию `LlmProvider`, без правок домена.
 
 **DECISION (2026-09-01):** параметры tool описываются zod-схемой (`AiTool.parameters: z.ZodType`), а не рукописной JSON Schema. Для провайдера JSON Schema генерируется через `z.toJSONSchema()` в `DeepSeekToolMapper`. Схема — единый источник: описание для LLM (`.describe(...)`), runtime-валидация (`.parse`) и статические типы (`z.infer`). Интерфейсы `GetOrderStatisticsDto` / `GetOrdersStatisticsByMarketplaceDto` удалены; `OrdersStatisticsService` типизирован `GetOrderStatisticsArgs` / `GetOrdersStatisticsByMarketplaceArgs` из схем.
 
-**FACT:** из-за этого `src/orders` импортирует типы из `src/ai/tools/orders/dto/` — доменный модуль зависит от ai-модуля. Пока принято как компромисс spike; при росте — вынести типы аргументов в orders или в общий слой. Тот же паттерн у `items`: `ItemsAiToolsService.createTestItem(args: CreateTestItemArgs)` импортирует тип из `src/ai/tools/items/dto/`. И у `stocks`: `StocksStatisticsService.getCurrentStocks(args: GetCurrentStocksArgs)` импортирует тип из `src/ai/tools/stocks/dto/`.
+**FACT:** из-за этого `src/orders` импортирует типы из `src/ai/tools/orders/dto/` — доменный модуль зависит от ai-модуля. Пока принято как компромисс spike; при росте — вынести типы аргументов в orders или в общий слой. Тот же паттерн у `items`: `ItemsAiToolsService.createTestItem(args: CreateTestItemArgs)` импортирует тип из `src/ai/tools/items/dto/`. И у `stocks`: `StocksStatisticsService.getCurrentStocks(args: GetCurrentStocksArgs)` импортирует тип из `src/ai/tools/stocks/dto/`. И у `rag`: `RagService.searchDocumentation(params: SearchDocumentationArgs)` — из `src/ai/tools/rag/dto/`.
 
 **FACT:** валидация выполняется дважды: в `AiToolExecutor.execute` и повторно внутри `execute` каждого tool (`Schema.parse(args)`). Избыточно, но безвредно.
+
+**DECISION (2026-09-18):** `AiToolExecutor.execute` **не пробрасывает** исключения. Tool не найден / аргументы не JSON / `ZodError` / любая ошибка внутри `tool.execute` → возвращается `{ error: string }` (`AiToolError`), который `AiService` кладёт в `tool`-сообщение как обычный результат; LLM по system prompt сообщает пользователю понятную причину. Раньше исключение из tool валило весь `chat` в HTTP 500 — критично для tools с внешними вызовами (`search_documentation`: HF + Qdrant). `ZodError` разворачивается в `path: message`, чтобы LLM могла исправить аргументы и повторить вызов; прочие ошибки логируются со stack (`Logger.error`) и уходят как `Инструмент временно недоступен: <message>`.
+
+**NEEDS VERIFICATION:** текст `message` внешних ошибок (HF/Qdrant/TypeORM) попадает к LLM; system prompt запрещает раскрывать технические детали пользователю, но фильтрации на backend нет.
 
 ---
 
@@ -272,6 +279,16 @@ AiService          (tool loop: LLM → execute tools → LLM …)
 
 **FACT:** join остатков — `LEFT JOIN` на сегодняшний снимок. Listing без остатков сегодня увеличивает `listingsCount`, но даёт 0 в суммах. Фильтры `warehouseTitle` / `warehouseType` в `WHERE` (не в `JOIN ON`) — listing без подходящего склада отсекается.
 
+### `search_documentation`
+
+**FACT (2026-09-18):** read-only tool. Семантический поиск по операторской документации (`docs/rag/*.md`, проиндексировано в Qdrant). Единственный параметр — `query: string` (trim, min 1). Ответ — до 3 чанков `{ content, source, heading?, similarity }` с cosine `similarity ≥ 0.5`; пустой массив, если ничего не прошло порог.
+
+Файлы: `src/ai/tools/rag/search-documentation.tool.ts` (`SearchDocumentationTool`), схема `src/ai/tools/rag/dto/search-documentation.schema.ts`, domain `RagService.searchDocumentation`. Детали pipeline, порог, known issues — [`rag.md`](rag.md).
+
+**DECISION:** документация — источник **правил, процессов, терминов, инструкций**; текущие данные (заказы, остатки, товары, статистика, цены) — только через data-tools. System prompt и description tool это разводят явно; допускается вызвать оба типа tools в одном ответе. LLM обязан не утверждать того, чего нет в найденных чанках, и не выдумывать ответ при пустом результате.
+
+**NEEDS VERIFICATION:** порог `0.5` (`RagService.MIN_SIMILARITY`) не откалиброван на русских запросах; возможны ложные «в документации нет». `similarity` найденных чанков пишется в лог на каждый вызов.
+
 ---
 
 ## Ограничения и запреты
@@ -307,6 +324,8 @@ AiService          (tool loop: LLM → execute tools → LLM …)
 
 | Дата | Итог |
 |------|------|
+| 2026-09-18 | `AiToolExecutor`: try/catch → `{ error }` для LLM вместо исключения (tool not found / bad JSON / `ZodError` с path / runtime error со stack в лог); фикс lint `no-unsafe-assignment`. RAG hardening (lazy Qdrant, stale-чанки, chunker, `api-key`) — см. [`rag.md`](rag.md) |
+| 2026-09-18 | Tool `search_documentation` (`SearchDocumentationTool` → `RagService.searchDocumentation`): семантический поиск по `docs/rag/*.md` через HF embeddings + Qdrant, top-3 при `similarity ≥ 0.5`. `RagModule` в `imports` `AiModule`. System prompt: разделение «документация (правила/процессы) vs данные системы (data-tools)», запрет утверждать то, чего нет в найденных чанках. См. [`rag.md`](rag.md) |
 | 2026-09-15 | Tool `get_current_stocks` (`GetCurrentStocksTool`, `StocksStatisticsService.getCurrentStocks`): снимок остатков «сегодня»; ответ — агрегат (`listingsCount` / `quantityFull` / `inWay*` + `byMarketplace` со складами); `article` опционален. `StocksService` / HTTP stocks API не менялись. Регистрация в `AiModule` (`StocksModule` в `imports`). System prompt: запрет ASCII-таблиц |
 | 2026-09-12 | Tool `create_test_item` (`CreateTestItemTool`) — первый write-tool: расчётный товар с габаритами и категорией через отдельный `ItemsAiToolsService` (`ItemsModule.exports`); legacy `POST /api/items` / `ItemsService` не тронуты. `AiTool` interface → `src/ai/tools/ai-tool.interface.ts` (из `orders/`); tools сгруппированы по домену (`orders/`, `items/`). System prompt: общие правила для инструментов-действий (не выдумывать параметры, спрашивать недостающие, сообщать результат/ошибку без тех. деталей) |
 | 2026-09-11 | Tool `compare_order_periods` (`CompareOrderPeriodsTool`, `OrdersStatisticsService.comparePeriods`): агрегаты за два периода одним запросом; сравнение/проценты — на стороне LLM. Фильтр `article` во всех трёх tools (`orders_v2 → marketplace_items → items.article`). `marketplaceTitle` → общий `z.enum` (`marketplace-title.schema.ts`) |
