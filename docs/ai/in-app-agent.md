@@ -36,6 +36,7 @@
 | Лимит итераций tool-loop, таймаут | □ backlog |
 | История диалога (multi-turn) | □ backlog |
 | Write-tools на реальные данные (stop-list, цены, PATCH, карточки МП) | ✖ без явного плана |
+| RAG-контекст из операторской документации (Qdrant) | □ индексация есть ([`rag.md`](rag.md)), retrieval / tool `search_documentation` — backlog |
 
 ---
 
