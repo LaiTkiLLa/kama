@@ -47,13 +47,15 @@ export class RagService {
   }
 
   async searchDocumentation(params: SearchDocumentationArgs): Promise<RetrievedChunk[]> {
+    console.log('query', params);
     const queryEmbedding = await this.embeddingService.embedQuery(params.query);
-
+    console.log('queryEmbedding', queryEmbedding);
     const chunks = await this.qdrantService.search(
       queryEmbedding,
       RagService.TOP_K,
       RagService.MIN_SIMILARITY
     );
+    console.log('qdrantChunks', chunks);
 
     this.logger.log(
       `search "${params.query}": ${chunks.length} чанков ` +
