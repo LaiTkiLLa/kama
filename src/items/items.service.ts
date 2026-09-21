@@ -594,8 +594,13 @@ export class ItemsService {
         .leftJoinAndSelect(
           'item.marketplaceItems',
           'marketplaceItems',
-          'marketplaceItems.marketplaceId = :marketplaceId',
+          'marketplaceItems.deletedAt IS NULL AND marketplaceItems.marketplaceId = :marketplaceId',
           { marketplaceId: 2 }
+        )
+        .leftJoinAndSelect(
+          'marketplaceItems.marketplaceItemSizes',
+          'marketplaceItemSizes',
+          'marketplaceItemSizes.deletedAt IS NULL'
         )
         .leftJoinAndSelect('marketplaceItems.marketplace', 'marketplace')
         .leftJoinAndSelect('itemsSuppliers.supplier', 'supplier')
