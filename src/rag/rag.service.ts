@@ -6,6 +6,7 @@ import { QdrantService } from './qdrant.service';
 import { RetrievedChunk } from './interfaces/retrieved-chunk.interface';
 import { SearchDocumentationArgs } from '../ai/tools/rag/dto/search-documentation.schema';
 import { IndexDocumentationResult } from './interfaces/index-documentation-result.interface';
+import { RerankerService } from './reranker.service';
 
 @Injectable()
 export class RagService {
@@ -13,7 +14,8 @@ export class RagService {
     private readonly documentLoaderService: DocumentLoaderService,
     private readonly chunkerService: ChunkerService,
     private readonly embeddingService: EmbeddingService,
-    private readonly qdrantService: QdrantService
+    private readonly qdrantService: QdrantService,
+    private readonly rerankerService: RerankerService
   ) {}
 
   private readonly logger = new Logger(RagService.name);
@@ -47,21 +49,25 @@ export class RagService {
   }
 
   async searchDocumentation(params: SearchDocumentationArgs): Promise<RetrievedChunk[]> {
-    console.log('query', params);
     const queryEmbedding = await this.embeddingService.embedQuery(params.query);
-    console.log('queryEmbedding', queryEmbedding);
-    const chunks = await this.qdrantService.search(
-      queryEmbedding,
-      RagService.TOP_K,
-      RagService.MIN_SIMILARITY
-    );
-    console.log('qdrantChunks', chunks);
+    const candidates = await this.qdrantService.search(queryEmbedding, 10, RagService.MIN_SIMILARITY);
 
     this.logger.log(
-      `search "${params.query}": ${chunks.length} чанков ` +
-        `[${chunks.map(chunk => `${chunk.source}#${chunk.heading ?? '-'}=${chunk.similarity.toFixed(3)}`).join(', ')}]`
+      `Qdrant "${params.query}": ` +
+        `[${candidates
+          .map(chunk => `${chunk.source}#${chunk.heading ?? '-'}=${chunk.similarity.toFixed(3)}`)
+          .join(', ')}]`
     );
 
-    return chunks;
+    const reranked = await this.rerankerService.rerank(params.query, candidates);
+
+    this.logger.log(
+      `Reranked "${params.query}": ` +
+        `[${reranked
+          .map(chunk => `${chunk.source}#${chunk.heading ?? '-'}=` + `${chunk.rerankScore.toFixed(3)}`)
+          .join(', ')}]`
+    );
+
+    return reranked.slice(0, RagService.TOP_K);
   }
 }

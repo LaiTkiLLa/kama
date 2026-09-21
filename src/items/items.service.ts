@@ -591,6 +591,13 @@ export class ItemsService {
       const queryBuilder = queryRunner.manager
         .createQueryBuilder(ItemsSuppliers, 'itemsSuppliers')
         .leftJoinAndSelect('itemsSuppliers.item', 'item')
+        .leftJoinAndSelect(
+          'item.marketplaceItems',
+          'marketplaceItems',
+          'marketplaceItems.marketplaceId = :marketplaceId',
+          { marketplaceId: 2 }
+        )
+        .leftJoinAndSelect('marketplaceItems.marketplace', 'marketplace')
         .leftJoinAndSelect('itemsSuppliers.supplier', 'supplier')
         .leftJoinAndSelect('itemsSuppliers.itemCharacteristic', 'itemCharacteristic')
         .where('itemsSuppliers.deleted_at IS NULL')
@@ -629,7 +636,23 @@ export class ItemsService {
           dimensionsFact: itemsSupplier.dimensionsFact,
           dimensionsMasterBox: itemsSupplier.dimensionsMasterBox,
           volume: itemsSupplier.volume,
-          ownImagesUrl: itemsSupplier.ownImagesUrl
+          ownImagesUrl: itemsSupplier.ownImagesUrl,
+          marketplaceItemsInfo: itemsSupplier.item.marketplaceItems.map(mpItem => {
+            return {
+              marketplaceItemId: mpItem.id,
+              marketplaceTitle: mpItem.marketplace.title,
+              category: mpItem.category,
+              marketplaceItemSizes: (mpItem.marketplaceItemSizes ?? []).map(el => {
+                return {
+                  sizeId: el.id,
+                  size: el.name,
+                  skus: Array.isArray(el.metadata?.skus) ? el?.metadata?.skus : [],
+                  chrtId: el.marketplaceSizeId,
+                  value: el.value
+                };
+              })
+            };
+          })
         };
       });
     } catch (error) {

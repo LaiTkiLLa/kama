@@ -281,7 +281,9 @@ AiService          (tool loop: LLM → execute tools → LLM …)
 
 ### `search_documentation`
 
-**FACT (2026-09-18):** read-only tool. Семантический поиск по операторской документации (`docs/rag/*.md`, проиндексировано в Qdrant). Единственный параметр — `query: string` (trim, min 1). Ответ — до 3 чанков `{ content, source, heading?, similarity }` с cosine `similarity ≥ 0.5`; пустой массив, если ничего не прошло порог.
+**FACT (2026-09-21):** read-only tool. Семантический поиск по операторской документации (`docs/rag/*.md`, проиндексировано в Qdrant). Единственный параметр — `query: string` (trim, min 1). Two-stage: Qdrant отбирает 10 кандидатов с cosine `similarity ≥ 0.5`, затем HF cross-encoder `bge-reranker-v2-m3` переоценивает пары «вопрос + чанк». Ответ — до 3 чанков `{ content, source, heading?, section?, keywords?, similarity, rerankScore }` в порядке `rerankScore` desc; пустой массив, если ничего не прошло порог Qdrant.
+
+**DECISION (2026-09-21):** system prompt запрещает описывать процесс поиска, фрагменты, chunks, similarity, reranking и формулировки «по найденному фрагменту» / «по результатам поиска» — поля `similarity` / `rerankScore` / `source` уходят LLM в результате tool, и без запрета она их пересказывала. При частичном покрытии вопроса: сначала известное из документации, затем кратко — чего не хватает.
 
 Файлы: `src/ai/tools/rag/search-documentation.tool.ts` (`SearchDocumentationTool`), схема `src/ai/tools/rag/dto/search-documentation.schema.ts`, domain `RagService.searchDocumentation`. Детали pipeline, порог, known issues — [`rag.md`](rag.md).
 
@@ -324,6 +326,7 @@ AiService          (tool loop: LLM → execute tools → LLM …)
 
 | Дата | Итог |
 |------|------|
+| 2026-09-21 | `search_documentation`: two-stage retrieval (Qdrant 10 кандидатов → HF reranker `bge-reranker-v2-m3` → top-3 по `rerankScore`), в ответе tool добавлены `rerankScore`, `section`, `keywords`. System prompt: запрет раскрывать процесс поиска / chunks / similarity / reranking; правило частичного ответа по документации. Детали и known issues — [`rag.md`](rag.md) |
 | 2026-09-18 | `AiToolExecutor`: try/catch → `{ error }` для LLM вместо исключения (tool not found / bad JSON / `ZodError` с path / runtime error со stack в лог); фикс lint `no-unsafe-assignment`. RAG hardening (lazy Qdrant, stale-чанки, chunker, `api-key`) — см. [`rag.md`](rag.md) |
 | 2026-09-18 | Tool `search_documentation` (`SearchDocumentationTool` → `RagService.searchDocumentation`): семантический поиск по `docs/rag/*.md` через HF embeddings + Qdrant, top-3 при `similarity ≥ 0.5`. `RagModule` в `imports` `AiModule`. System prompt: разделение «документация (правила/процессы) vs данные системы (data-tools)», запрет утверждать то, чего нет в найденных чанках. См. [`rag.md`](rag.md) |
 | 2026-09-15 | Tool `get_current_stocks` (`GetCurrentStocksTool`, `StocksStatisticsService.getCurrentStocks`): снимок остатков «сегодня»; ответ — агрегат (`listingsCount` / `quantityFull` / `inWay*` + `byMarketplace` со складами); `article` опционален. `StocksService` / HTTP stocks API не менялись. Регистрация в `AiModule` (`StocksModule` в `imports`). System prompt: запрет ASCII-таблиц |

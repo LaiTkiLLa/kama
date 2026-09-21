@@ -53,6 +53,8 @@ export class QdrantService {
       content: point.payload?.content as string,
       source: point.payload?.source as string,
       heading: point.payload?.heading as string | undefined,
+      section: point.payload?.section as string | undefined,
+      keywords: point.payload?.keywords as string[] | undefined,
       similarity: point.score
     }));
   }
@@ -98,7 +100,9 @@ export class QdrantService {
       payload: {
         content: chunk.content,
         source: chunk.source,
-        heading: chunk.heading
+        heading: chunk.heading,
+        section: chunk.section,
+        keywords: chunk.keywords
       }
     }));
 

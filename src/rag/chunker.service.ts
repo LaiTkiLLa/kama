@@ -26,7 +26,8 @@ export class ChunkerService {
       this.splitSection(section).map(body => ({
         content: this.buildContent(section.breadcrumb, body),
         source: document.source,
-        heading: section.heading
+        heading: section.heading,
+        section: section.breadcrumb[0]
       }))
     );
   }
