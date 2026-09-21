@@ -5,6 +5,8 @@ export interface DocumentChunk {
   source: string;
   /** Заголовок секции, из которой взят фрагмент. */
   heading?: string;
+  keywords?: string[];
+  section?: string;
 }
 
 /** Промежуточная единица разбора markdown в ChunkerService (до деления на чанки). */
