@@ -61,7 +61,7 @@ Item (1 на article)
 
 ### Поля `items` — marketplace-independent (FACT)
 
-Из entity + domain doc: `article`, `articleOld`, `title`, `category` (product-level, backfill с WB — migration `1789209600000`), `ownCategory`, classification/virality, логистика/сроки (`consolidation`, `payment`, `buffer`, …), себестоимость/таможня (`costInRub`, `codeTNVED`, …), габариты/объём (`dimensionsFact`, `dimensionsMasterBox`, `volume`, …), `downloadCalculationMethod`, `wbCreatedAt`, `isArchive`, `createdForCalculation`, audit. `ownImagesUrl` — на `items_suppliers` (`1789460000000`).
+Из entity + domain doc: `article`, `articleOld`, `title`, `category` (product-level, backfill с WB — migration `1789209600000`), `ownCategory`, classification/virality, логистика/сроки (`consolidation`, `payment`, `buffer`, …), себестоимость/таможня (`costInRub`, `codeTNVED`, …), габариты/объём (`dimensionsFact`, `dimensionsMasterBox`, `volume`, …), `downloadCalculationMethod`, `wbCreatedAt`, `isArchive`, `createdForCalculation`, карточка товара (`descriptionRussian` / `descriptionEnglish`, `country`, `certificationRequired` / `certificationLink`, `material`, `packagingType` — `1789470000000`), audit. `ownImagesUrl` — на `items_suppliers` (`1789460000000`).
 
 **FACT:** MP identity/listing/prices/`send_status_id` с `items` **сняты** (M5 prod).
 
@@ -316,7 +316,7 @@ Mapping: `marketSku`, `marketModelId`, `marketCategoryId`, `marketCategoryName`,
 
 ### Общие vs marketplace-specific поля для create payload
 
-**FACT (общие, уже на `items` или directory DTO):** `article`, `articleOld`, `title`, `category`, `ownCategory`, classification, logistics/cost fields, `codeTNVED`, dimensions fact / master box, supplier link fields (`items_suppliers`, включая `ownImagesUrl`).
+**FACT (общие, уже на `items` или directory DTO):** `article`, `articleOld`, `title`, `category`, `ownCategory`, classification, logistics/cost fields, `codeTNVED`, карточка товара (`descriptionRussian` / `descriptionEnglish`, `country`, `certificationRequired` / `certificationLink`, `material`, `packagingType`), dimensions fact / master box, supplier link fields (`items_suppliers`, включая `ownImagesUrl`).
 
 **FACT (marketplace-specific, уже на `marketplace_items` или sync):** `category`, `title`, `color`, `dimensions`, `volume`, `barcode`, `sku`, `imageUrl`, prices (post-create).
 
@@ -434,7 +434,7 @@ Sheets показывает requestId; poll status / refresh row
 
 #### Общие (FACT — поля существуют в `items` / directory DTO)
 
-`article` (required), `articleOld`, `title`, `category`, `ownCategory`, `classification`, `codeTNVED`, logistics/cost поля из `UpdateDirectoryItemInfoDto`, supplier block (`supplier`, `multiplicity`, `boxNumber`, `ownImagesUrl`, … на `items_suppliers`).
+`article` (required), `articleOld`, `title`, `category`, `ownCategory`, `classification`, `codeTNVED`, карточка товара (`descriptionRussian` / `descriptionEnglish`, `country`, `certificationRequired` / `certificationLink`, `material`, `packagingType`), logistics/cost поля из `UpdateDirectoryItemInfoDto`, supplier block (`supplier`, `multiplicity`, `boxNumber`, `ownImagesUrl`, … на `items_suppliers`).
 
 #### Marketplace-specific (FACT — поля sync пишет в `marketplace_items`; обязательность для create — NEEDS VERIFICATION)
 

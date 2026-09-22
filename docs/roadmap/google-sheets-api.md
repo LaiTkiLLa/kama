@@ -65,6 +65,7 @@ Sheets **не должна** знать схему БД. API отдаёт ста
 | PATCH | `/api/info/contaminants/:id` | info | частичное обновление контрагента |
 | GET | `/api/items/directory/list` | items | справочник товаров + `marketplacesInfo[]` |
 | GET | `/api/items/erp/list` | items | ERP/Sheets: items + listing image/color/barcode/`chrtId` (marketplace query, default WB) |
+| PATCH | `/api/items/erp/list` | items | батч-обновление карточки товара (`body.items[]`, `mpItemId` = PK `marketplace_items`) |
 | GET | `/api/items/erp/suppliers-items/list` | items | ERP/Sheets: связи item↔supplier + size + `skus` из `marketplace_item_sizes` (marketplace query, default WB) |
 | PATCH | `/api/items/erp/suppliers-items/list` | items | батч-обновление supplier-fields + optional `supplier` (title → `supplierId`); `itemSupplierId` = PK |
 | PATCH | `/api/items/erp/logistics-info` | items | батч-обновление логистики (`body.items[]`, `id` = PK `items`) |
@@ -98,6 +99,7 @@ Sheets **не должна** знать схему БД. API отдаёт ста
 |--------|-------------------|---------------|--------------------|----------------|
 | Items | `GET /api/items/directory/list` | `items`, `marketplace_items`, `marketplaces`, `items_suppliers`, `suppliers` | Частично: полный каталог + mp nested | Нет pagination; один `supplierTitle`; нет `updatedAt`/incremental; нет archived; `send_status` не отдаётся |
 | Items | `GET /api/items/erp/list` | `items` + `marketplace_items` выбранного MP | **Да** для ERP/Sheets (~400 items) | Пока без incremental; listing fields зависят от `marketplace` (default WB) |
+| Items | `PATCH /api/items/erp/list` | `items` (+ `marketplace_items.category` только для test items) | Да для ERP/Sheets write-back карточки | батч `items[]`; `mpItemId` = PK listing; product-card поля на `items` |
 | Items | `PATCH /api/items/erp/logistics-info` | `items` | Да для ERP logistics write-back | батч `items[]`; `id` = PK; поля на `items` (не mp listing) |
 | Items | `GET /api/items/erp/suppliers-items/list` | `items_suppliers`, `items`, `suppliers`, `marketplace_item_sizes` | **Да** для таблицы item↔supplier | Одна строка на `(supplier, size)`; `skus` с выбранного MP (default WB) |
 | Items | `PATCH /api/items/erp/suppliers-items/list` | `items_suppliers` | **Да** для ERP/Sheets write-back supplier-fields | батч `items[]`; `itemSupplierId` = PK; optional `supplier` (title); `ownImagesUrl` в PATCH; `volume` в PATCH DTO **нет** (есть в GET) |
@@ -130,12 +132,14 @@ Sheets **не должна** знать схему БД. API отдаёт ста
 
 **Существует для ERP/Sheets (FACT, 2026-08-11):** `GET /api/items/erp/list`.
 
-Response ERP (FACT, 2026-08-13, logistics 2026-08-18):
-- с `items`: `id`, `article`, `title`, `category`, `ownCategory`, `consolidation`, `fullfillmentAcceptance`, `marketplaceAcceptance`, `daysDeliveryToRussia`, `transportRateUsd`, `dutyPercentage`, `costCalculationType`, `calculationType`, `downloadCalculationMethod`, `transportType`, `deliveryMethod`
+Response ERP (FACT, 2026-08-13, logistics 2026-08-18, product card 2026-09-22):
+- с `items`: `id`, `article`, `title`, `category`, `ownCategory`, `descriptionRussian`, `descriptionEnglish`, `country`, `certificationRequired`, `certificationLink`, `material`, `packagingType`, `consolidation`, `fullfillmentAcceptance`, `marketplaceAcceptance`, `daysDeliveryToRussia`, `transportRateUsd`, `dutyPercentage`, `costCalculationType`, `calculationType`, `downloadCalculationMethod`, `transportType`, `deliveryMethod`
 - с активного listing выбранного MP (`deletedAt IS NULL`): `image`, `color`, `barcode`, `chrtId`
 - query: `marketplace` optional, default `'WB'` (`Озон` / `WB` / `Yandex` / `Ozon Tamov` / `Yandex Tamov`)
 - filter: `isArchive = false`; optional `withTestArticles`: не передан → все товары, `true` → только `createdForCalculation`, `false` → только реальные
 - объём ~400 rows — pagination не требуется (**FACT**, владелец)
+
+**PATCH `/api/items/erp/list` (FACT, 2026-09-22):** батч partial update карточки. Body `{ items: [{ mpItemId, …fields }] }`, `mpItemId` = PK `marketplace_items`. Пишет на `items`: `ownCategory`, `descriptionRussian`, `descriptionEnglish`, `country`, `certificationRequired`, `certificationLink`, `material`, `packagingType`. `category` на listing — только если `createdForCalculation`. Колонки — миграция `1789470000000`. Directory эти поля не читает и не пишет.
 
 **PATCH `/api/items/erp/logistics-info` (FACT, 2026-08-18):** батч partial update логистики. Body `{ items: [{ id, …fields }] }`, `id` = PK `items`. Поля: `consolidation`, `daysDeliveryToRussia`, `fullfillmentAcceptance`, `marketplaceAcceptance`, `costCalculationType`, `downloadCalculationMethod`, `calculationType`, `transportType`, `deliveryMethod`. Новые колонки `transport_type` / `delivery_method` — миграция `1789390000000`. Directory PATCH эти два поля пока не пишет.
 
@@ -433,6 +437,7 @@ Filter: `marketplaceId IS NOT NULL`. Нет query по MP. Auth header прин�
 - [x] Items ERP list: `GET /api/items/erp/list` (WB image/color/barcode).
 - [x] ERP list: query `marketplace` + поле `chrtId` (2026-08-13).
 - [x] ERP logistics PATCH: `PATCH /api/items/erp/logistics-info` (батч `items[]`); колонки `transport_type` / `delivery_method` (`1789390000000`).
+- [x] ERP product card: `GET`/`PATCH /api/items/erp/list` — описания, страна, сертификация, материал, упаковка (`1789470000000`).
 - [x] Supplier↔Item Phase 1: колонки + backfill `1789300000000`.
 - [x] Supplier↔Item Phase 2: drop columns on `items`, nullable assembling/production `1789310000000`; orphans → «Системный поставщик».
 - [x] Supplier↔Item Phase 3: `payment`/`dimensionsFact`/`dimensionsMasterBox`/`volume` на `items_suppliers` + backfill `1789320000000`; dual-write; drop с `items` позже.

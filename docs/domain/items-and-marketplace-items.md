@@ -28,7 +28,7 @@ Item (marketplace-independent, 1 на article)
 
 ### Поля на `items` (DECISION, 2026-08-10)
 
-Marketplace-independent: `id`, `article`, `articleOld`, `ownCategory`, classification/virality, логистика/сроки (`consolidation`, `fullfillmentAcceptance`, `marketplaceAcceptance`, `buffer`, `daysDeliveryToRussia`, `transportType`, `deliveryMethod`), себестоимость/таможня (`costInRub`, `codeTNVED`, …), `downloadCalculationMethod`, `wbCreatedAt`, audit.
+Marketplace-independent: `id`, `article`, `articleOld`, `ownCategory`, classification/virality, логистика/сроки (`consolidation`, `fullfillmentAcceptance`, `marketplaceAcceptance`, `buffer`, `daysDeliveryToRussia`, `transportType`, `deliveryMethod`), себестоимость/таможня (`costInRub`, `codeTNVED`, …), `downloadCalculationMethod`, `wbCreatedAt`, карточка товара (`descriptionRussian`, `descriptionEnglish`, `country`, `certificationRequired`, `certificationLink`, `material`, `packagingType` — `1789470000000`), audit.
 
 **На `items_suppliers` (supplier-link, не item-level):** Phase 2 — `supplierMinimumOrder`, `boxNumber`, `costInYuan`, `costInYuanWhite`, `multiplicity`, `assembling`, `production`. Phase 3 — `payment`, `dimensionsFact`, `dimensionsMasterBox`, `volume`. `ownImagesUrl` (`1789460000000`; backfill на все строки связи, drop с `items`). Dual-write на `items` **снят** (`1789370000000`). **Phase 4 (`1789440000000`):** nullable `item_characteristic_id` (размер «Размер» → FK `item_characteristics`); `deleted_at`; unique partial indexes — без размеров одна строка на `(item_id, supplier_id)`, с размерами — одна на `(item_id, supplier_id, item_characteristic_id)`.
 
@@ -178,6 +178,15 @@ Migration `1789340000000`: только CREATE tables + FK + indexes. **Без**
 | ------------------------ | ------------------------------------------------------------ |
 | `GET …/directory/list`   | ✔ mp prices; `isArchive` (product) + `deleted_at` (listing) |
 | `PATCH …/directory/info` | ✔ V2                                                        |
+
+### ERP list (карточка товара)
+
+| Endpoint              | Статус |
+| --------------------- | ------ |
+| `GET …/erp/list`      | ✔ product-card поля с `items` (`1789470000000`) |
+| `PATCH …/erp/list`    | ✔ пишет на `items` по `mpItemId`; `category` listing — только test items |
+
+Directory эти поля **не** читает и не пишет.
 
 ---
 

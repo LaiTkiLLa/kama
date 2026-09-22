@@ -128,6 +128,34 @@ export class Items {
   @Column({ type: 'varchar', nullable: true, name: 'download_calculation_method' })
   downloadCalculationMethod: string;
 
+  //Описание товара на русском
+  @Column({ type: 'varchar', nullable: true, name: 'description_russian' })
+  descriptionRussian: string;
+
+  //Описание товара на английском
+  @Column({ type: 'varchar', nullable: true, name: 'description_english' })
+  descriptionEnglish: string;
+
+  //Страна производства
+  @Column({ type: 'varchar', nullable: true })
+  country: string;
+
+  //Необходимость сертификации
+  @Column({ type: 'boolean', nullable: false, default: false, name: 'certification_required' })
+  certificationRequired: boolean;
+
+  //Ссылка на сертификат
+  @Column({ type: 'varchar', nullable: true, name: 'certification_link' })
+  certificationLink: string;
+
+  //Материал
+  @Column({ type: 'varchar', nullable: true })
+  material: string;
+
+  //Тип упаковки
+  @Column({ type: 'varchar', nullable: true, name: 'packaging_type' })
+  packagingType: string;
+
   @CreateDateColumn({
     type: 'timestamp',
     nullable: false,
