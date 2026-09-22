@@ -34,24 +34,45 @@ export class ItemsAiToolsService {
       const findYandexTamovMp = await this.infoService.findMarketplace({ title: 'Yandex Tamov' });
       const findOzonTamovMp = await this.infoService.findMarketplace({ title: 'Ozon Tamov' });
 
-      const { length, width, height, weight, category } = args;
+      const {
+        lengthMasterBox,
+        widthMasterBox,
+        heightMasterBox,
+        weightMasterBox,
+        category,
+        title,
+        costInYuan,
+        costInYuanWhite,
+        costCalculationType,
+        calculationType,
+        downloadCalculationMethod,
+        multiplicity
+      } = args;
       // Формат как у card sync: `length/width/height/weight` (см, кг); volume в литрах.
       // WB считает объём по округлённым вверх габаритам, Ozon — по фактическим.
-      const dimensions = `${length}/${width}/${height}/${weight}`;
+      const dimensions = `${lengthMasterBox}/${widthMasterBox}/${heightMasterBox}/${weightMasterBox}`;
       const volumeWb = (
-        (Math.ceil(Number(length)) * Math.ceil(Number(width)) * Math.ceil(Number(height))) /
+        (Math.ceil(Number(lengthMasterBox)) *
+          Math.ceil(Number(widthMasterBox)) *
+          Math.ceil(Number(heightMasterBox))) /
         1000
       ).toFixed(2);
-      const volumeOzon = ((Number(length) * Number(width) * Number(height)) / 1000).toFixed(2);
+      const volumeOzon = (
+        (Number(lengthMasterBox) * Number(widthMasterBox) * Number(heightMasterBox)) /
+        1000
+      ).toFixed(2);
 
       const createItem = queryRunner.manager.create(Items, {
         createdForCalculation: true,
-        article: 'тестовый артикул'
+        article: 'тестовый артикул',
+        downloadCalculationMethod,
+        calculationType,
+        costCalculationType
       });
       await queryRunner.manager.save(Items, createItem);
       const article = `тестовый артикул ${createItem.id}`;
-      const title = `тестовое название ${createItem.id}`;
-      await queryRunner.manager.update(Items, { id: createItem.id }, { article, category, title });
+      const titleItem = title ? title : `тестовое название ${createItem.id}`;
+      await queryRunner.manager.update(Items, { id: createItem.id }, { article, category, title: titleItem });
 
       const listings: Array<{ marketplaceId: number; dimensions?: string; volume?: string }> = [
         { marketplaceId: findWbMp.id, dimensions, volume: volumeWb },
@@ -65,7 +86,7 @@ export class ItemsAiToolsService {
           itemId: createItem.id,
           marketplaceId: listing.marketplaceId,
           category,
-          title,
+          title: titleItem,
           barcode: `тестовый баркод ${createItem.id} ${listing.marketplaceId}`,
           sku: `тестовый ску ${createItem.id} ${listing.marketplaceId}`,
           marketplaceIdentifier: `тестовый идентификатор ${createItem.id} ${listing.marketplaceId}`,
@@ -86,8 +107,12 @@ export class ItemsAiToolsService {
       await queryRunner.manager.insert(ItemsSuppliers, {
         itemId: createItem.id,
         supplierId: findSupplier.id,
-        multiplicity: 'тестовая кратность',
-        boxNumber: 'тестовый номер короба'
+        multiplicity,
+        boxNumber: 'тестовый номер короба',
+        costInYuanWhite,
+        costInYuan,
+        dimensionsMasterBox: dimensions,
+        volume: volumeOzon
       });
       await queryRunner.commitTransaction();
       return { id: createItem.id, article };

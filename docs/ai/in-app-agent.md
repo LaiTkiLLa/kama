@@ -5,7 +5,7 @@
 
 Связанные: [`../AI_CONTEXT.md`](../AI_CONTEXT.md), [`../PROJECT_CONTEXT.md`](../PROJECT_CONTEXT.md), [`../README.md`](../README.md).
 
-Последнее обновление: 2026-09-18.
+Последнее обновление: 2026-09-22.
 
 ---
 
@@ -30,7 +30,7 @@
 | Tool `compare_order_periods` → `orders_v2` | ✔ (2026-09-11) |
 | Фильтр `article` во всех tools статистики (`orders_v2 → marketplace_items → items.article`) | ✔ (2026-09-11) |
 | Валидация аргументов tools (zod, `AiToolExecutor`) | ✔ (2026-09-01) |
-| Tool `create_test_item` → `ItemsAiToolsService.createTestItem` (первый write-tool; расчётный товар) | ✔ (2026-09-12) |
+| Tool `create_test_item` → `ItemsAiToolsService.createTestItem` (первый write-tool; расчётный товар + параметры расчёта/себестоимость) | ✔ (2026-09-12), расширен 2026-09-22 |
 | Tool `get_current_stocks` → `stocks` «сегодня» | ✔ (2026-09-15) |
 | Auth (`api-key`) на chat | □ backlog |
 | Ошибки tools → `{ error }` для LLM, chat не падает (`AiToolExecutor`) | ✔ (2026-09-18) |
@@ -218,29 +218,40 @@ AiService          (tool loop: LLM → execute tools → LLM …)
 
 ### `create_test_item`
 
-**FACT (2026-09-12):** единственный **write**-tool. Создаёт тестовый (расчётный) товар: `items` с `created_for_calculation = true`, по одному `marketplace_items` на каждый кабинет (`WB` / `Озон` / `Yandex` / `Yandex Tamov` / `Ozon Tamov`) и связь с `Системный поставщик` в `items_suppliers`. Это **не** реальная карточка на маркетплейсе и не создание через `product-creation` (см. [`../roadmap/marketplace-product-creation.md`](../roadmap/marketplace-product-creation.md)).
+**FACT (2026-09-12, расширен 2026-09-22):** единственный **write**-tool. Создаёт тестовый (расчётный) товар: `items` с `created_for_calculation = true`, по одному `marketplace_items` на каждый кабинет (`WB` / `Озон` / `Yandex` / `Yandex Tamov` / `Ozon Tamov`) и связь с `Системный поставщик` в `items_suppliers`. Это **не** реальная карточка на маркетплейсе и не создание через `product-creation` (см. [`../roadmap/marketplace-product-creation.md`](../roadmap/marketplace-product-creation.md)).
 
 Файлы: tool `src/ai/tools/items/create-test-item.tool.ts` (`CreateTestItemTool`), схема `src/ai/tools/items/dto/create-test-item.schema.ts` (`CreateTestItemSchema`), domain `ItemsAiToolsService.createTestItem(args: CreateTestItemArgs)` (`src/items/services/items-ai-tools.service.ts`).
 
-Параметры (все обязательны для LLM):
+Параметры:
 
-| Поле | Тип | Описание |
-|------|-----|----------|
-| `length` | `numericString` | длина, см |
-| `width` | `numericString` | ширина, см |
-| `height` | `numericString` | высота, см |
-| `weight` | `numericString` | вес, кг |
-| `category` | `z.string().trim().min(1)` | категория; пишется в `items.category` **и** `marketplace_items.category` всех listings |
+| Поле | Тип | Обязательное | Куда пишется | Описание |
+|------|-----|--------------|--------------|----------|
+| `lengthMasterBox` | `numericString` | да | часть `dimensions` / `dimensionsMasterBox` | длина мастер-короба, см |
+| `widthMasterBox` | `numericString` | да | часть `dimensions` / `dimensionsMasterBox` | ширина мастер-короба, см |
+| `heightMasterBox` | `numericString` | да | часть `dimensions` / `dimensionsMasterBox` | высота мастер-короба, см |
+| `weightMasterBox` | `numericString` | да | часть `dimensions` / `dimensionsMasterBox` | вес мастер-короба, кг |
+| `category` | `z.string().trim().min(1)` | да | `items.category` + `marketplace_items.category` | категория |
+| `title` | `z.string().trim().min(1)` | нет | `items.title` + `marketplace_items.title` | наименование; если не передано — `тестовое название <id>` |
+| `costInYuan` | `z.number()` | да | `items_suppliers.cost_in_yuan` | себестоимость, юани |
+| `costInYuanWhite` | `z.number()` | да | `items_suppliers.cost_in_yuan_white` | себестоимость с налогами, юани |
+| `costCalculationType` | `z.enum(['по таможенной стоимости', 'по весу'])` | да | `items.cost_calculation_type` | тип расчёта таможенной стоимости |
+| `calculationType` | `z.enum(['В белую', 'В серую'])` | да | `items.calculation_type` | тип расчёта товара |
+| `downloadCalculationMethod` | `z.enum([...])` | да | `items.download_calculation_method` | метод расчёта загрузки (см. ниже) |
+| `multiplicity` | `numericString` | да | `items_suppliers.multiplicity` | кратность (шт. в мастер-коробе); та же regex-валидация, что у габаритов |
 
-**DECISION:** габариты — строки (`numericString` = `z.string().trim().regex(/^\d+(\.\d+)?$/)` + `> 0`), а не числа: значение как есть уходит в `marketplace_items.dimensions` (строка), а regex не пускает `"abc"` / `"1,5"` / `"0"` — иначе `Number()` в сервисе дал бы `NaN`/`0` в `volume`. В JSON Schema для DeepSeek поле уходит как `type: string` с `pattern`; число (`145.5` без кавычек) валидацию **не** пройдёт — описания полей велят LLM передавать строку.
+Допустимые `downloadCalculationMethod`: `'по объему (64)'`, `'по весу (64)'`, `'по объему (25)'`, `'по весу (25)'`, `'сборный груз'`, `'по объёму (80)'`, `'по весу (80)'`, `'по объёму (100)'`, `'по весу (100)'`. **FACT:** в enum смешаны «объему» / «объёму» (без/с ё) — как в схеме tool.
 
-**FACT:** запись по МП повторяет формат card sync: `marketplace_items.dimensions = "length/width/height/weight"`, `volume` в литрах с `toFixed(2)`. WB: `ceil(L)·ceil(W)·ceil(H)/1000` (WB округляет габариты вверх); Ozon / Ozon Tamov: `L·W·H/1000`. Yandex-listings — без dimensions/volume (как в legacy `POST /api/items`).
+**DECISION:** description tool запрещает вызов без всех обязательных полей и запрещает выдумывать значения / варианты enum. `title` не запрашивать, если пользователь его не указал.
 
-**FACT:** legacy `POST /api/items` (`ItemsService.createTestItem()`, без body) **не менялся**: категория `'тестовая категория'`, без dimensions/volume, ответ `{ id }`.
+**DECISION:** габариты мастер-короба и `multiplicity` — строки (`numericString` = `z.string().trim().regex(/^\d+(\.\d+)?$/)` + `> 0`), а не числа: габариты как есть уходят в `marketplace_items.dimensions` и `items_suppliers.dimensions_master_box` (строка), а regex не пускает `"abc"` / `"1,5"` / `"0"` — иначе `Number()` в сервисе дал бы `NaN`/`0` в `volume`. В JSON Schema для DeepSeek поле уходит как `type: string` с `pattern`; число (`145.5` без кавычек) валидацию **не** пройдёт — описания полей велят LLM передавать строку. Себестоимость (`costInYuan` / `costInYuanWhite`) — наоборот `z.number()` (колонки `float`).
 
-**FACT:** артикул — `тестовый артикул <items.id>`, title — `тестовое название <items.id>`; tool возвращает `{ id, article }`, LLM сообщает пользователю `article`. `article` берётся из локальной переменной после `update`, не из entity (`createItem.article` после `save` остаётся `'тестовый артикул'` без id). Транзакция: всё или ничего (rollback при отсутствии кабинета или системного поставщика).
+**FACT:** запись по МП повторяет формат card sync: `marketplace_items.dimensions = "L/W/H/weight"` (из `*MasterBox`), `volume` в литрах с `toFixed(2)`. WB: `ceil(L)·ceil(W)·ceil(H)/1000`; Ozon / Ozon Tamov: `L·W·H/1000`. Yandex-listings — без dimensions/volume (как в legacy `POST /api/items`). Тот же `dimensions` + `volumeOzon` пишутся в `items_suppliers.dimensions_master_box` / `items_suppliers.volume`.
 
-**NEEDS VERIFICATION:** известный риск из `AI_CONTEXT` «Card sync find by article — без `created_for_calculation = false`» к тестовым артикулам не применим (`тестовый артикул N` не совпадёт с реальным), но unique-ограничений на article нет.
+**FACT:** legacy `POST /api/items` (`ItemsService.createTestItem()`, без body) **не менялся**: категория `'тестовая категория'`, без размеров/себестоимости/параметров расчёта, `multiplicity: 'тестовая кратность'`, ответ `{ id }`.
+
+**FACT:** артикул — `тестовый артикул <items.id>`; `title` — из аргумента или `тестовое название <items.id>` (одинаково на `items` и всех `marketplace_items`). Tool возвращает `{ id, article }`, LLM сообщает пользователю `article`. `article` берётся из локальной переменной после `update`, не из entity (`createItem.article` после `save` остаётся `'тестовый артикул'` без id). Транзакция: всё или ничего (rollback при отсутствии кабинета или системного поставщика).
+
+**NEEDS VERIFICATION:** известный риск из `AI_CONTEXT` «Card sync find by article — без `created_for_calculation = false`» к тестовым артикулам не применим (`тестовый артикул N` не совпадёт с реальным), но unique-ограничений на article нет. Значения enum в схеме vs фактические строки в prod Sheets/`items` не сверены по БД в этом обновлении.
 
 ### `get_current_stocks`
 
