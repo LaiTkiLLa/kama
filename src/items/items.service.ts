@@ -542,6 +542,13 @@ export class ItemsService {
           article: item.article,
           title: item.title,
           ownCategory: item.ownCategory,
+          descriptionRussian: item.descriptionRussian,
+          descriptionEnglish: item.descriptionEnglish,
+          country: item.country,
+          certificationRequired: item.certificationRequired,
+          certificationLink: item.certificationLink,
+          material: item.material,
+          packagingType: item.packagingType,
           image: wbListing?.imageUrl ?? '',
           color: wbListing?.color ?? '',
           barcode: wbListing?.barcode ?? '',
@@ -928,13 +935,44 @@ export class ItemsService {
           );
         }
 
-        // marketplace-independent: собственная категория на items
+        // marketplace-independent: карточка товара на items
+        const itemPatch: {
+          ownCategory?: string;
+          descriptionRussian?: string;
+          descriptionEnglish?: string;
+          country?: string;
+          certificationRequired?: boolean;
+          certificationLink?: string;
+          material?: string;
+          packagingType?: string;
+        } = {};
         if (dtoItem.ownCategory !== undefined) {
-          await queryRunner.manager.update(
-            Items,
-            { id: existingMpItem.itemId },
-            { ownCategory: dtoItem.ownCategory }
-          );
+          itemPatch.ownCategory = dtoItem.ownCategory;
+        }
+        if (dtoItem.descriptionRussian !== undefined) {
+          itemPatch.descriptionRussian = dtoItem.descriptionRussian;
+        }
+        if (dtoItem.descriptionEnglish !== undefined) {
+          itemPatch.descriptionEnglish = dtoItem.descriptionEnglish;
+        }
+        if (dtoItem.country !== undefined) {
+          itemPatch.country = dtoItem.country;
+        }
+        if (dtoItem.certificationRequired !== undefined) {
+          itemPatch.certificationRequired = dtoItem.certificationRequired;
+        }
+        if (dtoItem.certificationLink !== undefined) {
+          itemPatch.certificationLink = dtoItem.certificationLink;
+        }
+        if (dtoItem.material !== undefined) {
+          itemPatch.material = dtoItem.material;
+        }
+        if (dtoItem.packagingType !== undefined) {
+          itemPatch.packagingType = dtoItem.packagingType;
+        }
+
+        if (Object.keys(itemPatch).length > 0) {
+          await queryRunner.manager.update(Items, { id: existingMpItem.itemId }, itemPatch);
         }
       }
       await queryRunner.commitTransaction();

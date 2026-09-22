@@ -6,6 +6,7 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  IsBoolean,
   ValidateNested
 } from 'class-validator';
 
@@ -20,6 +21,34 @@ export class ItemInfoDto {
   @IsString()
   @IsOptional()
   ownCategory: string;
+
+  @IsString()
+  @IsOptional()
+  descriptionRussian: string;
+
+  @IsString()
+  @IsOptional()
+  descriptionEnglish: string;
+
+  @IsString()
+  @IsOptional()
+  country: string;
+
+  @IsBoolean()
+  @IsOptional()
+  certificationRequired: boolean;
+
+  @IsString()
+  @IsOptional()
+  certificationLink: string;
+
+  @IsString()
+  @IsOptional()
+  material: string;
+
+  @IsString()
+  @IsOptional()
+  packagingType: string;
 }
 
 export class UpdateErpInfoDto {
