@@ -69,7 +69,7 @@ export class ItemsSuppliers {
   @Column({ type: 'int', nullable: true })
   payment: number;
 
-  //Размеры факт
+  //Размеры факт товара штучного
   @Column({ type: 'varchar', nullable: true, name: 'dimensions_fact' })
   dimensionsFact: string;
 

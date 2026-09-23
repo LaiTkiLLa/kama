@@ -46,21 +46,21 @@ export class ItemsAiToolsService {
         costCalculationType,
         calculationType,
         downloadCalculationMethod,
-        multiplicity
+        multiplicity,
+        lengthItem,
+        widthItem,
+        heightItem,
+        weightItem
       } = args;
       // Формат как у card sync: `length/width/height/weight` (см, кг); volume в литрах.
       // WB считает объём по округлённым вверх габаритам, Ozon — по фактическим.
-      const dimensions = `${lengthMasterBox}/${widthMasterBox}/${heightMasterBox}/${weightMasterBox}`;
+      const dimensionsMasterBox = `${lengthMasterBox}/${widthMasterBox}/${heightMasterBox}/${weightMasterBox}`;
+      const dimensionsFact = `${lengthItem}/${widthItem}/${heightItem}/${weightItem}`;
       const volumeWb = (
-        (Math.ceil(Number(lengthMasterBox)) *
-          Math.ceil(Number(widthMasterBox)) *
-          Math.ceil(Number(heightMasterBox))) /
+        (Math.ceil(Number(lengthItem)) * Math.ceil(Number(widthItem)) * Math.ceil(Number(heightItem))) /
         1000
       ).toFixed(2);
-      const volumeOzon = (
-        (Number(lengthMasterBox) * Number(widthMasterBox) * Number(heightMasterBox)) /
-        1000
-      ).toFixed(2);
+      const volumeOzon = ((Number(lengthItem) * Number(widthItem) * Number(heightItem)) / 1000).toFixed(2);
 
       const createItem = queryRunner.manager.create(Items, {
         createdForCalculation: true,
@@ -75,11 +75,11 @@ export class ItemsAiToolsService {
       await queryRunner.manager.update(Items, { id: createItem.id }, { article, category, title: titleItem });
 
       const listings: Array<{ marketplaceId: number; dimensions?: string; volume?: string }> = [
-        { marketplaceId: findWbMp.id, dimensions, volume: volumeWb },
-        { marketplaceId: findOzonMp.id, dimensions, volume: volumeOzon },
+        { marketplaceId: findWbMp.id, dimensions: dimensionsFact, volume: volumeWb },
+        { marketplaceId: findOzonMp.id, dimensions: dimensionsFact, volume: volumeOzon },
         { marketplaceId: findYandexMp.id },
         { marketplaceId: findYandexTamovMp.id },
-        { marketplaceId: findOzonTamovMp.id, dimensions, volume: volumeOzon }
+        { marketplaceId: findOzonTamovMp.id, dimensions: dimensionsFact, volume: volumeOzon }
       ];
       for (const listing of listings) {
         const createMarketplaceItem = queryRunner.manager.create(MarketplaceItems, {
@@ -111,7 +111,8 @@ export class ItemsAiToolsService {
         boxNumber: 'тестовый номер короба',
         costInYuanWhite,
         costInYuan,
-        dimensionsMasterBox: dimensions,
+        dimensionsFact,
+        dimensionsMasterBox,
         volume: volumeOzon
       });
       await queryRunner.commitTransaction();
