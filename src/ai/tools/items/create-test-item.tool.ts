@@ -35,7 +35,7 @@ export class CreateTestItemTool implements AiTool {
 * weightItem — вес штучного товара в килограммах;
 * category — категория товара;
 * costInYuan — себестоимость товара в юанях;
-* costInYuanWhite — себестоимость товара в юанях с учетом налогов;
+* costInYuanWhite — себестоимость товара в юанях в белую;
 * costCalculationType — тип расчёта таможенной стоимости;
 * calculationType — тип расчёта товара;
 * downloadCalculationMethod — метод расчёта загрузки;
