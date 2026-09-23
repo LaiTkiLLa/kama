@@ -30,7 +30,7 @@
 | Tool `compare_order_periods` → `orders_v2` | ✔ (2026-09-11) |
 | Фильтр `article` во всех tools статистики (`orders_v2 → marketplace_items → items.article`) | ✔ (2026-09-11) |
 | Валидация аргументов tools (zod, `AiToolExecutor`) | ✔ (2026-09-01) |
-| Tool `create_test_item` → `ItemsAiToolsService.createTestItem` (первый write-tool; расчётный товар + параметры расчёта/себестоимость) | ✔ (2026-09-12), расширен 2026-09-22 |
+| Tool `create_test_item` → `ItemsAiToolsService.createTestItem` (первый write-tool; расчётный товар + параметры расчёта/себестоимость; габариты штуки `*Item` + мастер-короб `*MasterBox`) | ✔ (2026-09-12), расширен 2026-09-22 / 2026-09-23 |
 | Tool `get_current_stocks` → `stocks` «сегодня» | ✔ (2026-09-15) |
 | Auth (`api-key`) на chat | □ backlog |
 | Ошибки tools → `{ error }` для LLM, chat не падает (`AiToolExecutor`) | ✔ (2026-09-18) |
@@ -218,7 +218,7 @@ AiService          (tool loop: LLM → execute tools → LLM …)
 
 ### `create_test_item`
 
-**FACT (2026-09-12, расширен 2026-09-22):** единственный **write**-tool. Создаёт тестовый (расчётный) товар: `items` с `created_for_calculation = true`, по одному `marketplace_items` на каждый кабинет (`WB` / `Озон` / `Yandex` / `Yandex Tamov` / `Ozon Tamov`) и связь с `Системный поставщик` в `items_suppliers`. Это **не** реальная карточка на маркетплейсе и не создание через `product-creation` (см. [`../roadmap/marketplace-product-creation.md`](../roadmap/marketplace-product-creation.md)).
+**FACT (2026-09-12, расширен 2026-09-22 / 2026-09-23):** единственный **write**-tool. Создаёт тестовый (расчётный) товар: `items` с `created_for_calculation = true`, по одному `marketplace_items` на каждый кабинет (`WB` / `Озон` / `Yandex` / `Yandex Tamov` / `Ozon Tamov`) и связь с `Системный поставщик` в `items_suppliers`. Это **не** реальная карточка на маркетплейсе и не создание через `product-creation` (см. [`../roadmap/marketplace-product-creation.md`](../roadmap/marketplace-product-creation.md)).
 
 Файлы: tool `src/ai/tools/items/create-test-item.tool.ts` (`CreateTestItemTool`), схема `src/ai/tools/items/dto/create-test-item.schema.ts` (`CreateTestItemSchema`), domain `ItemsAiToolsService.createTestItem(args: CreateTestItemArgs)` (`src/items/services/items-ai-tools.service.ts`).
 
@@ -226,10 +226,14 @@ AiService          (tool loop: LLM → execute tools → LLM …)
 
 | Поле | Тип | Обязательное | Куда пишется | Описание |
 |------|-----|--------------|--------------|----------|
-| `lengthMasterBox` | `numericString` | да | часть `dimensions` / `dimensionsMasterBox` | длина мастер-короба, см |
-| `widthMasterBox` | `numericString` | да | часть `dimensions` / `dimensionsMasterBox` | ширина мастер-короба, см |
-| `heightMasterBox` | `numericString` | да | часть `dimensions` / `dimensionsMasterBox` | высота мастер-короба, см |
-| `weightMasterBox` | `numericString` | да | часть `dimensions` / `dimensionsMasterBox` | вес мастер-короба, кг |
+| `lengthMasterBox` | `numericString` | да | часть `items_suppliers.dimensions_master_box` | длина мастер-короба, см |
+| `widthMasterBox` | `numericString` | да | часть `items_suppliers.dimensions_master_box` | ширина мастер-короба, см |
+| `heightMasterBox` | `numericString` | да | часть `items_suppliers.dimensions_master_box` | высота мастер-короба, см |
+| `weightMasterBox` | `numericString` | да | часть `items_suppliers.dimensions_master_box` | вес мастер-короба, кг |
+| `lengthItem` | `numericString` | да | часть `marketplace_items.dimensions` + `items_suppliers.dimensions_fact` | длина штучного товара, см |
+| `widthItem` | `numericString` | да | часть `marketplace_items.dimensions` + `items_suppliers.dimensions_fact` | ширина штучного товара, см |
+| `heightItem` | `numericString` | да | часть `marketplace_items.dimensions` + `items_suppliers.dimensions_fact` | высота штучного товара, см |
+| `weightItem` | `numericString` | да | часть `marketplace_items.dimensions` + `items_suppliers.dimensions_fact` | вес штучного товара, кг |
 | `category` | `z.string().trim().min(1)` | да | `items.category` + `marketplace_items.category` | категория |
 | `title` | `z.string().trim().min(1)` | нет | `items.title` + `marketplace_items.title` | наименование; если не передано — `тестовое название <id>` |
 | `costInYuan` | `z.number()` | да | `items_suppliers.cost_in_yuan` | себестоимость, юани |
@@ -241,11 +245,18 @@ AiService          (tool loop: LLM → execute tools → LLM …)
 
 Допустимые `downloadCalculationMethod`: `'по объему (64)'`, `'по весу (64)'`, `'по объему (25)'`, `'по весу (25)'`, `'сборный груз'`, `'по объёму (80)'`, `'по весу (80)'`, `'по объёму (100)'`, `'по весу (100)'`. **FACT:** в enum смешаны «объему» / «объёму» (без/с ё) — как в схеме tool.
 
-**DECISION:** description tool запрещает вызов без всех обязательных полей и запрещает выдумывать значения / варианты enum. `title` не запрашивать, если пользователь его не указал.
+**DECISION:** description tool запрещает вызов без всех обязательных полей и запрещает выдумывать значения / варианты enum. `title` не запрашивать, если пользователь его не указал. Не путать `*MasterBox` (мастер-короб) и `*Item` (штучный товар).
 
-**DECISION:** габариты мастер-короба и `multiplicity` — строки (`numericString` = `z.string().trim().regex(/^\d+(\.\d+)?$/)` + `> 0`), а не числа: габариты как есть уходят в `marketplace_items.dimensions` и `items_suppliers.dimensions_master_box` (строка), а regex не пускает `"abc"` / `"1,5"` / `"0"` — иначе `Number()` в сервисе дал бы `NaN`/`0` в `volume`. В JSON Schema для DeepSeek поле уходит как `type: string` с `pattern`; число (`145.5` без кавычек) валидацию **не** пройдёт — описания полей велят LLM передавать строку. Себестоимость (`costInYuan` / `costInYuanWhite`) — наоборот `z.number()` (колонки `float`).
+**DECISION:** габариты (`*MasterBox`, `*Item`) и `multiplicity` — строки (`numericString` = `z.string().trim().regex(/^\d+(\.\d+)?$/)` + `> 0`), а не числа: уходят в строковые колонки `dimensions` / `dimensions_fact` / `dimensions_master_box`, а regex не пускает `"abc"` / `"1,5"` / `"0"` — иначе `Number()` в сервисе дал бы `NaN`/`0` в `volume`. В JSON Schema для DeepSeek поле уходит как `type: string` с `pattern`; число (`145.5` без кавычек) валидацию **не** пройдёт — описания полей велят LLM передавать строку. Себестоимость (`costInYuan` / `costInYuanWhite`) — наоборот `z.number()` (колонки `float`).
 
-**FACT:** запись по МП повторяет формат card sync: `marketplace_items.dimensions = "L/W/H/weight"` (из `*MasterBox`), `volume` в литрах с `toFixed(2)`. WB: `ceil(L)·ceil(W)·ceil(H)/1000`; Ozon / Ozon Tamov: `L·W·H/1000`. Yandex-listings — без dimensions/volume (как в legacy `POST /api/items`). Тот же `dimensions` + `volumeOzon` пишутся в `items_suppliers.dimensions_master_box` / `items_suppliers.volume`.
+**FACT (2026-09-23):** два независимых набора габаритов:
+
+| Источник | Строка `"L/W/H/weight"` | Куда |
+|----------|-------------------------|------|
+| `*MasterBox` | `dimensionsMasterBox` | только `items_suppliers.dimensions_master_box` |
+| `*Item` | `dimensionsFact` | `marketplace_items.dimensions` (WB / Озон / Ozon Tamov) + `items_suppliers.dimensions_fact` |
+
+**FACT:** `volume` в литрах (`toFixed(2)`) считается **по габаритам штуки** (`*Item`), не по мастер-коробу. WB: `ceil(L)·ceil(W)·ceil(H)/1000`; Ozon / Ozon Tamov: `L·W·H/1000`. Тот же `volumeOzon` → `items_suppliers.volume`. Yandex / Yandex Tamov — без dimensions/volume (как в legacy `POST /api/items`).
 
 **FACT:** legacy `POST /api/items` (`ItemsService.createTestItem()`, без body) **не менялся**: категория `'тестовая категория'`, без размеров/себестоимости/параметров расчёта, `multiplicity: 'тестовая кратность'`, ответ `{ id }`.
 
@@ -337,6 +348,7 @@ AiService          (tool loop: LLM → execute tools → LLM …)
 
 | Дата | Итог |
 |------|------|
+| 2026-09-23 | `create_test_item`: обязательные `lengthItem` / `widthItem` / `heightItem` / `weightItem` (штучный товар). `*Item` → `marketplace_items.dimensions` + `items_suppliers.dimensions_fact` + расчёт `volume` (WB ceil / Ozon факт); `*MasterBox` → только `items_suppliers.dimensions_master_box`. Description tool обновлён. Legacy `POST /api/items` не трогали |
 | 2026-09-21 | `search_documentation`: two-stage retrieval (Qdrant 10 кандидатов → HF reranker `bge-reranker-v2-m3` → top-3 по `rerankScore`), в ответе tool добавлены `rerankScore`, `section`, `keywords`. System prompt: запрет раскрывать процесс поиска / chunks / similarity / reranking; правило частичного ответа по документации. Детали и known issues — [`rag.md`](rag.md) |
 | 2026-09-18 | `AiToolExecutor`: try/catch → `{ error }` для LLM вместо исключения (tool not found / bad JSON / `ZodError` с path / runtime error со stack в лог); фикс lint `no-unsafe-assignment`. RAG hardening (lazy Qdrant, stale-чанки, chunker, `api-key`) — см. [`rag.md`](rag.md) |
 | 2026-09-18 | Tool `search_documentation` (`SearchDocumentationTool` → `RagService.searchDocumentation`): семантический поиск по `docs/rag/*.md` через HF embeddings + Qdrant, top-3 при `similarity ≥ 0.5`. `RagModule` в `imports` `AiModule`. System prompt: разделение «документация (правила/процессы) vs данные системы (data-tools)», запрет утверждать то, чего нет в найденных чанках. См. [`rag.md`](rag.md) |
