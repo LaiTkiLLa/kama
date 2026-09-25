@@ -602,13 +602,22 @@ export class ItemsService {
     try {
       const queryBuilder = queryRunner.manager
         .createQueryBuilder(ItemsSuppliers, 'itemsSuppliers')
-        .leftJoinAndSelect('itemsSuppliers.item', 'item')
-        .leftJoinAndSelect(
+        .leftJoinAndSelect('itemsSuppliers.item', 'item');
+      if (getErpItemsListDto.showAllMpIfo === true) {
+        queryBuilder.leftJoinAndSelect(
+          'item.marketplaceItems',
+          'marketplaceItems',
+          'marketplaceItems.deletedAt IS NULL'
+        );
+      } else {
+        queryBuilder.leftJoinAndSelect(
           'item.marketplaceItems',
           'marketplaceItems',
           'marketplaceItems.deletedAt IS NULL AND marketplaceItems.marketplaceId = :marketplaceId',
           { marketplaceId: 2 }
-        )
+        );
+      }
+      queryBuilder
         .leftJoinAndSelect(
           'marketplaceItems.marketplaceItemSizes',
           'marketplaceItemSizes',
@@ -659,6 +668,7 @@ export class ItemsService {
               marketplaceItemId: mpItem.id,
               marketplaceTitle: mpItem.marketplace.title,
               category: mpItem.category,
+              dimensions: mpItem.dimensions,
               volume: mpItem.volume,
               imageUrl: mpItem.imageUrl,
               price: mpItem.price,

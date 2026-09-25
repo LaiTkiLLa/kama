@@ -7,6 +7,11 @@ export class GetErpItemsListDto {
   @IsOptional()
   withTestArticles: boolean;
 
+  @Transform(({ value }) => value === 'true' || value === true)
+  @IsBoolean()
+  @IsOptional()
+  showAllMpIfo: boolean;
+
   @IsOptional()
   @IsString({ message: 'marketplace тип данных должен быть string' })
   @IsIn(['Озон', 'WB', 'Yandex', 'Ozon Tamov', 'Yandex Tamov'], {
