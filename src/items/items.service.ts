@@ -510,7 +510,6 @@ export class ItemsService {
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     try {
-      console.log('getItemsErpList', new Date());
       const queryBuilder = queryRunner.manager
         .createQueryBuilder(Items, 'items')
         .leftJoinAndSelect(
@@ -569,6 +568,12 @@ export class ItemsService {
               marketplaceItemId: mpItem.id,
               marketplaceTitle: mpItem.marketplace.title,
               category: mpItem.category,
+              dimensions: mpItem.dimensions,
+              volume: mpItem.volume,
+              imageUrl: mpItem.imageUrl,
+              price: mpItem.price,
+              discount: mpItem.discount,
+              priceWithDiscount: mpItem.priceWithDiscount,
               marketplaceItemSizes: (mpItem.marketplaceItemSizes ?? []).map(el => {
                 return {
                   sizeId: el.id,
@@ -654,6 +659,11 @@ export class ItemsService {
               marketplaceItemId: mpItem.id,
               marketplaceTitle: mpItem.marketplace.title,
               category: mpItem.category,
+              volume: mpItem.volume,
+              imageUrl: mpItem.imageUrl,
+              price: mpItem.price,
+              discount: mpItem.discount,
+              priceWithDiscount: mpItem.priceWithDiscount,
               marketplaceItemSizes: (mpItem.marketplaceItemSizes ?? []).map(el => {
                 return {
                   sizeId: el.id,
