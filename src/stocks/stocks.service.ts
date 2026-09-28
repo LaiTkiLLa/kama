@@ -304,6 +304,7 @@ export class StocksService {
       }[] = [];
       for (const warehouse of findOwnWarehouses) {
         try {
+          await new Promise(resolve => setTimeout(resolve, 5000));
           const { data }: { data: GetWbOwnWarehousesStocks } = await axios.post(
             `${urlStocks}/${warehouse.marketplaceInternalNumber}`,
             {
