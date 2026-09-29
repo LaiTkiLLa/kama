@@ -653,6 +653,7 @@ export class ItemsService {
           title: itemsSupplier.item.title,
           category: itemsSupplier.item.category,
           supplierTitle: itemsSupplier.supplier.title,
+          ownCategory: itemsSupplier.item.ownCategory,
           boxNumber: itemsSupplier.boxNumber,
           costInYuan: itemsSupplier.costInYuan,
           costInYuanWhite: itemsSupplier.costInYuanWhite,
