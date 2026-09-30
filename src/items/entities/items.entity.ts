@@ -140,12 +140,24 @@ export class Items {
   @Column({ type: 'varchar', nullable: true })
   country: string;
 
+  //Название на английском
+  @Column({ type: 'varchar', nullable: true, name: 'title_english' })
+  titleEnglish: string;
+
+  //Цвет на английском
+  @Column({ type: 'varchar', nullable: true, name: 'color_english' })
+  colorEnglish: string;
+
+  //Размер (product-card, ERP)
+  @Column({ type: 'varchar', nullable: true })
+  size: string;
+
   //Необходимость сертификации
   @Column({ type: 'boolean', nullable: false, default: false, name: 'certification_required' })
   certificationRequired: boolean;
 
   //Ссылка на сертификат
-  @Column({ type: 'varchar', nullable: true, name: 'certification_link' })
+  @Column({ type: 'text', nullable: true, name: 'certification_link' })
   certificationLink: string;
 
   //Материал

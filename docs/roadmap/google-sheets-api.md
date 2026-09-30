@@ -133,13 +133,13 @@ Sheets **не должна** знать схему БД. API отдаёт ста
 **Существует для ERP/Sheets (FACT, 2026-08-11):** `GET /api/items/erp/list`.
 
 Response ERP (FACT, 2026-08-13, logistics 2026-08-18, product card 2026-09-22):
-- с `items`: `id`, `article`, `title`, `category`, `ownCategory`, `descriptionRussian`, `descriptionEnglish`, `country`, `certificationRequired`, `certificationLink`, `material`, `packagingType`, `consolidation`, `fullfillmentAcceptance`, `marketplaceAcceptance`, `daysDeliveryToRussia`, `transportRateUsd`, `dutyPercentage`, `costCalculationType`, `calculationType`, `downloadCalculationMethod`, `transportType`, `deliveryMethod`
+- с `items`: `id`, `article`, `title`, `category`, `ownCategory`, `descriptionRussian`, `descriptionEnglish`, `country`, `titleEnglish`, `colorEnglish`, `size`, `certificationRequired`, `certificationLink`, `material`, `packagingType`, `consolidation`, `fullfillmentAcceptance`, `marketplaceAcceptance`, `daysDeliveryToRussia`, `transportRateUsd`, `dutyPercentage`, `costCalculationType`, `calculationType`, `downloadCalculationMethod`, `transportType`, `deliveryMethod`
 - с активного listing выбранного MP (`deletedAt IS NULL`): `image`, `color`, `barcode`, `chrtId`
 - query: `marketplace` optional, default `'WB'` (`Озон` / `WB` / `Yandex` / `Ozon Tamov` / `Yandex Tamov`)
 - filter: `isArchive = false`; optional `withTestArticles`: не передан → все товары, `true` → только `createdForCalculation`, `false` → только реальные
 - объём ~400 rows — pagination не требуется (**FACT**, владелец)
 
-**PATCH `/api/items/erp/list` (FACT, 2026-09-22):** батч partial update карточки. Body `{ items: [{ mpItemId, …fields }] }`, `mpItemId` = PK `marketplace_items`. Пишет на `items`: `ownCategory`, `descriptionRussian`, `descriptionEnglish`, `country`, `certificationRequired`, `certificationLink`, `material`, `packagingType`. `category` на listing — только если `createdForCalculation`. Колонки — миграция `1789470000000`. Directory эти поля не читает и не пишет.
+**PATCH `/api/items/erp/list` (FACT, 2026-09-22 / 2026-09-30):** батч partial update карточки. Body `{ items: [{ mpItemId, …fields }] }`, `mpItemId` = PK `marketplace_items`. Пишет на `items`: `ownCategory`, `descriptionRussian`, `descriptionEnglish`, `country`, `titleEnglish`, `colorEnglish`, `size`, `certificationRequired`, `certificationLink`, `material`, `packagingType`. `category` на listing — только если `createdForCalculation`. Колонки — `1789470000000` + `1789480000000` (`certification_link` → `text`). Directory эти поля не читает и не пишет.
 
 **PATCH `/api/items/erp/logistics-info` (FACT, 2026-08-18):** батч partial update логистики. Body `{ items: [{ id, …fields }] }`, `id` = PK `items`. Поля: `consolidation`, `daysDeliveryToRussia`, `fullfillmentAcceptance`, `marketplaceAcceptance`, `costCalculationType`, `downloadCalculationMethod`, `calculationType`, `transportType`, `deliveryMethod`. Новые колонки `transport_type` / `delivery_method` — миграция `1789390000000`. Directory PATCH эти два поля пока не пишет.
 

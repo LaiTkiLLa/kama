@@ -544,6 +544,9 @@ export class ItemsService {
           descriptionRussian: item.descriptionRussian,
           descriptionEnglish: item.descriptionEnglish,
           country: item.country,
+          titleEnglish: item.titleEnglish,
+          colorEnglish: item.colorEnglish,
+          size: item.size,
           certificationRequired: item.certificationRequired,
           certificationLink: item.certificationLink,
           material: item.material,
@@ -964,6 +967,9 @@ export class ItemsService {
           descriptionRussian?: string;
           descriptionEnglish?: string;
           country?: string;
+          titleEnglish?: string;
+          colorEnglish?: string;
+          size?: string;
           certificationRequired?: boolean;
           certificationLink?: string;
           material?: string;
@@ -980,6 +986,15 @@ export class ItemsService {
         }
         if (dtoItem.country !== undefined) {
           itemPatch.country = dtoItem.country;
+        }
+        if (dtoItem.titleEnglish !== undefined) {
+          itemPatch.titleEnglish = dtoItem.titleEnglish;
+        }
+        if (dtoItem.colorEnglish !== undefined) {
+          itemPatch.colorEnglish = dtoItem.colorEnglish;
+        }
+        if (dtoItem.size !== undefined) {
+          itemPatch.size = dtoItem.size;
         }
         if (dtoItem.certificationRequired !== undefined) {
           itemPatch.certificationRequired = dtoItem.certificationRequired;

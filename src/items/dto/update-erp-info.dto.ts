@@ -34,6 +34,18 @@ export class ItemInfoDto {
   @IsOptional()
   country: string;
 
+  @IsString()
+  @IsOptional()
+  titleEnglish: string;
+
+  @IsString()
+  @IsOptional()
+  colorEnglish: string;
+
+  @IsString()
+  @IsOptional()
+  size: string;
+
   @IsBoolean()
   @IsOptional()
   certificationRequired: boolean;
