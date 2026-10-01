@@ -21,7 +21,7 @@ Yandex Tamov: cards/stocks/orders/stop-list PATCH/trash ✔.
 - `items` + `marketplace_items`; возврат к `item == listing` **запрещён**.
 - **1 item на article** (кроме `created_for_calculation = true`).
 - Marketplace-specific на `marketplace_items`: identity, listing, prices (`discount` = %), `send_status_id`, `deleted_at`.
-- Marketplace-independent на `items`: article, логистика/себестоимость/classification, `wbCreatedAt`, **`isArchive`**, карточка товара (`descriptionRussian` / `descriptionEnglish`, `country`, `titleEnglish` / `colorEnglish` / `size`, `certificationRequired` / `certificationLink`, `material`, `packagingType` — `178947` + `178948`).
+- Marketplace-independent на `items`: article, логистика/себестоимость/classification, `wbCreatedAt`, **`isArchive`**, карточка товара (`descriptionRussian` / `descriptionEnglish`, `titleEnglish` / `colorEnglish` / `size`, `certificationRequired` / `certificationLink`, `material` — `178947` + `178948`; `country`/`packagingType` сняты `178949` — `country` на `suppliers`).
 - Supplier-link на `items_suppliers`: Phase 2 supplier-fields + Phase 3 `payment` / `dimensionsFact` / `dimensionsMasterBox` / `volume` + `ownImagesUrl` (`1789460000000`). Dual-write на `items` **снят** (`1789370000000`). Phase 4 (`178944`): per-size rows (`item_characteristic_id`) + `deleted_at`; ERP `PATCH /api/items/erp/suppliers-items/list` может менять `supplierId` по title (`supplier`).
 - **Два уровня скрытия (DECISION, 2026-08-10):**
   - `marketplace_items.deleted_at` — архив **listing**.

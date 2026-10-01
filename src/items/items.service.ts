@@ -543,14 +543,12 @@ export class ItemsService {
           ownCategory: item.ownCategory,
           descriptionRussian: item.descriptionRussian,
           descriptionEnglish: item.descriptionEnglish,
-          country: item.country,
           titleEnglish: item.titleEnglish,
           colorEnglish: item.colorEnglish,
           size: item.size,
           certificationRequired: item.certificationRequired,
           certificationLink: item.certificationLink,
           material: item.material,
-          packagingType: item.packagingType,
           image: wbListing?.imageUrl ?? '',
           color: wbListing?.color ?? '',
           barcode: wbListing?.barcode ?? '',
@@ -966,14 +964,12 @@ export class ItemsService {
           ownCategory?: string;
           descriptionRussian?: string;
           descriptionEnglish?: string;
-          country?: string;
           titleEnglish?: string;
           colorEnglish?: string;
           size?: string;
           certificationRequired?: boolean;
           certificationLink?: string;
           material?: string;
-          packagingType?: string;
         } = {};
         if (dtoItem.ownCategory !== undefined) {
           itemPatch.ownCategory = dtoItem.ownCategory;
@@ -983,9 +979,6 @@ export class ItemsService {
         }
         if (dtoItem.descriptionEnglish !== undefined) {
           itemPatch.descriptionEnglish = dtoItem.descriptionEnglish;
-        }
-        if (dtoItem.country !== undefined) {
-          itemPatch.country = dtoItem.country;
         }
         if (dtoItem.titleEnglish !== undefined) {
           itemPatch.titleEnglish = dtoItem.titleEnglish;
@@ -1004,9 +997,6 @@ export class ItemsService {
         }
         if (dtoItem.material !== undefined) {
           itemPatch.material = dtoItem.material;
-        }
-        if (dtoItem.packagingType !== undefined) {
-          itemPatch.packagingType = dtoItem.packagingType;
         }
 
         if (Object.keys(itemPatch).length > 0) {

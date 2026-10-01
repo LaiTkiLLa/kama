@@ -135,6 +135,7 @@ export class InfoService {
       return findSuppliers.map(supplier => ({
         id: supplier.id,
         title: supplier.title,
+        country: supplier.country,
         contact: supplier.contact,
         paymentTerms: supplier.paymentTerms,
         typeOfMutualSettlements: supplier.typeOfMutualSettlements,
@@ -242,6 +243,7 @@ export class InfoService {
         { id },
         {
           title: updateSupplierDto.title,
+          country: updateSupplierDto.country,
           contact: updateSupplierDto.contact,
           contract: updateSupplierDto.contract,
           paymentTerms: updateSupplierDto.paymentTerms,

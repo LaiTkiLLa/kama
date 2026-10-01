@@ -32,10 +32,6 @@ export class ItemInfoDto {
 
   @IsString()
   @IsOptional()
-  country: string;
-
-  @IsString()
-  @IsOptional()
   titleEnglish: string;
 
   @IsString()
@@ -57,10 +53,6 @@ export class ItemInfoDto {
   @IsString()
   @IsOptional()
   material: string;
-
-  @IsString()
-  @IsOptional()
-  packagingType: string;
 }
 
 export class UpdateErpInfoDto {
