@@ -21,6 +21,7 @@ import { Marketplaces } from '../info/entities/marketplaces.entity';
 import { MarketplaceItems } from '../items/entities/marketplace-items.entity';
 import { GetStocksByWarehousesDto } from './dto/get-stocks-by-warehouses.dto';
 import { GetStocksByWarehouses } from './interfaces/get-stocks-by-warehouses.interface';
+import { Items } from '../items/entities/items.entity';
 
 @Injectable()
 export class StocksService {
@@ -32,6 +33,53 @@ export class StocksService {
   ) {}
 
   private logger: Logger = new Logger(StocksService.name);
+
+  /**
+   * Первое появление listing в остатках (qty > 0): marketplace_items.appeared_at.
+   * Если у item ещё нет wbCreatedAt — «Новинка / A» на любом МП.
+   */
+  private async markAppearedOnFirstStock(
+    queryRunner: QueryRunner,
+    marketplaceItemId: number,
+    quantity: number
+  ): Promise<void> {
+    if (quantity <= 0) {
+      return;
+    }
+    const updateResult = await queryRunner.manager
+      .createQueryBuilder()
+      .update(MarketplaceItems)
+      .set({ appearedAt: new Date() })
+      .where('id = :marketplaceItemId', { marketplaceItemId })
+      .andWhere('appeared_at IS NULL')
+      .execute();
+    if (!updateResult.affected) {
+      return;
+    }
+    const mpItem = await queryRunner.manager.findOne(MarketplaceItems, {
+      where: { id: marketplaceItemId },
+      select: ['id', 'itemId']
+    });
+    if (!mpItem) {
+      return;
+    }
+    const item = await queryRunner.manager.findOne(Items, {
+      where: { id: mpItem.itemId },
+      select: ['id', 'wbCreatedAt']
+    });
+    if (!item || item.wbCreatedAt) {
+      return;
+    }
+    await queryRunner.manager.update(
+      Items,
+      { id: item.id },
+      {
+        wbCreatedAt: new Date(),
+        classification: 'Новинка / A',
+        virality: 'виральный предположительно'
+      }
+    );
+  }
 
   async getStocks(getCurrentStocksDto: GetCurrentStocksDto, queryRunner: QueryRunner) {
     const queryBuilder = queryRunner.manager
@@ -238,6 +286,7 @@ export class StocksService {
           .andWhere('stocks.warehouseId = :warehouseId', { warehouseId: findWarehouse.id })
           .getOne();
         if (findStock) {
+          await this.markAppearedOnFirstStock(queryRunner, findMarketplaceItem.id, stock.quantity);
           await queryRunner.manager.update(
             Stocks,
             { id: findStock.id },
@@ -248,6 +297,7 @@ export class StocksService {
             }
           );
         } else {
+          await this.markAppearedOnFirstStock(queryRunner, findMarketplaceItem.id, stock.quantity);
           const createStock = queryRunner.manager.create(Stocks, {
             warehouseId: findWarehouse.id,
             currentValue: stock.quantity,
@@ -369,6 +419,7 @@ export class StocksService {
             .andWhere('stocks.warehouseId = :warehouseId', { warehouseId: findWarehouse.id })
             .getOne();
           if (findStock) {
+            await this.markAppearedOnFirstStock(queryRunner, findMarketplaceItem.id, warehouse.amount);
             await queryRunner.manager.update(
               Stocks,
               { id: findStock.id },
@@ -377,6 +428,7 @@ export class StocksService {
               }
             );
           } else {
+            await this.markAppearedOnFirstStock(queryRunner, findMarketplaceItem.id, warehouse.amount);
             const createStock = queryRunner.manager.create(Stocks, {
               warehouseId: findWarehouse.id,
               currentValue: warehouse.amount,
@@ -611,6 +663,7 @@ export class StocksService {
           .andWhere('stocks.warehouseId = :warehouseId', { warehouseId: item.warehouseId })
           .getOne();
         if (findStock) {
+          await this.markAppearedOnFirstStock(queryRunner, item.marketplaceItemId, item.currentValue);
           await queryRunner.manager.update(
             Stocks,
             { id: findStock.id },
@@ -621,6 +674,7 @@ export class StocksService {
             }
           );
         } else {
+          await this.markAppearedOnFirstStock(queryRunner, item.marketplaceItemId, item.currentValue);
           const createStock = queryRunner.manager.create(Stocks, {
             warehouseId: item.warehouseId,
             currentValue: item.currentValue,
@@ -712,6 +766,7 @@ export class StocksService {
           .andWhere('stocks.warehouseId = :warehouseId', { warehouseId: findWarehouseId })
           .getOne();
         if (findStock) {
+          await this.markAppearedOnFirstStock(queryRunner, findMarketplaceItem.id, stock.current);
           await queryRunner.manager.update(
             Stocks,
             { id: findStock.id },
@@ -722,6 +777,7 @@ export class StocksService {
             }
           );
         } else {
+          await this.markAppearedOnFirstStock(queryRunner, findMarketplaceItem.id, stock.current);
           const createStock = queryRunner.manager.create(Stocks, {
             warehouseId: findWarehouseId,
             currentValue: stock.current,
@@ -813,6 +869,7 @@ export class StocksService {
           .andWhere('stocks.warehouseId = :warehouseId', { warehouseId: findWarehouse.id })
           .getOne();
         if (findStock) {
+          await this.markAppearedOnFirstStock(queryRunner, findMarketplaceItem.id, stock.current);
           await queryRunner.manager.update(
             Stocks,
             { id: findStock.id },
@@ -823,6 +880,7 @@ export class StocksService {
             }
           );
         } else {
+          await this.markAppearedOnFirstStock(queryRunner, findMarketplaceItem.id, stock.current);
           const createStock = queryRunner.manager.create(Stocks, {
             warehouseId: findWarehouse.id,
             currentValue: stock.current,

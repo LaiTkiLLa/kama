@@ -533,24 +533,24 @@ export class OrdersService {
           }
         });
         if (!findOrder) {
-          const countItemOrder = await queryRunner.manager.count(OrdersV2, {
-            where: {
-              marketplaceItemId: findMarketplaceItem.id
-            }
-          });
-          if (!countItemOrder && !findMarketplaceItem.item.wbCreatedAt) {
-            await queryRunner.manager.update(
-              Items,
-              {
-                id: findMarketplaceItem.itemId
-              },
-              {
-                wbCreatedAt: new Date(order.date + '+03:00'),
-                classification: 'Новинка / A',
-                virality: 'виральный предположительно'
-              }
-            );
-          }
+          // const countItemOrder = await queryRunner.manager.count(OrdersV2, {
+          //   where: {
+          //     marketplaceItemId: findMarketplaceItem.id
+          //   }
+          // });
+          // if (!countItemOrder && !findMarketplaceItem.item.wbCreatedAt) {
+          //   await queryRunner.manager.update(
+          //     Items,
+          //     {
+          //       id: findMarketplaceItem.itemId
+          //     },
+          //     {
+          //       wbCreatedAt: new Date(order.date + '+03:00'),
+          //       classification: 'Новинка / A',
+          //       virality: 'виральный предположительно'
+          //     }
+          //   );
+          // }
           const createOrder = queryRunner.manager.create(OrdersV2, {
             marketplaceOrderIdentification: order.srid,
             marketplaceOrderNumber: order.gNumber,

@@ -102,6 +102,14 @@ export class MarketplaceItems {
   })
   deletedAt: Date;
 
+  // Первое появление listing в остатках (qty > 0) на этом МП
+  @Column({
+    type: 'timestamptz',
+    nullable: true,
+    name: 'appeared_at'
+  })
+  appearedAt: Date | null;
+
   @ManyToOne(() => Marketplaces, marketplace => marketplace.marketplaceItems)
   @JoinColumn({
     name: 'marketplace_id'

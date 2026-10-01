@@ -45,7 +45,9 @@ Marketplace-independent: `id`, `article`, `articleOld`, `ownCategory`, classific
 | Identity | `marketplace_identifier`, `barcode`, `sku`, `marketplace_id`, `item_id` |
 | Listing  | `category`, `title`, `color`, `image_url` (nullable)                    |
 | Prices   | `price`, `discount` (**%**), `price_with_discount`                      |
-| Ops      | `send_status_id`, `dimensions`, `volume`, `chrt_id`, `deleted_at`       |
+| Ops      | `send_status_id`, `dimensions`, `volume`, `chrt_id`, `deleted_at`, `appeared_at` |
+
+**`appeared_at` (FACT, `178950`):** первое появление listing в остатках (`currentValue > 0`) на этом МП; пишется stocks cron один раз. При первом `appeared_at` по товару (если `items.wbCreatedAt` ещё null) → `Новинка / A` + `wbCreatedAt` + virality на `items`. Backfill текущих: `appeared_at = items.wb_created_at`.
 
 **Prices sync (FACT):** WB cron пишет `price` / `discount` / `priceWithDiscount` (`discountedPrice`). Ozon (оба кабинета) — `price` / `priceWithDiscount` (`marketing_seller_price`) / `discount` = % от разницы price − marketing. Только `deletedAt IS NULL`.
 
