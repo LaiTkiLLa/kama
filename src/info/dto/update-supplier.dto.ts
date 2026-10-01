@@ -9,6 +9,10 @@ export class UpdateSupplierDto {
 
   @IsString()
   @IsOptional()
+  country: string;
+
+  @IsString()
+  @IsOptional()
   contact: string;
 
   @IsString()

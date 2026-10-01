@@ -133,13 +133,13 @@ Sheets **не должна** знать схему БД. API отдаёт ста
 **Существует для ERP/Sheets (FACT, 2026-08-11):** `GET /api/items/erp/list`.
 
 Response ERP (FACT, 2026-08-13, logistics 2026-08-18, product card 2026-09-22):
-- с `items`: `id`, `article`, `title`, `category`, `ownCategory`, `descriptionRussian`, `descriptionEnglish`, `country`, `titleEnglish`, `colorEnglish`, `size`, `certificationRequired`, `certificationLink`, `material`, `packagingType`, `consolidation`, `fullfillmentAcceptance`, `marketplaceAcceptance`, `daysDeliveryToRussia`, `transportRateUsd`, `dutyPercentage`, `costCalculationType`, `calculationType`, `downloadCalculationMethod`, `transportType`, `deliveryMethod`
+- с `items`: `id`, `article`, `title`, `category`, `ownCategory`, `descriptionRussian`, `descriptionEnglish`, `titleEnglish`, `colorEnglish`, `size`, `certificationRequired`, `certificationLink`, `material`, `consolidation`, `fullfillmentAcceptance`, `marketplaceAcceptance`, `daysDeliveryToRussia`, `transportRateUsd`, `dutyPercentage`, `costCalculationType`, `calculationType`, `downloadCalculationMethod`, `transportType`, `deliveryMethod`
 - с активного listing выбранного MP (`deletedAt IS NULL`): `image`, `color`, `barcode`, `chrtId`
 - query: `marketplace` optional, default `'WB'` (`Озон` / `WB` / `Yandex` / `Ozon Tamov` / `Yandex Tamov`)
 - filter: `isArchive = false`; optional `withTestArticles`: не передан → все товары, `true` → только `createdForCalculation`, `false` → только реальные
 - объём ~400 rows — pagination не требуется (**FACT**, владелец)
 
-**PATCH `/api/items/erp/list` (FACT, 2026-09-22 / 2026-09-30):** батч partial update карточки. Body `{ items: [{ mpItemId, …fields }] }`, `mpItemId` = PK `marketplace_items`. Пишет на `items`: `ownCategory`, `descriptionRussian`, `descriptionEnglish`, `country`, `titleEnglish`, `colorEnglish`, `size`, `certificationRequired`, `certificationLink`, `material`, `packagingType`. `category` на listing — только если `createdForCalculation`. Колонки — `1789470000000` + `1789480000000` (`certification_link` → `text`). Directory эти поля не читает и не пишет.
+**PATCH `/api/items/erp/list` (FACT, 2026-09-22 / 2026-10-01):** батч partial update карточки. Body `{ items: [{ mpItemId, …fields }] }`, `mpItemId` = PK `marketplace_items`. Пишет на `items`: `ownCategory`, `descriptionRussian`, `descriptionEnglish`, `titleEnglish`, `colorEnglish`, `size`, `certificationRequired`, `certificationLink`, `material`. `category` на listing — только если `createdForCalculation`. Колонки карточки — `1789470000000` + `1789480000000` (`certification_link` → `text`); `country`/`packaging_type` сняты с `items` (`1789490000000`, `country` → `suppliers`). Directory эти поля не читает и не пишет.
 
 **PATCH `/api/items/erp/logistics-info` (FACT, 2026-08-18):** батч partial update логистики. Body `{ items: [{ id, …fields }] }`, `id` = PK `items`. Поля: `consolidation`, `daysDeliveryToRussia`, `fullfillmentAcceptance`, `marketplaceAcceptance`, `costCalculationType`, `downloadCalculationMethod`, `calculationType`, `transportType`, `deliveryMethod`. Новые колонки `transport_type` / `delivery_method` — миграция `1789390000000`. Directory PATCH эти два поля пока не пишет.
 
@@ -185,10 +185,10 @@ GET /api/sheets/items
 
 **Существует:** `GET /api/info/suppliers` — почти готов.
 
-Поля entity (FACT, 2026-08-11): `id`, `title`, `contact`, `contract`, `paymentTerms`, `typeOfMutualSettlements`, `legalTitle`, `legalAddress`, `accRaschet`, `bankId` → nested `bank`, `reliabilityRating`, `warehouseAddress`, `responsibleEmployee`, `comment`, `creditLimit`, `canBeAbleToStoreInWarehouse`, `numberOfStorageDays`, `webSite`, `rank`, `createdAt`, `updatedAt`.
+Поля entity (FACT, 2026-10-01): `id`, `title`, `country`, `contact`, `contract`, `paymentTerms`, `typeOfMutualSettlements`, `legalTitle`, `legalAddress`, `accRaschet`, `bankId` → nested `bank`, `reliabilityRating`, `warehouseAddress`, `responsibleEmployee`, `comment`, `creditLimit`, `canBeAbleToStoreInWarehouse`, `numberOfStorageDays`, `webSite`, `rank`, `createdAt`, `updatedAt`.
 
 **Удалено:** `typeOfCalculation` (миграция `1789209600000`).
-**Добавлено:** `contract` (миграция `1789212000000`).
+**Добавлено:** `contract` (миграция `1789212000000`); `country` (миграция `1789490000000`, backfill «Китай»).
 
 **GET `/api/info/suppliers` (FACT):** отдаёт business fields + nested `bank`; без `createdAt`/`updatedAt`.
 

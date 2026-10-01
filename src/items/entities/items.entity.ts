@@ -136,10 +136,6 @@ export class Items {
   @Column({ type: 'varchar', nullable: true, name: 'description_english' })
   descriptionEnglish: string;
 
-  //Страна производства
-  @Column({ type: 'varchar', nullable: true })
-  country: string;
-
   //Название на английском
   @Column({ type: 'varchar', nullable: true, name: 'title_english' })
   titleEnglish: string;
@@ -163,10 +159,6 @@ export class Items {
   //Материал
   @Column({ type: 'varchar', nullable: true })
   material: string;
-
-  //Тип упаковки
-  @Column({ type: 'varchar', nullable: true, name: 'packaging_type' })
-  packagingType: string;
 
   @CreateDateColumn({
     type: 'timestamp',

@@ -27,6 +27,13 @@ export class Suppliers {
   })
   title: string;
 
+  //Страна
+  @Column({
+    type: 'varchar',
+    nullable: true
+  })
+  country: string;
+
   //Контакт c поставщиков
   @Column({
     type: 'varchar',
