@@ -709,12 +709,17 @@ export class ItemsService {
         where: {
           id: In(ids),
           deletedAt: IsNull()
+        },
+        relations: {
+          item: true
         }
       });
       if (findItemsSuppliers.length !== ids.length) {
         throw new NotFoundException('Не все связи товар-поставщик найдены');
       }
       const itemsSuppliersById = new Map(findItemsSuppliers.map(row => [row.id, row]));
+      // dimensionsFact → mp volume fan-out: не дублировать, если в батче несколько link одного item.
+      const dimensionsAppliedItemIds = new Set<number>();
       for (const item of updateArrayErpItemsSuppliersListDto.items) {
         const currentLink = itemsSuppliersById.get(item.itemSupplierId);
         if (!currentLink) {
@@ -733,6 +738,7 @@ export class ItemsService {
           dimensionsFact: string;
           ownImagesUrl: string;
           supplierId?: number;
+          volume?: string;
         } = {
           boxNumber: item.boxNumber,
           multiplicity: item.multiplicity,
@@ -757,6 +763,48 @@ export class ItemsService {
           }
           updateFields.supplierId = findSupplier.id;
         }
+
+        // Как в ItemsAiToolsService.createTestItem: volume из dimensionsFact (см).
+        // WB — ceil; Озон / Ozon Tamov — факт; на supplier-link пишем volumeOzon.
+        if (item.dimensionsFact !== undefined) {
+          const [lengthRaw, widthRaw, heightRaw] = item.dimensionsFact.split('/');
+          const length = Number(lengthRaw);
+          const width = Number(widthRaw);
+          const height = Number(heightRaw);
+          if (![length, width, height].every(n => Number.isFinite(n))) {
+            throw new BadRequestException('Некорректные габариты');
+          }
+          const volumeWb = ((Math.ceil(length) * Math.ceil(width) * Math.ceil(height)) / 1000).toFixed(2);
+          const volumeOzon = ((length * width * height) / 1000).toFixed(2);
+          updateFields.volume = volumeOzon;
+
+          if (currentLink.item?.createdForCalculation && !dimensionsAppliedItemIds.has(currentLink.itemId)) {
+            dimensionsAppliedItemIds.add(currentLink.itemId);
+            const listings = await queryRunner.manager.find(MarketplaceItems, {
+              where: { itemId: currentLink.itemId, deletedAt: IsNull() },
+              relations: {
+                marketplace: true
+              }
+            });
+            for (const listing of listings) {
+              const marketplaceTitle = listing.marketplace?.title;
+              if (marketplaceTitle === 'WB') {
+                await queryRunner.manager.update(
+                  MarketplaceItems,
+                  { id: listing.id },
+                  { dimensions: item.dimensionsFact, volume: volumeWb }
+                );
+              } else if (marketplaceTitle === 'Озон' || marketplaceTitle === 'Ozon Tamov') {
+                await queryRunner.manager.update(
+                  MarketplaceItems,
+                  { id: listing.id },
+                  { dimensions: item.dimensionsFact, volume: volumeOzon }
+                );
+              }
+            }
+          }
+        }
+
         await queryRunner.manager.update(ItemsSuppliers, { id: item.itemSupplierId }, updateFields);
       }
       return { success: true };

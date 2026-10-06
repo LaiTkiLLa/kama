@@ -22,6 +22,7 @@ export const configuration = () => ({
   ozonTamovToken: process.env.ozonTamovToken,
   ozonTamovClientId: process.env.ozonTamovClientId,
   apiKey: process.env.apiKey,
+  aiToolsApiKey: process.env.AI_TOOLS_API_KEY,
   yandexToken: process.env.yandexToken,
   yandexClientId: process.env.yandexCLientId,
   yandexBusinessId: process.env.yandexBusinessId,

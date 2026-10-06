@@ -5,7 +5,7 @@
 
 Связанные: [`../AI_CONTEXT.md`](../AI_CONTEXT.md), [`../PROJECT_CONTEXT.md`](../PROJECT_CONTEXT.md), [`../README.md`](../README.md).
 
-Последнее обновление: 2026-09-22.
+Последнее обновление: 2026-10-05.
 
 ---
 
@@ -33,6 +33,7 @@
 | Tool `create_test_item` → `ItemsAiToolsService.createTestItem` (первый write-tool; расчётный товар + параметры расчёта/себестоимость; габариты штуки `*Item` + мастер-короб `*MasterBox`) | ✔ (2026-09-12), расширен 2026-09-22 / 2026-09-23 |
 | Tool `get_current_stocks` → `stocks` «сегодня» | ✔ (2026-09-15) |
 | Auth (`api-key`) на chat | □ backlog |
+| Domain AI Tools HTTP для MCP gateway (`GET/POST /api/ai/tools`, `x-api-key`) | ✔ |
 | Ошибки tools → `{ error }` для LLM, chat не падает (`AiToolExecutor`) | ✔ (2026-09-18) |
 | Лимит итераций tool-loop, таймаут | □ backlog |
 | История диалога (multi-turn) | □ backlog |
@@ -48,8 +49,11 @@
 | Переменная | Назначение |
 |------------|------------|
 | `DEEPSEEK_API_KEY` | API-ключ DeepSeek. **Не коммитить.** Задаётся в `.env` на сервере / локально. |
+| `AI_TOOLS_API_KEY` | Ключ Domain AI Tools API (`x-api-key`) для MCP gateway (`ai_integration`). **Не коммитить.** Не путать с Sheets `apiKey` / заголовком `api-key`. |
 
 **FACT:** провайдер читает ключ из `process.env.DEEPSEEK_API_KEY` и ходит в `https://api.deepseek.com` через SDK `openai` (OpenAI-compatible API).
+
+**FACT:** `GET /api/ai/tools` и `POST /api/ai/tools/:toolName` защищены `AiToolsApiKeyGuard` (`x-api-key` = `AI_TOOLS_API_KEY`). Без ключа в env — `503`; неверный/пустой ключ — `401`.
 
 **NEEDS VERIFICATION:** при отсутствии ключа приложение стартует, но запросы к LLM падают в runtime — fail-fast ещё не сделан.
 
@@ -60,14 +64,41 @@
 
 ```env
 DEEPSEEK_API_KEY=sk-...
+AI_TOOLS_API_KEY=...
 ```
 
 3. Запустить бэкенд как обычно (`npm run start:dev`).
 
-Значение ключа в документацию и git **не писать**.
+Значение ключей в документацию и git **не писать**.
 
 ---
 
+## Domain AI Tools API (MCP gateway)
+
+**FACT:** внешний MCP gateway (`ai_integration`) подхватывает доменные tools по HTTP, без прямого SQL к Postgres Kama.
+
+| Метод | Путь | Назначение |
+|-------|------|------------|
+| `GET` | `/api/ai/tools` | каталог из `AiToolRegistry`: `{ name, description, inputSchema }` (`zod` → `z.toJSONSchema`) |
+| `POST` | `/api/ai/tools/:toolName` | вызов `AiToolExecutor`; body — JSON-объект аргументов; ответ — результат tool или `{ error }` |
+
+Auth: заголовок `x-api-key: <AI_TOOLS_API_KEY>`.
+
+На стороне gateway:
+
+```env
+DOMAIN_API_URL=http://<kama-host>:<port>/api
+DOMAIN_TOOLS_NAMESPACE=kama
+AI_TOOLS_API_KEY=<тот же ключ>
+```
+
+В MCP tools появятся как `kama.<tool_name>` (refresh каталога ~1 мин).
+
+**DECISION:** in-app `POST /api/ai/chat` и Domain Tools HTTP — разные входы к одному `AiToolRegistry` / `AiToolExecutor`. Chat по-прежнему без auth (backlog).
+
+**ASSUMPTION (dual RAG):** gateway имеет свой `rag.search_documentation`, Kama — tool `search_documentation`. При совместном деплое либо не класть операторские docs в `documents/` gateway, либо не экспортировать Kama `search_documentation` наружу (сейчас экспортируется весь registry — при дублях отфильтровать отдельно).
+
+---
 ## HTTP API
 
 Global prefix: `/api` (`src/main.ts`).
@@ -317,7 +348,7 @@ AiService          (tool loop: LLM → execute tools → LLM …)
 
 ## Ограничения и запреты
 
-- **Не коммитить** `DEEPSEEK_API_KEY` и не хардкодить в коде.
+- **Не коммитить** `DEEPSEEK_API_KEY` / `AI_TOOLS_API_KEY` и не хардкодить в коде.
 - **Не добавлять write-tools на реальные данные** (PATCH directory, stop-list, цены, создание карточек МП) без Implementation Plan и явного подтверждения. Исключение (DECISION, 2026-09-12): `create_test_item` — пишет только расчётный товар (`created_for_calculation = true`), на маркетплейсы ничего не уходит.
 - **Не создавать frontend** в репозитории — только HTTP API для GAS.
 - Новые tools — через domain-сервисы, без прямого SQL из tool-класса. Read-логику переиспользовать из существующих сервисов; логику, специфичную для AI (как `create_test_item`), — в отдельном `*AiToolsService` доменного модуля, не меняя контракт существующих endpoint'ов.
@@ -348,6 +379,7 @@ AiService          (tool loop: LLM → execute tools → LLM …)
 
 | Дата | Итог |
 |------|------|
+| 2026-10-05 | Domain AI Tools HTTP для MCP gateway: `GET /api/ai/tools`, `POST /api/ai/tools/:toolName`, guard `x-api-key` = `AI_TOOLS_API_KEY` (`AiToolsApiKeyGuard`). Каталог из registry (`z.toJSONSchema`); execute через `AiToolExecutor`. |
 | 2026-09-23 | `create_test_item`: обязательные `lengthItem` / `widthItem` / `heightItem` / `weightItem` (штучный товар). `*Item` → `marketplace_items.dimensions` + `items_suppliers.dimensions_fact` + расчёт `volume` (WB ceil / Ozon факт); `*MasterBox` → только `items_suppliers.dimensions_master_box`. Description tool обновлён. Legacy `POST /api/items` не трогали |
 | 2026-09-21 | `search_documentation`: two-stage retrieval (Qdrant 10 кандидатов → HF reranker `bge-reranker-v2-m3` → top-3 по `rerankScore`), в ответе tool добавлены `rerankScore`, `section`, `keywords`. System prompt: запрет раскрывать процесс поиска / chunks / similarity / reranking; правило частичного ответа по документации. Детали и known issues — [`rag.md`](rag.md) |
 | 2026-09-18 | `AiToolExecutor`: try/catch → `{ error }` для LLM вместо исключения (tool not found / bad JSON / `ZodError` с path / runtime error со stack в лог); фикс lint `no-unsafe-assignment`. RAG hardening (lazy Qdrant, stale-чанки, chunker, `api-key`) — см. [`rag.md`](rag.md) |
