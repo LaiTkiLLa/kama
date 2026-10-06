@@ -770,7 +770,9 @@ export class ItemsService {
           const width = Number(widthRaw);
           const height = Number(heightRaw);
           if (![length, width, height].every(n => Number.isFinite(n))) {
-            console.log(length, width, height)
+            console.log(item.itemSupplierId);
+            console.log('fact', item.dimensionsFact);
+            console.log(length, width, height);
             throw new BadRequestException('Некорректные габариты');
           }
           const volumeWb = ((Math.ceil(length) * Math.ceil(width) * Math.ceil(height)) / 1000).toFixed(2);
