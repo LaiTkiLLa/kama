@@ -15,6 +15,7 @@ import { StocksModule } from '../stocks/stocks.module';
 import { GetCurrentStocksTool } from './tools/stocks/get-current-stocks.tool';
 import { RagModule } from '../rag/rag.module';
 import { SearchDocumentationTool } from './tools/rag/search-documentation.tool';
+import { AiToolsApiKeyGuard } from './guards/ai-tools-api-key.guard';
 
 @Module({
   imports: [OrdersModule, ItemsModule, StocksModule, RagModule],
@@ -23,6 +24,7 @@ import { SearchDocumentationTool } from './tools/rag/search-documentation.tool';
     AiService,
     DeepseekProvider,
     AiToolExecutor,
+    AiToolsApiKeyGuard,
     {
       provide: 'LLM_PROVIDER',
       useExisting: DeepseekProvider
