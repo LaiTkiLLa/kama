@@ -763,8 +763,6 @@ export class ItemsService {
           }
           updateFields.supplierId = findSupplier.id;
         }
-
-        // Как в ItemsAiToolsService.createTestItem: volume из dimensionsFact (см).
         // WB — ceil; Озон / Ozon Tamov — факт; на supplier-link пишем volumeOzon.
         if (item.dimensionsFact !== undefined) {
           const [lengthRaw, widthRaw, heightRaw] = item.dimensionsFact.split('/');
@@ -777,8 +775,15 @@ export class ItemsService {
           const volumeWb = ((Math.ceil(length) * Math.ceil(width) * Math.ceil(height)) / 1000).toFixed(2);
           const volumeOzon = ((length * width * height) / 1000).toFixed(2);
           updateFields.volume = volumeOzon;
-
+          if (item.itemSupplierId === 1654) {
+            console.log(volumeWb);
+            console.log(volumeOzon);
+            console.log(item.dimensionsFact);
+          }
           if (currentLink.item?.createdForCalculation && !dimensionsAppliedItemIds.has(currentLink.itemId)) {
+            if (item.itemSupplierId === 1654) {
+              console.log('tyt');
+            }
             dimensionsAppliedItemIds.add(currentLink.itemId);
             const listings = await queryRunner.manager.find(MarketplaceItems, {
               where: { itemId: currentLink.itemId, deletedAt: IsNull() },
