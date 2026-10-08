@@ -63,5 +63,15 @@ export class StocksV2 {
   })
   warehouse: Warehouses;
 
-  @ManyToOne(() => Marketplaces) в;
+  @ManyToOne(() => Marketplaces)
+  @JoinColumn({
+    name: 'marketplace_id'
+  })
+  marketplace: Marketplaces;
+
+  @ManyToOne(() => MarketplaceItemSizes, size => size.stocksV2, { onDelete: 'CASCADE' })
+  @JoinColumn({
+    name: 'marketplace_item_size_id'
+  })
+  marketplaceItemSize: MarketplaceItemSizes;
 }
