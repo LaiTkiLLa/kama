@@ -12,6 +12,7 @@ import {
   StocksResult
 } from './interfaces/ozon-stocks.interface';
 import { Stocks } from './entities/stocks.entity';
+import { StocksV2 } from './entities/stocks-v2.entity';
 import { GetWbOwnWarehousesStocks, GetWbStocksV2 } from './interfaces/wb-stocks.intrerface';
 import { GetCurrentStocksDto } from './dto/get-current-stocks.dto';
 import { GetCurrentStocks } from './interfaces/get-current-stocks.interface';
@@ -19,6 +20,7 @@ import { GetYandexStocks, ItemTypes } from './interfaces/yandex-stocks.interface
 import { Warehouses } from '../info/entities/warehouses.entity';
 import { Marketplaces } from '../info/entities/marketplaces.entity';
 import { MarketplaceItems } from '../items/entities/marketplace-items.entity';
+import { MarketplaceItemSizes } from '../items/entities/marketplace-item-sizes.entity';
 import { GetStocksByWarehousesDto } from './dto/get-stocks-by-warehouses.dto';
 import { GetStocksByWarehouses } from './interfaces/get-stocks-by-warehouses.interface';
 import { Items } from '../items/entities/items.entity';
@@ -79,6 +81,68 @@ export class StocksService {
         virality: 'виральный предположительно'
       }
     );
+  }
+
+  /**
+   * Снимок остатков по размеру МП (stocks_v2) за сегодня.
+   * Без строки marketplace_item_sizes — no-op.
+   */
+  private async upsertStocksV2ByChrtId(
+    queryRunner: QueryRunner,
+    params: {
+      marketplaceId: number;
+      warehouseId: number;
+      chrtId: number | string;
+      marketplaceItemId?: number;
+      currentValue: number;
+      reserved?: number;
+      promised?: number;
+    }
+  ): Promise<void> {
+    const sizeQuery = queryRunner.manager
+      .createQueryBuilder(MarketplaceItemSizes, 'sizes')
+      .innerJoin('sizes.marketplaceItem', 'mpItem')
+      .where('sizes.marketplaceSizeId = :sizeId', { sizeId: String(params.chrtId) })
+      .andWhere('sizes.deletedAt IS NULL')
+      .andWhere('mpItem.marketplaceId = :marketplaceId', { marketplaceId: params.marketplaceId })
+      .andWhere('mpItem.deletedAt IS NULL');
+    if (params.marketplaceItemId != null) {
+      sizeQuery.andWhere('sizes.marketplaceItemId = :marketplaceItemId', {
+        marketplaceItemId: params.marketplaceItemId
+      });
+    }
+    const size = await sizeQuery.getOne();
+    if (!size) {
+      return;
+    }
+
+    const findStock = await queryRunner.manager
+      .createQueryBuilder(StocksV2, 'stocksV2')
+      .where("DATE(stocksV2.created_at) = DATE('now')")
+      .andWhere('stocksV2.marketplaceItemSizeId = :marketplaceItemSizeId', {
+        marketplaceItemSizeId: size.id
+      })
+      .andWhere('stocksV2.warehouseId = :warehouseId', { warehouseId: params.warehouseId })
+      .getOne();
+
+    const payload = {
+      currentValue: params.currentValue,
+      reserved: params.reserved ?? 0,
+      promised: params.promised ?? 0
+    };
+
+    if (findStock) {
+      await queryRunner.manager.update(StocksV2, { id: findStock.id }, payload);
+      return;
+    }
+
+    const createStock = queryRunner.manager.create(StocksV2, {
+      warehouseId: params.warehouseId,
+      marketplaceId: params.marketplaceId,
+      marketplaceItemSizeId: size.id,
+      ...payload
+    });
+    await queryRunner.manager.save(StocksV2, createStock);
   }
 
   async getStocks(getCurrentStocksDto: GetCurrentStocksDto, queryRunner: QueryRunner) {
@@ -308,6 +372,15 @@ export class StocksService {
           });
           await queryRunner.manager.save(Stocks, createStock);
         }
+        await this.upsertStocksV2ByChrtId(queryRunner, {
+          marketplaceId: findMarketplace.id,
+          warehouseId: findWarehouse.id,
+          chrtId: stock.chrtId,
+          marketplaceItemId: findMarketplaceItem.id,
+          currentValue: stock.quantity,
+          reserved: stock.inWayToClient,
+          promised: stock.inWayFromClient
+        });
       }
     } catch {
       this.logger.error('Не смог получить список остатков WB');
@@ -346,6 +419,16 @@ export class StocksService {
           marketplaceId: findMarketplace.id
         }
       });
+      const findWbSizes = await queryRunner.manager
+        .createQueryBuilder(MarketplaceItemSizes, 'sizes')
+        .innerJoin('sizes.marketplaceItem', 'mpItem')
+        .where('mpItem.marketplaceId = :marketplaceId', { marketplaceId: findMarketplace.id })
+        .andWhere('mpItem.deletedAt IS NULL')
+        .andWhere('sizes.deletedAt IS NULL')
+        .getMany();
+      const sizeChrtIds = [
+        ...new Set(findWbSizes.map(size => Number(size.marketplaceSizeId)).filter(id => !Number.isNaN(id)))
+      ];
       const resultStocks: {
         warehouseId: string;
         sku: string;
@@ -355,10 +438,13 @@ export class StocksService {
       for (const warehouse of findOwnWarehouses) {
         try {
           await new Promise(resolve => setTimeout(resolve, 5000));
+          const chrtIdsForRequest = sizeChrtIds.length
+            ? sizeChrtIds
+            : findWbItems.map(item => Number(item.chrtId));
           const { data }: { data: GetWbOwnWarehousesStocks } = await axios.post(
             `${urlStocks}/${warehouse.marketplaceInternalNumber}`,
             {
-              chrtIds: findWbItems.map(item => Number(item.chrtId))
+              chrtIds: chrtIdsForRequest
             },
             {
               headers: {
@@ -377,6 +463,17 @@ export class StocksService {
               sku: item.barcode,
               chrtId: Number(item.chrtId),
               amount: stock?.amount ?? 0
+            });
+          }
+
+          for (const size of findWbSizes) {
+            const sizeStock = stocksMap.get(Number(size.marketplaceSizeId));
+            await this.upsertStocksV2ByChrtId(queryRunner, {
+              marketplaceId: findMarketplace.id,
+              warehouseId: warehouse.id,
+              chrtId: size.marketplaceSizeId,
+              marketplaceItemId: size.marketplaceItemId,
+              currentValue: sizeStock?.amount ?? 0
             });
           }
         } catch (error) {

@@ -4,10 +4,12 @@ import {
   Entity,
   JoinColumn,
   ManyToOne,
+  OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn
 } from 'typeorm';
 import { MarketplaceItems } from './marketplace-items.entity';
+import { StocksV2 } from '../../stocks/entities/stocks-v2.entity';
 
 @Entity({
   name: 'marketplace_item_sizes'
@@ -62,4 +64,7 @@ export class MarketplaceItemSizes {
   })
   @JoinColumn({ name: 'marketplace_item_id' })
   marketplaceItem: MarketplaceItems;
+
+  @OneToMany(() => StocksV2, stocksV2 => stocksV2.marketplaceItemSize)
+  stocksV2: StocksV2[];
 }

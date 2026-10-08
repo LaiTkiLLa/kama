@@ -22,7 +22,9 @@ Item (marketplace-independent, 1 на article)
  ├── MarketplaceItem (Ozon Tamov)   ← отдельный marketplaces.title; env ozonTamov*
  ├── MarketplaceItem (Yandex)
  └── MarketplaceItem (Yandex Tamov)   ← отдельный marketplaces.title; env yandexTamov*
-        ├── Stocks
+        ├── MarketplaceItemSizes
+        │      └── StocksV2          ← снимок по размеру МП; без FK на листинг (178951)
+        ├── Stocks                   ← снимок по листингу (Sheets/AI)
         └── OrdersV2
 ```
 
