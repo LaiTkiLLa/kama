@@ -770,23 +770,12 @@ export class ItemsService {
           const width = Number(widthRaw);
           const height = Number(heightRaw);
           if (![length, width, height].every(n => Number.isFinite(n))) {
-            console.log(item.itemSupplierId);
-            console.log('fact', item.dimensionsFact);
-            console.log(length, width, height);
             throw new BadRequestException('Некорректные габариты');
           }
           const volumeWb = ((Math.ceil(length) * Math.ceil(width) * Math.ceil(height)) / 1000).toFixed(2);
           const volumeOzon = ((length * width * height) / 1000).toFixed(2);
           updateFields.volume = volumeOzon;
-          if (item.itemSupplierId === 1654) {
-            console.log(volumeWb);
-            console.log(volumeOzon);
-            console.log(item.dimensionsFact);
-          }
           if (currentLink.item?.createdForCalculation && !dimensionsAppliedItemIds.has(currentLink.itemId)) {
-            if (item.itemSupplierId === 1654) {
-              console.log('tyt');
-            }
             dimensionsAppliedItemIds.add(currentLink.itemId);
             const listings = await queryRunner.manager.find(MarketplaceItems, {
               where: { itemId: currentLink.itemId, deletedAt: IsNull() },
