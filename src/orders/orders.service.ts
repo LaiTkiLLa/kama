@@ -673,12 +673,10 @@ export class OrdersService {
     return;
   }
 
-  // @Cron('0 55 * * * *')
+  @Cron('0 55 * * * *')
   async getWbFbsArchiveTasks() {
     const apiToken = this.configService.get<string>('wbToken');
     const urlOrders = 'https://marketplace-api.wildberries.ru/api/v3/orders';
-    const queryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
     let hasMoreData = true;
     let next = 0;
     // Unix timestamp (сек), UTC: 10 дней назад от момента запроса
@@ -689,15 +687,6 @@ export class OrdersService {
       warehouseId: number;
     }[] = [];
     try {
-      const findMarketplace = await queryRunner.manager.findOne(Marketplaces, {
-        where: {
-          title: 'WB'
-        }
-      });
-      if (!findMarketplace) {
-        this.logger.error('WB не найден среди МП. Не удалось получить архивные сборочные задания');
-        return;
-      }
       while (hasMoreData) {
         await new Promise(resolve => setTimeout(resolve, 5000));
         const response = await axios.get<GetNewFbsTasksWb>(urlOrders, {
@@ -708,7 +697,8 @@ export class OrdersService {
           },
           headers: {
             Authorization: apiToken
-          }
+          },
+          timeout: 30_000
         });
         if (!response.data.orders.length) {
           hasMoreData = false;
@@ -727,6 +717,24 @@ export class OrdersService {
         } else {
           hasMoreData = false;
         }
+      }
+    } catch (error) {
+      this.logger.error(error, 'Не смог получить архивные задания на сборку');
+    }
+    if (!ordersResult.length) {
+      return;
+    }
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    try {
+      const findMarketplace = await queryRunner.manager.findOne(Marketplaces, {
+        where: {
+          title: 'WB'
+        }
+      });
+      if (!findMarketplace) {
+        this.logger.error('WB не найден среди МП. Не удалось получить архивные сборочные задания');
+        return;
       }
       for (const order of ordersResult) {
         const findWarehouse = await queryRunner.manager.findOne(Warehouses, {
