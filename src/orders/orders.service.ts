@@ -661,7 +661,7 @@ export class OrdersService {
     let hasMoreData = true;
     let next = 0;
     // Unix timestamp (сек), UTC: 10 дней назад от момента запроса
-    const dateFrom = Math.floor(Date.now() / 1000) - 10 * 24 * 60 * 60;
+    const dateFrom = Math.floor(Date.now() / 1000) - 38 * 24 * 60 * 60;
     const ordersResult: {
       rid: string;
       nmId: string;
