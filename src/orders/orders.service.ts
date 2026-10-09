@@ -693,9 +693,9 @@ export class OrdersService {
   async getWbFbsArchiveTasks() {
     const apiToken = this.configService.get<string>('wbToken');
     const urlOrders = 'https://marketplace-api.wildberries.ru/api/v3/orders';
-    // WB: max 30 calendar days per request. Cutover: 38 days → chunks of 5.
+    // WB: max 30 calendar days per request. Cutover: 38 days → chunks of 2.
     const totalDays = 38;
-    const chunkDays = 5;
+    const chunkDays = 2;
     const nowSec = Math.floor(Date.now() / 1000);
     const daySec = 24 * 60 * 60;
     const windows: { dateFrom: number; dateTo: number }[] = [];
