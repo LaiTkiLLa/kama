@@ -17,16 +17,16 @@
 
 ```text
 Item (marketplace-independent, 1 на article)
- ├── MarketplaceItem (WB)
- ├── MarketplaceItem (Озон)
- ├── MarketplaceItem (Ozon Tamov)   ← отдельный marketplaces.title; env ozonTamov*
- ├── MarketplaceItem (Yandex)
- └── MarketplaceItem (Yandex Tamov)   ← отдельный marketplaces.title; env yandexTamov*
-        ├── MarketplaceItemSizes
-        │      └── StocksV2          ← снимок по размеру МП; без FK на листинг (178951)
-        ├── Stocks                   ← снимок по листингу (Sheets/AI)
+ ├── MarketplaceItem (WB size) × N   ← identifier=nmID, chrt_id=chrtID (178952)
+ ├── MarketplaceItem (Озон offer)
+ ├── MarketplaceItem (Ozon Tamov)
+ ├── MarketplaceItem (Yandex offer)
+ └── MarketplaceItem (Yandex Tamov)
+        ├── Stocks                   ← снимок по size/offer-listing
         └── OrdersV2
 ```
+
+**FACT (2026-10-09):** WB size = listing; `stocks_v2` writers сняты. ADR [`0002-wb-size-as-marketplace-item.md`](../adr/0002-wb-size-as-marketplace-item.md).
 
 ### Поля на `items` (DECISION, 2026-08-10)
 
@@ -42,12 +42,12 @@ Marketplace-independent: `id`, `article`, `articleOld`, `ownCategory`, classific
 
 ### Поля на `marketplace_items`
 
-| Группа   | Поля                                                                    |
-| -------- | ----------------------------------------------------------------------- |
-| Identity | `marketplace_identifier`, `barcode`, `sku`, `marketplace_id`, `item_id` |
-| Listing  | `category`, `title`, `color`, `image_url` (nullable)                    |
-| Prices   | `price`, `discount` (**%**), `price_with_discount`                      |
-| Ops      | `send_status_id`, `dimensions`, `volume`, `chrt_id`, `deleted_at`, `appeared_at` |
+| Группа   | Поля                                                                                          |
+| -------- | --------------------------------------------------------------------------------------------- |
+| Identity | `marketplace_identifier` (WB=`nmID`), `chrt_id` (WB size), `barcode`, `sku`, `marketplace_id`, `item_id` |
+| Listing  | `category`, `title`, `color`, `image_url`, `size_name`, `size_value` (nullable)              |
+| Prices   | `price`, `discount` (**%**), `price_with_discount`                                            |
+| Ops      | `send_status_id`, `dimensions`, `volume`, `chrt_id`, `deleted_at`, `appeared_at`               |
 
 **`appeared_at` (FACT, `178950`):** первое появление listing в остатках (`currentValue > 0`) на этом МП; пишется stocks cron один раз. При первом `appeared_at` по товару (если `items.wbCreatedAt` ещё null) → `Новинка / A` + `wbCreatedAt` + virality на `items`. Backfill текущих: `appeared_at = items.wb_created_at`.
 
@@ -58,7 +58,7 @@ Marketplace-independent: `id`, `article`, `articleOld`, `ownCategory`, classific
 ## Текущий runtime (FACT, 2026-08-10)
 
 1. **Entity/code:** `items` без MP-полей; listing/price/status на mp.
-2. **Card sync:** find-or-create item by `article`; listing lookup по `(marketplace_identifier, marketplace_id)`, update по `{ id }`. **Yandex:** identifier = `marketSku`; смена mapping при том же `offerId` создаёт второй active listing (fix sync ещё нет).
+2. **Card sync:** find-or-create item by `article`; listing lookup по `(marketplace_identifier, marketplace_id)`, update по `{ id }`. **WB:** цикл по `sizes[]` → listing с `marketplace_identifier`=`nmID` + `chrt_id`=`chrtID` (не `marketplace_item_sizes`). **Yandex:** identifier = `marketSku`; смена mapping при том же `offerId` создаёт второй active listing (fix sync ещё нет).
 3. **Directory:** `marketplacesInfo[]` с mp + prices; filter `items.isArchive = false` + join `mp.deletedAt IS NULL` (два уровня).
 4. **Stop-list / stocks:** listing archive через `mpItems.deletedAt IS NULL`.
 5. **Prices:** schema + hourly crons на mp для WB, `Озон` и **Ozon Tamov** (First/Second).

@@ -28,6 +28,7 @@ export class MarketplaceItems {
   @Column({ name: 'item_id', nullable: false, type: 'int' })
   itemId: number;
 
+  // WB: nmID; Ozon: product_id; Yandex: marketSku
   @Column({ type: 'varchar', nullable: false, name: 'marketplace_identifier' })
   marketplaceIdentifier: string;
 
@@ -45,9 +46,17 @@ export class MarketplaceItems {
   @Column({ type: 'varchar', nullable: true })
   volume: string;
 
-  //Что то вроде id размера, нужен для получения остатков по FBS
+  // WB: chrtID размера (size-listing). У одной карточки (nmID) несколько строк с разным chrt_id.
   @Column({ type: 'varchar', nullable: true, name: 'chrt_id' })
   chrtId: string;
+
+  // WB techSize (например "0", "S")
+  @Column({ type: 'varchar', nullable: true, name: 'size_name' })
+  sizeName: string | null;
+
+  // WB wbSize (отображаемый размер)
+  @Column({ type: 'varchar', nullable: true, name: 'size_value' })
+  sizeValue: string | null;
 
   @Column({ type: 'int', nullable: false, name: 'marketplace_id' })
   marketplaceId: number;

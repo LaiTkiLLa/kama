@@ -1,6 +1,6 @@
 # Снимки остатков по размеру МП через `stocks_v2`
 
-Статус: **принято** (схема `1789510000000`).
+Статус: **superseded** (2026-10-09) → [`0002-wb-size-as-marketplace-item.md`](0002-wb-size-as-marketplace-item.md). Схема `178951` ещё в БД; writers отключены.
 
 Нужна фиксация остатков по размеру, при этом листинговый `stocks` остаётся read-путём для Sheets/AI. **Решение:** параллельная таблица `stocks_v2` с ключом `marketplace_item_size_id` (+ склад + день), **без** FK на `marketplace_items`; листинг доступен только через Размер МП → Листинг. Readers v1 не трогаем; writers v2 — WB FBO/FBS (матч `chrtId` → `marketplace_item_sizes`).
 
