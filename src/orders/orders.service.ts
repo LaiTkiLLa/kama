@@ -484,7 +484,7 @@ export class OrdersService {
     return result;
   }
 
-  @Cron('0 */20 * * * *') // TODO temporary: every 20 min for size-listings cutover
+  @Cron('0 */45 * * * *')
   async getOrdersWbV2() {
     const tenDaysAgo = new Date(new Date().setDate(new Date().getDate() - 90));
     const apiToken = this.configService.get<string>('wbToken');
@@ -612,7 +612,7 @@ export class OrdersService {
     return;
   }
 
-  @Cron('0 */20 * * * *') // TODO temporary: every 20 min for size-listings cutover
+  @Cron('0 */50 * * * *')
   async getWbFbsTasks() {
     const apiToken = this.configService.get<string>('wbToken');
     const urlOrders = 'https://marketplace-api.wildberries.ru/api/v3/orders/new';
