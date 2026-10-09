@@ -689,7 +689,7 @@ export class OrdersService {
     return;
   }
 
-  @Cron('0 */20 * * * *') // TODO temporary: every 20 min for size-listings cutover
+  // @Cron('0 */20 * * * *') // TODO temporary: every 20 min for size-listings cutover
   async getWbFbsArchiveTasks() {
     const apiToken = this.configService.get<string>('wbToken');
     const urlOrders = 'https://marketplace-api.wildberries.ru/api/v3/orders';
