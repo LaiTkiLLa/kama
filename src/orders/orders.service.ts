@@ -498,6 +498,8 @@ export class OrdersService {
         Authorization: apiToken
       }
     });
+    const apiCount = response.data?.length ?? 0;
+    this.logger.log(`WB FBO orders: API вернул ${apiCount} шт, dateFrom=${tenDaysAgo.toISOString()}`);
     const findMarketplace = await this.infoService.findMarketplace({ title: 'WB' });
     if (!findMarketplace) {
       this.logger.error('WB не найден среди МП. Не удалось получить заказы v2');
@@ -505,13 +507,22 @@ export class OrdersService {
     }
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
+    let created = 0;
+    let updated = 0;
+    let skipNoWarehouse = 0;
+    let skipNoMpItem = 0;
+    const missingWarehouses = new Set<string>();
+    const missingBarcodes = new Set<string>();
     try {
       for (const order of response.data) {
         const findWarehouse = await queryRunner.manager.findOne(Warehouses, {
           where: { title: order.warehouseName }
         });
         if (!findWarehouse) {
-          console.log('wb !findWarehouse', order.warehouseName);
+          skipNoWarehouse++;
+          if (missingWarehouses.size < 20) {
+            missingWarehouses.add(order.warehouseName);
+          }
           continue;
         }
         const findMarketplaceItem = await queryRunner.manager
@@ -522,6 +533,10 @@ export class OrdersService {
           .andWhere('mpItems.barcode = :barcode', { barcode: order.barcode })
           .getOne();
         if (!findMarketplaceItem) {
+          skipNoMpItem++;
+          if (missingBarcodes.size < 30) {
+            missingBarcodes.add(`${order.barcode}(nm=${order.nmId},srid=${order.srid})`);
+          }
           continue;
         }
         const findOrder = await queryRunner.manager.findOne(OrdersV2, {
@@ -554,6 +569,7 @@ export class OrdersService {
             marketplaceItemId: findMarketplaceItem.id
           });
           await queryRunner.manager.save(OrdersV2, createOrder);
+          created++;
         } else {
           await queryRunner.manager.update(
             OrdersV2,
@@ -574,7 +590,18 @@ export class OrdersService {
               marketplaceCreatedAt: new Date(order.date + '+03:00')
             }
           );
+          updated++;
         }
+      }
+      this.logger.log(
+        `WB FBO orders: api=${apiCount}, created=${created}, updated=${updated}, ` +
+          `skipNoWarehouse=${skipNoWarehouse}, skipNoMpItem=${skipNoMpItem}`
+      );
+      if (missingWarehouses.size) {
+        this.logger.warn(`WB FBO missing warehouses (sample): ${[...missingWarehouses].join(', ')}`);
+      }
+      if (missingBarcodes.size) {
+        this.logger.warn(`WB FBO missing barcode listings (sample): ${[...missingBarcodes].join('; ')}`);
       }
     } catch (error) {
       this.logger.error(error);
@@ -595,6 +622,8 @@ export class OrdersService {
         Authorization: apiToken
       }
     });
+    const apiCount = response.data?.orders?.length ?? 0;
+    this.logger.log(`WB FBS new tasks: API вернул ${apiCount} шт`);
     const findMarketplace = await this.infoService.findMarketplace({ title: 'WB' });
     if (!findMarketplace) {
       this.logger.error('WB не найден среди МП. Не удалось получить новые сборочные задания');
@@ -602,6 +631,13 @@ export class OrdersService {
     }
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
+    let updated = 0;
+    let skipNoWarehouse = 0;
+    let skipNoMpItem = 0;
+    let skipNoOrder = 0;
+    const missingWarehouses = new Set<string>();
+    const missingChrtIds = new Set<string>();
+    const missingRids = new Set<string>();
     try {
       for (const order of response.data.orders) {
         const findWarehouse = await queryRunner.manager.findOne(Warehouses, {
@@ -611,7 +647,10 @@ export class OrdersService {
           }
         });
         if (!findWarehouse) {
-          console.log('wb fbs task !findWarehouse', order.warehouseId);
+          skipNoWarehouse++;
+          if (missingWarehouses.size < 20) {
+            missingWarehouses.add(String(order.warehouseId));
+          }
           continue;
         }
         const findMarketplaceItem = await queryRunner.manager
@@ -624,6 +663,10 @@ export class OrdersService {
           })
           .getOne();
         if (!findMarketplaceItem) {
+          skipNoMpItem++;
+          if (missingChrtIds.size < 30) {
+            missingChrtIds.add(`${order.chrtId}(nm=${order.nmId},rid=${order.rid})`);
+          }
           continue;
         }
         const findOrder = await queryRunner.manager.findOne(OrdersV2, {
@@ -633,6 +676,10 @@ export class OrdersService {
           }
         });
         if (!findOrder) {
+          skipNoOrder++;
+          if (missingRids.size < 30) {
+            missingRids.add(`${order.rid}(chrt=${order.chrtId},mpItem=${findMarketplaceItem.id})`);
+          }
           continue;
         }
 
@@ -643,6 +690,22 @@ export class OrdersService {
             warehouseId: findWarehouse.id,
             clusterFrom: findWarehouse.title
           }
+        );
+        updated++;
+      }
+      this.logger.log(
+        `WB FBS new tasks: api=${apiCount}, updated=${updated}, ` +
+          `skipNoWarehouse=${skipNoWarehouse}, skipNoMpItem=${skipNoMpItem}, skipNoOrder=${skipNoOrder}`
+      );
+      if (missingWarehouses.size) {
+        this.logger.warn(`WB FBS new missing warehouses (sample): ${[...missingWarehouses].join(', ')}`);
+      }
+      if (missingChrtIds.size) {
+        this.logger.warn(`WB FBS new missing chrtId listings (sample): ${[...missingChrtIds].join('; ')}`);
+      }
+      if (missingRids.size) {
+        this.logger.warn(
+          `WB FBS new: order not in DB yet (sample, FBO must create first): ${[...missingRids].join('; ')}`
         );
       }
     } catch (error) {
@@ -660,7 +723,7 @@ export class OrdersService {
     const urlOrders = 'https://marketplace-api.wildberries.ru/api/v3/orders';
     let hasMoreData = true;
     let next = 0;
-    // Unix timestamp (сек), UTC: 10 дней назад от момента запроса
+    // Unix timestamp (сек), UTC: временно ~с 1 сен (38 дней)
     const dateFrom = Math.floor(Date.now() / 1000) - 38 * 24 * 60 * 60;
     const ordersResult: {
       rid: string;
@@ -668,7 +731,9 @@ export class OrdersService {
       chrtId: string;
       warehouseId: number;
     }[] = [];
+    let pages = 0;
     try {
+      this.logger.log(`WB FBS archive: start fetch, dateFrom=${dateFrom}`);
       while (hasMoreData) {
         await new Promise(resolve => setTimeout(resolve, 5000));
         const response = await axios.get<GetNewFbsTasksWb>(urlOrders, {
@@ -682,6 +747,7 @@ export class OrdersService {
           },
           timeout: 30_000
         });
+        pages++;
         if (!response.data.orders.length) {
           hasMoreData = false;
           break;
@@ -694,6 +760,9 @@ export class OrdersService {
             warehouseId: order.warehouseId
           });
         }
+        this.logger.log(
+          `WB FBS archive: page=${pages}, batch=${response.data.orders.length}, total=${ordersResult.length}, next=${response.data.next ?? 'end'}`
+        );
         if (response.data.next) {
           hasMoreData = true;
           next = response.data.next;
@@ -704,11 +773,19 @@ export class OrdersService {
     } catch (error) {
       this.logger.error(error, 'Не смог получить архивные задания на сборку');
     }
+    this.logger.log(`WB FBS archive: fetched ${ordersResult.length} шт за ${pages} page(s)`);
     if (!ordersResult.length) {
       return;
     }
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
+    let updated = 0;
+    let skipNoWarehouse = 0;
+    let skipNoMpItem = 0;
+    let skipNoOrder = 0;
+    const missingWarehouses = new Set<string>();
+    const missingChrtIds = new Set<string>();
+    const missingRids = new Set<string>();
     try {
       const findMarketplace = await queryRunner.manager.findOne(Marketplaces, {
         where: {
@@ -727,7 +804,10 @@ export class OrdersService {
           }
         });
         if (!findWarehouse) {
-          console.log('wb fbs task !findWarehouse', order.warehouseId);
+          skipNoWarehouse++;
+          if (missingWarehouses.size < 20) {
+            missingWarehouses.add(String(order.warehouseId));
+          }
           continue;
         }
         const findMarketplaceItem = await queryRunner.manager
@@ -740,6 +820,10 @@ export class OrdersService {
           })
           .getOne();
         if (!findMarketplaceItem) {
+          skipNoMpItem++;
+          if (missingChrtIds.size < 30) {
+            missingChrtIds.add(`${order.chrtId}(nm=${order.nmId},rid=${order.rid})`);
+          }
           continue;
         }
         const findOrder = await queryRunner.manager.findOne(OrdersV2, {
@@ -749,6 +833,10 @@ export class OrdersService {
           }
         });
         if (!findOrder) {
+          skipNoOrder++;
+          if (missingRids.size < 30) {
+            missingRids.add(`${order.rid}(chrt=${order.chrtId},mpItem=${findMarketplaceItem.id})`);
+          }
           continue;
         }
 
@@ -760,6 +848,22 @@ export class OrdersService {
             clusterFrom: findWarehouse.title
           }
         );
+        updated++;
+      }
+      this.logger.log(
+        `WB FBS archive: api=${ordersResult.length}, updated=${updated}, ` +
+          `skipNoWarehouse=${skipNoWarehouse}, skipNoMpItem=${skipNoMpItem}, skipNoOrder=${skipNoOrder}`
+      );
+      if (missingWarehouses.size) {
+        this.logger.warn(`WB FBS archive missing warehouses (sample): ${[...missingWarehouses].join(', ')}`);
+      }
+      if (missingChrtIds.size) {
+        this.logger.warn(
+          `WB FBS archive missing chrtId listings (sample): ${[...missingChrtIds].join('; ')}`
+        );
+      }
+      if (missingRids.size) {
+        this.logger.warn(`WB FBS archive: order not in DB (sample): ${[...missingRids].join('; ')}`);
       }
     } catch (error) {
       this.logger.error(error);
