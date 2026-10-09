@@ -723,8 +723,8 @@ export class OrdersService {
     const urlOrders = 'https://marketplace-api.wildberries.ru/api/v3/orders';
     let hasMoreData = true;
     let next = 0;
-    // Unix timestamp (сек), UTC: временно ~с 1 сен (38 дней)
-    const dateFrom = Math.floor(Date.now() / 1000) - 38 * 24 * 60 * 60;
+    // Unix timestamp (сек), UTC: временно ~с 1 сен (25 дней)
+    const dateFrom = Math.floor(Date.now() / 1000) - 25 * 24 * 60 * 60;
     const ordersResult: {
       rid: string;
       nmId: string;
