@@ -78,7 +78,7 @@ Item (1 на article)
 
 | МП     | `items.article` ← | `marketplace_identifier` ← | `sku`      | `barcode`          | `chrt_id`         |
 | ------ | ----------------- | -------------------------- | ---------- | ------------------ | ----------------- |
-| WB     | `vendorCode`      | `nmID`                     | `'0'`      | `sizes[0].skus[0]` | `sizes[0].chrtID` |
+| WB     | `vendorCode`      | `nmID`                     | `'0'`      | `size.skus[0]`     | `chrtID` (per size-listing) |
 | Ozon   | `offer_id`        | `product id` (`item.id`)   | Ozon `sku` | `barcode`          | —                 |
 | Yandex | `offerId`         | `marketSku`                | `'0'`      | `barcodes[0]`      | —                 |
 

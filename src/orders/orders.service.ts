@@ -11,7 +11,6 @@ import {
   GetOrdersYandexV2,
   YandexOrderInfoV2
 } from './interfaces/get-orders-yandex.interface';
-import { Items } from '../items/entities/items.entity';
 import { GetDynamicOrdersDto } from './dto/get-dynamic-orders.dto';
 import { StocksService } from '../stocks/stocks.service';
 import { GetDynamicOrders } from './interfaces/get-dynamic-orders.interface';
@@ -485,7 +484,7 @@ export class OrdersService {
     return result;
   }
 
-  @Cron('0 45 * * * *')
+  @Cron('0 */20 * * * *') // TODO temporary: every 20 min for size-listings cutover
   async getOrdersWbV2() {
     const tenDaysAgo = new Date(new Date().setDate(new Date().getDate() - 90));
     const apiToken = this.configService.get<string>('wbToken');
@@ -519,9 +518,8 @@ export class OrdersService {
           .createQueryBuilder(MarketplaceItems, 'mpItems')
           .leftJoinAndSelect('mpItems.item', 'item')
           .where('mpItems.marketplaceId = :marketplaceId', { marketplaceId: findMarketplace.id })
-          .andWhere('mpItems.marketplaceIdentifier = :marketplaceIdentifier', {
-            marketplaceIdentifier: String(order.nmId)
-          })
+          .andWhere('mpItems.deletedAt IS NULL')
+          .andWhere('mpItems.barcode = :barcode', { barcode: order.barcode })
           .getOne();
         if (!findMarketplaceItem) {
           continue;
@@ -533,24 +531,6 @@ export class OrdersService {
           }
         });
         if (!findOrder) {
-          // const countItemOrder = await queryRunner.manager.count(OrdersV2, {
-          //   where: {
-          //     marketplaceItemId: findMarketplaceItem.id
-          //   }
-          // });
-          // if (!countItemOrder && !findMarketplaceItem.item.wbCreatedAt) {
-          //   await queryRunner.manager.update(
-          //     Items,
-          //     {
-          //       id: findMarketplaceItem.itemId
-          //     },
-          //     {
-          //       wbCreatedAt: new Date(order.date + '+03:00'),
-          //       classification: 'Новинка / A',
-          //       virality: 'виральный предположительно'
-          //     }
-          //   );
-          // }
           const createOrder = queryRunner.manager.create(OrdersV2, {
             marketplaceOrderIdentification: order.srid,
             marketplaceOrderNumber: order.gNumber,
@@ -605,7 +585,7 @@ export class OrdersService {
     return;
   }
 
-  @Cron('0 50 * * * *')
+  @Cron('0 */20 * * * *') // TODO temporary: every 20 min for size-listings cutover
   async getWbFbsTasks() {
     const apiToken = this.configService.get<string>('wbToken');
     const urlOrders = 'https://marketplace-api.wildberries.ru/api/v3/orders/new';
@@ -638,8 +618,9 @@ export class OrdersService {
           .createQueryBuilder(MarketplaceItems, 'mpItems')
           .leftJoinAndSelect('mpItems.item', 'item')
           .where('mpItems.marketplaceId = :marketplaceId', { marketplaceId: findMarketplace.id })
-          .andWhere('mpItems.marketplaceIdentifier = :marketplaceIdentifier', {
-            marketplaceIdentifier: String(order.nmId)
+          .andWhere('mpItems.deletedAt IS NULL')
+          .andWhere('mpItems.chrtId = :chrtId', {
+            chrtId: String(order.chrtId)
           })
           .getOne();
         if (!findMarketplaceItem) {
@@ -673,7 +654,7 @@ export class OrdersService {
     return;
   }
 
-  @Cron('0 55 * * * *')
+  @Cron('0 */20 * * * *') // TODO temporary: every 20 min for size-listings cutover
   async getWbFbsArchiveTasks() {
     const apiToken = this.configService.get<string>('wbToken');
     const urlOrders = 'https://marketplace-api.wildberries.ru/api/v3/orders';
@@ -684,6 +665,7 @@ export class OrdersService {
     const ordersResult: {
       rid: string;
       nmId: string;
+      chrtId: string;
       warehouseId: number;
     }[] = [];
     try {
@@ -708,6 +690,7 @@ export class OrdersService {
           ordersResult.push({
             rid: order.rid,
             nmId: String(order.nmId),
+            chrtId: String(order.chrtId),
             warehouseId: order.warehouseId
           });
         }
@@ -751,8 +734,9 @@ export class OrdersService {
           .createQueryBuilder(MarketplaceItems, 'mpItems')
           .leftJoinAndSelect('mpItems.item', 'item')
           .where('mpItems.marketplaceId = :marketplaceId', { marketplaceId: findMarketplace.id })
-          .andWhere('mpItems.marketplaceIdentifier = :marketplaceIdentifier', {
-            marketplaceIdentifier: order.nmId
+          .andWhere('mpItems.deletedAt IS NULL')
+          .andWhere('mpItems.chrtId = :chrtId', {
+            chrtId: order.chrtId
           })
           .getOne();
         if (!findMarketplaceItem) {

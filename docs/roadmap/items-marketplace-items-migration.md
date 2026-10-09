@@ -2,7 +2,7 @@
 
 > [`../domain/items-and-marketplace-items.md`](../domain/items-and-marketplace-items.md) · [`../AI_CONTEXT.md`](../AI_CONTEXT.md)
 
-Последнее обновление: 2026-09-08.
+Последнее обновление: 2026-10-09.
 
 ---
 
@@ -38,6 +38,7 @@ Changelog M5: [`../migrations/m5-consolidation-changelog.md`](../migrations/m5-c
 | Ozon Tamov directory PATCH | ✔ |
 | Yandex Tamov sync | ✔ cards/stocks/orders/stop-list PATCH/trash |
 | Stocks Sheets | ✔ `GET /api/stocks/by-warehouses`; by-date **не возвращаем** |
+| WB size = listing (`178952`) | ✔ schema-only; data via `getWbItems`; identifier=`nmID`, `chrt_id`=`chrtID`; `stocks_v2` writers off |
 | Warehouse hard-delete | ✔ RESTRICT с `orders_v2` / `stocks` (`1789430000000`) |
 | Yandex duplicate listings | one-off script ✔; unique `(item_id, marketplace_id)` active — ещё нет |
 
@@ -90,6 +91,8 @@ Changelog M5: [`../migrations/m5-consolidation-changelog.md`](../migrations/m5-c
 | Gap | Влияние |
 |-----|---------|
 | Tamov directory PATCH | ✔ `updateArrayDirectoryItemsInfoV2` |
-| MP characteristics sync | WB/Ozon characteristics → `marketplace_item_characteristics`; Ozon sizes → `marketplace_item_sizes`; soft-delete пропавших |
-| `items_sizes` на item | ✖ dropped (`178935`); runtime — `marketplace_item_sizes` |
+| MP characteristics sync | WB/Ozon characteristics → `marketplace_item_characteristics`; soft-delete пропавших |
+| WB size = listing | ✔ `178952` schema-only; `getWbItems` → size-listings; match orders barcode / FBS `chrt_id`; `stocks_v2` writers off |
+| Drop `stocks_v2` / `marketplace_item_sizes` | □ after confirm (таблица ещё в схеме) |
+| `items_sizes` на item | ✖ dropped (`178935`); WB runtime — size-listings |
 | Duplicate listings | **FACT (2026-08-24):** Yandex — смена `mapping.marketSku` при том же `offerId`; sync lookup только по identifier. One-off: `npm run dedup:yandex-listings` (dry-run) / `-- --apply`. Keep = актуальный `marketSku`; stocks: конфликт `(warehouse_id, DATE(created_at))` → delete loser, иначе reassign; orders: конфликт identification+posting → delete, иначе reassign; затем hard-delete loser. Unique index и fix `getYandexItems` — **ещё нет**. |

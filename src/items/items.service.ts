@@ -26,7 +26,6 @@ import { MarketplaceItems } from './entities/marketplace-items.entity';
 import { MarketplaceInfo, SupplierInfo } from './interfaces/get-items-directory-list.interface';
 import { Statuses } from 'src/info/entities/statuses.entity';
 import { GetErpItemsListDto } from './dto/get-erp-items-list.dto';
-import { MarketplaceItemSizes } from './entities/marketplace-item-sizes.entity';
 import { Characteristics } from './entities/characteristics.entity';
 import { ItemCharacteristics } from './entities/item-characteristics.entity';
 import { CharacteristicValues } from './entities/characteristic-values.entity';
@@ -351,11 +350,6 @@ export class ItemsService {
         .createQueryBuilder(Items, 'items')
         .leftJoinAndSelect('items.marketplaceItems', 'marketplaceItems', 'marketplaceItems.deletedAt IS NULL')
         .leftJoinAndSelect('marketplaceItems.marketplace', 'marketplaceV2')
-        .leftJoinAndSelect(
-          'marketplaceItems.marketplaceItemSizes',
-          'marketplaceItemSizes',
-          'marketplaceItemSizes.deletedAt IS NULL'
-        )
         .leftJoinAndSelect('items.itemsSuppliers', 'itemsSuppliers', 'itemsSuppliers.deletedAt IS NULL')
         .leftJoinAndSelect('itemsSuppliers.supplier', 'supplier')
         .leftJoinAndSelect('itemsSuppliers.itemCharacteristic', 'itemCharacteristic')
@@ -375,32 +369,25 @@ export class ItemsService {
         .addOrderBy('itemsSuppliers.id', 'ASC')
         .getMany();
       return findItems.map(item => {
-        const marketplacesInfo: MarketplaceInfo[] = [];
-        marketplacesInfo.push(
-          ...item.marketplaceItems.map(el => ({
-            title: el.marketplace.title,
-            marketplaceItemSizes: (el.marketplaceItemSizes ?? []).map(el => {
-              return {
-                size: el.name,
-                skus: Array.isArray(el.metadata?.skus) ? el?.metadata?.skus : [],
-                chrtId: el.marketplaceSizeId,
-                value: el.value
-              };
-            }),
-            dimensions: el.dimensions,
-            volume: Number(el.volume).toFixed(2),
-            sku: el.sku,
-            marketplaceIdentifier: el.marketplaceIdentifier,
-            category: el.category,
-            barcode: el.barcode,
-            image: el.imageUrl,
-            color: el.color,
-            itemTitle: el.title,
-            price: el.price,
-            discount: el.discount,
-            priceWithDiscount: el.priceWithDiscount
-          }))
-        );
+        const marketplacesInfo: MarketplaceInfo[] = item.marketplaceItems.map(el => ({
+          title: el.marketplace.title,
+          marketplaceItemId: el.id,
+          marketplaceIdentifier: el.marketplaceIdentifier,
+          sizeName: el.sizeName,
+          sizeValue: el.sizeValue,
+          chrtId: el.chrtId,
+          dimensions: el.dimensions,
+          volume: Number(el.volume).toFixed(2),
+          sku: el.sku,
+          category: el.category,
+          barcode: el.barcode,
+          image: el.imageUrl,
+          color: el.color,
+          itemTitle: el.title,
+          price: el.price,
+          discount: el.discount,
+          priceWithDiscount: el.priceWithDiscount
+        }));
         const suppliersInfo: SupplierInfo[] = [];
         if (item.itemsSuppliers.length) {
           for (const itemSupplier of item.itemsSuppliers) {
@@ -520,11 +507,6 @@ export class ItemsService {
           )`,
           { marketplaceTitle: getErpItemsListDto.marketplace }
         )
-        .leftJoinAndSelect(
-          'marketplaceItems.marketplaceItemSizes',
-          'marketplaceItemSizes',
-          'marketplaceItemSizes.deletedAt IS NULL'
-        )
         .leftJoinAndSelect('marketplaceItems.marketplace', 'marketplace')
         .where('items.isArchive = :isArchive', { isArchive: false });
 
@@ -535,7 +517,8 @@ export class ItemsService {
       }
       const findItems = await queryBuilder.orderBy('items.id', 'ASC').getMany();
       return findItems.map(item => {
-        const wbListing = item.marketplaceItems[0];
+        const wbListing =
+          item.marketplaceItems.find(mp => mp.marketplace?.title === 'WB') ?? item.marketplaceItems[0];
         return {
           id: item.id,
           article: item.article,
@@ -564,29 +547,24 @@ export class ItemsService {
           downloadCalculationMethod: item.downloadCalculationMethod,
           transportType: item.transportType,
           deliveryMethod: item.deliveryMethod,
-          marketplaceItemsInfo: item.marketplaceItems.map(mpItem => {
-            return {
-              marketplaceItemId: mpItem.id,
-              marketplaceTitle: mpItem.marketplace.title,
-              category: mpItem.category,
-              dimensions: mpItem.dimensions,
-              volume: mpItem.volume,
-              imageUrl: mpItem.imageUrl,
-              color: mpItem.color,
-              price: mpItem.price,
-              discount: mpItem.discount,
-              priceWithDiscount: mpItem.priceWithDiscount,
-              marketplaceItemSizes: (mpItem.marketplaceItemSizes ?? []).map(el => {
-                return {
-                  sizeId: el.id,
-                  size: el.name,
-                  skus: Array.isArray(el.metadata?.skus) ? el?.metadata?.skus : [],
-                  chrtId: el.marketplaceSizeId,
-                  value: el.value
-                };
-              })
-            };
-          })
+          marketplaceItemsInfo: item.marketplaceItems.map(mpItem => ({
+            marketplaceItemId: mpItem.id,
+            marketplaceTitle: mpItem.marketplace.title,
+            marketplaceIdentifier: mpItem.marketplaceIdentifier,
+            sizeName: mpItem.sizeName,
+            sizeValue: mpItem.sizeValue,
+            chrtId: mpItem.chrtId,
+            category: mpItem.category,
+            dimensions: mpItem.dimensions,
+            volume: mpItem.volume,
+            imageUrl: mpItem.imageUrl,
+            color: mpItem.color,
+            barcode: mpItem.barcode,
+            sku: mpItem.sku,
+            price: mpItem.price,
+            discount: mpItem.discount,
+            priceWithDiscount: mpItem.priceWithDiscount
+          }))
         };
       });
     } catch (error) {
@@ -620,11 +598,6 @@ export class ItemsService {
         );
       }
       queryBuilder
-        .leftJoinAndSelect(
-          'marketplaceItems.marketplaceItemSizes',
-          'marketplaceItemSizes',
-          'marketplaceItemSizes.deletedAt IS NULL'
-        )
         .leftJoinAndSelect('marketplaceItems.marketplace', 'marketplace')
         .leftJoinAndSelect('itemsSuppliers.supplier', 'supplier')
         .leftJoinAndSelect('itemsSuppliers.itemCharacteristic', 'itemCharacteristic')
@@ -666,29 +639,24 @@ export class ItemsService {
           dimensionsMasterBox: itemsSupplier.dimensionsMasterBox,
           volume: itemsSupplier.volume,
           ownImagesUrl: itemsSupplier.ownImagesUrl,
-          marketplaceItemsInfo: itemsSupplier.item.marketplaceItems.map(mpItem => {
-            return {
-              marketplaceItemId: mpItem.id,
-              marketplaceTitle: mpItem.marketplace.title,
-              category: mpItem.category,
-              dimensions: mpItem.dimensions,
-              volume: mpItem.volume,
-              imageUrl: mpItem.imageUrl,
-              color: mpItem.color,
-              price: mpItem.price,
-              discount: mpItem.discount,
-              priceWithDiscount: mpItem.priceWithDiscount,
-              marketplaceItemSizes: (mpItem.marketplaceItemSizes ?? []).map(el => {
-                return {
-                  sizeId: el.id,
-                  size: el.name,
-                  skus: Array.isArray(el.metadata?.skus) ? el?.metadata?.skus : [],
-                  chrtId: el.marketplaceSizeId,
-                  value: el.value
-                };
-              })
-            };
-          })
+          marketplaceItemsInfo: itemsSupplier.item.marketplaceItems.map(mpItem => ({
+            marketplaceItemId: mpItem.id,
+            marketplaceTitle: mpItem.marketplace.title,
+            marketplaceIdentifier: mpItem.marketplaceIdentifier,
+            sizeName: mpItem.sizeName,
+            sizeValue: mpItem.sizeValue,
+            chrtId: mpItem.chrtId,
+            category: mpItem.category,
+            dimensions: mpItem.dimensions,
+            volume: mpItem.volume,
+            imageUrl: mpItem.imageUrl,
+            color: mpItem.color,
+            barcode: mpItem.barcode,
+            sku: mpItem.sku,
+            price: mpItem.price,
+            discount: mpItem.discount,
+            priceWithDiscount: mpItem.priceWithDiscount
+          }))
         };
       });
     } catch (error) {
@@ -1425,7 +1393,7 @@ export class ItemsService {
     }
   }
 
-  @Cron('0 */40 * * * *')
+  @Cron('0 */10 * * * *') // TODO temporary: every 10 min for size-listings cutover
   async getWbItems() {
     const itemsUrl = 'https://content-api.wildberries.ru/content/v2/get/cards/list';
     const apiToken = this.configService.get<string>('wbToken');
@@ -1469,130 +1437,77 @@ export class ItemsService {
       const systemSupplier = await this.findSystemSupplier(queryRunner.manager);
       for (const item of items) {
         const findColor = item?.characteristics?.find(el => el.name === 'Цвет');
-        const findMpItem = await queryRunner.manager.findOne(MarketplaceItems, {
-          where: { marketplaceIdentifier: String(item.nmID), marketplaceId: wbMarketplace.id }
-        });
         const volumeWB = (
           (item.dimensions.length * item.dimensions.width * item.dimensions.height) /
           1000
         ).toFixed(2);
-
-        if (!findMpItem) {
-          const findItem = await queryRunner.manager.findOne(Items, {
-            where: {
-              article: item.vendorCode
-            }
-          });
-          let itemId: number;
-          if (findItem) {
-            itemId = findItem.id;
-          } else {
-            const createItem = queryRunner.manager.create(Items, {
-              article: item.vendorCode
-            });
-            await queryRunner.manager.save(Items, createItem);
-            itemId = createItem.id;
-            await queryRunner.manager.insert(ItemsSuppliers, {
-              itemId,
-              supplierId: systemSupplier.id
-            });
-          }
-
-          const createMarketplaceItem = queryRunner.manager.create(MarketplaceItems, {
-            itemId,
-            marketplaceIdentifier: String(item.nmID),
-            barcode: item?.sizes[0]?.skus[0] ?? '0',
-            sku: '0',
-            marketplaceId: wbMarketplace.id,
-            //Размеры в см, вес в кг
-            dimensions: `${item.dimensions.length}/${item.dimensions.width}/${item.dimensions.height}/${item.dimensions.weightBrutto}`,
-            volume: volumeWB,
-            chrtId: String(item?.sizes[0]?.chrtID),
-            category: item.subjectName,
-            title: item.title,
-            imageUrl: item.photos ? item.photos[0].big : null,
-            color: findColor ? findColor.value[0] : ''
-          });
-          await queryRunner.manager.save(MarketplaceItems, createMarketplaceItem);
-          if (item?.sizes?.length) {
-            for (const size of item.sizes) {
-              const sizePayload = {
-                name: size.techSize,
-                value: size.wbSize,
-                metadata: { skus: size.skus ?? [] }
-              };
-              const findSize = await queryRunner.manager.findOne(MarketplaceItemSizes, {
-                where: {
-                  marketplaceItemId: createMarketplaceItem.id,
-                  marketplaceSizeId: String(size.chrtID),
-                  deletedAt: IsNull()
-                }
-              });
-              if (findSize) {
-                await queryRunner.manager.update(MarketplaceItemSizes, findSize.id, sizePayload);
-              } else {
-                const createSize = queryRunner.manager.create(MarketplaceItemSizes, {
-                  marketplaceItemId: createMarketplaceItem.id,
-                  marketplaceSizeId: String(size.chrtID),
-                  ...sizePayload
-                });
-                await queryRunner.manager.save(MarketplaceItemSizes, createSize);
-              }
-            }
-            await this.syncItemSizeCharacteristics(queryRunner.manager, itemId, item.sizes);
-          }
-        } else {
-          await queryRunner.manager.update(
-            Items,
-            { id: findMpItem.itemId },
-            {
-              article: item.vendorCode
-            }
-          );
-          await queryRunner.manager.update(
-            MarketplaceItems,
-            { id: findMpItem.id },
-            {
-              barcode: item?.sizes[0]?.skus[0] ?? '0',
-              sku: '0',
-              //Размеры в см, вес в кг
-              dimensions: `${item.dimensions.length}/${item.dimensions.width}/${item.dimensions.height}/${item.dimensions.weightBrutto}`,
-              volume: volumeWB,
-              chrtId: String(item?.sizes[0]?.chrtID),
-              category: item.subjectName,
-              title: item.title,
-              color: findColor ? findColor.value[0] : '',
-              imageUrl: item.photos ? item.photos[0].big : null
-            }
-          );
-          if (item?.sizes?.length) {
-            for (const size of item.sizes) {
-              const sizePayload = {
-                name: size.techSize,
-                value: size.wbSize,
-                metadata: { skus: size.skus ?? [] }
-              };
-              const findSize = await queryRunner.manager.findOne(MarketplaceItemSizes, {
-                where: {
-                  marketplaceItemId: findMpItem.id,
-                  marketplaceSizeId: String(size.chrtID),
-                  deletedAt: IsNull()
-                }
-              });
-              if (findSize) {
-                await queryRunner.manager.update(MarketplaceItemSizes, findSize.id, sizePayload);
-              } else {
-                const createSize = queryRunner.manager.create(MarketplaceItemSizes, {
-                  marketplaceItemId: findMpItem.id,
-                  marketplaceSizeId: String(size.chrtID),
-                  ...sizePayload
-                });
-                await queryRunner.manager.save(MarketplaceItemSizes, createSize);
-              }
-            }
-            await this.syncItemSizeCharacteristics(queryRunner.manager, findMpItem.itemId, item.sizes);
-          }
+        if (!item.sizes?.length) {
+          continue;
         }
+
+        const findItem = await queryRunner.manager.findOne(Items, {
+          where: { article: item.vendorCode }
+        });
+        let itemId: number;
+        if (findItem) {
+          itemId = findItem.id;
+        } else {
+          const createItem = queryRunner.manager.create(Items, {
+            article: item.vendorCode
+          });
+          await queryRunner.manager.save(Items, createItem);
+          itemId = createItem.id;
+          await queryRunner.manager.insert(ItemsSuppliers, {
+            itemId,
+            supplierId: systemSupplier.id
+          });
+        }
+
+        const nmId = String(item.nmID);
+        const sharedListingFields = {
+          itemId,
+          sku: '0',
+          marketplaceId: wbMarketplace.id,
+          marketplaceIdentifier: nmId,
+          dimensions: `${item.dimensions.length}/${item.dimensions.width}/${item.dimensions.height}/${item.dimensions.weightBrutto}`,
+          volume: volumeWB,
+          category: item.subjectName,
+          title: item.title,
+          imageUrl: item.photos ? item.photos[0].big : null,
+          color: findColor ? findColor.value[0] : ''
+        };
+
+        for (const size of item.sizes) {
+          if (!size.chrtID) {
+            continue;
+          }
+          const chrtId = String(size.chrtID);
+          const sizeFields = {
+            ...sharedListingFields,
+            chrtId,
+            barcode: size.skus?.[0] ?? '0',
+            sizeName: size.techSize,
+            sizeValue: size.wbSize
+          };
+
+          const findMpItem = await queryRunner.manager.findOne(MarketplaceItems, {
+            where: {
+              marketplaceId: wbMarketplace.id,
+              chrtId,
+              marketplaceIdentifier: nmId,
+              deletedAt: IsNull()
+            }
+          });
+          if (findMpItem) {
+            await queryRunner.manager.update(MarketplaceItems, { id: findMpItem.id }, sizeFields);
+            continue;
+          }
+
+          const createMarketplaceItem = queryRunner.manager.create(MarketplaceItems, sizeFields);
+          await queryRunner.manager.save(MarketplaceItems, createMarketplaceItem);
+        }
+
+        await this.syncItemSizeCharacteristics(queryRunner.manager, itemId, item.sizes);
       }
     } catch (error) {
       this.logger.error(error);
@@ -1644,22 +1559,14 @@ export class ItemsService {
     await queryRunner.connect();
     try {
       for (const item of items) {
-        const findMpItem = await queryRunner.manager.findOne(MarketplaceItems, {
-          where: {
-            marketplaceIdentifier: String(item.nmID),
-            marketplaceId: wbMarketplace.id,
-            deletedAt: IsNull()
-          }
-        });
-        if (findMpItem) {
-          await queryRunner.manager.update(
-            MarketplaceItems,
-            { id: findMpItem.id },
-            {
-              deletedAt: new Date()
-            }
-          );
-        }
+        await queryRunner.manager
+          .createQueryBuilder()
+          .update(MarketplaceItems)
+          .set({ deletedAt: new Date() })
+          .where('marketplace_id = :marketplaceId', { marketplaceId: wbMarketplace.id })
+          .andWhere('deleted_at IS NULL')
+          .andWhere('marketplace_identifier = :nmId', { nmId: String(item.nmID) })
+          .execute();
       }
       return;
     } catch (error) {
@@ -2276,25 +2183,29 @@ export class ItemsService {
     }
     const manager = this.dataSource.manager;
     try {
-      const itemsId = getItems.data.listGoods.map(el => String(el.nmID));
+      const nmIds = getItems.data.listGoods.map(el => String(el.nmID));
       const findMarketplace = await this.infoService.findMarketplace({ title: 'WB' });
       const findMpItems = await manager.find(MarketplaceItems, {
         where: {
-          marketplaceIdentifier: In(itemsId),
+          marketplaceIdentifier: In(nmIds),
           marketplaceId: findMarketplace.id,
           deletedAt: IsNull()
         }
       });
       for (const item of getItems.data.listGoods) {
-        const findItem = findMpItems.find(el => el.marketplaceIdentifier === String(item.nmID));
-        if (findItem) {
+        const nmListings = findMpItems.filter(el => el.marketplaceIdentifier === String(item.nmID));
+        for (const size of item.sizes ?? []) {
+          const listing = nmListings.find(el => el.chrtId === String(size.sizeID));
+          if (!listing) {
+            continue;
+          }
           await manager.update(
             MarketplaceItems,
-            { id: findItem.id },
+            { id: listing.id },
             {
               discount: item.discount,
-              price: item?.sizes?.[0]?.price ?? null,
-              priceWithDiscount: item?.sizes?.[0]?.discountedPrice ?? null
+              price: size.price ?? null,
+              priceWithDiscount: size.discountedPrice ?? null
             }
           );
         }

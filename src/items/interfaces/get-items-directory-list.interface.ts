@@ -1,9 +1,13 @@
 export type MarketplaceInfo = {
   title: string;
+  marketplaceItemId: number;
+  marketplaceIdentifier: string | null;
+  sizeName: string | null;
+  sizeValue: string | null;
+  chrtId: string | null;
   dimensions: string | null;
   volume: string | null;
   sku: string | null;
-  marketplaceIdentifier: string | null;
   image: string | null;
   barcode: string;
   color: string | null;
