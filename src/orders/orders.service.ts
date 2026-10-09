@@ -498,8 +498,6 @@ export class OrdersService {
         Authorization: apiToken
       }
     });
-    const apiCount = response.data?.length ?? 0;
-    this.logger.log(`WB FBO orders: API вернул ${apiCount} шт, dateFrom=${tenDaysAgo.toISOString()}`);
     const findMarketplace = await this.infoService.findMarketplace({ title: 'WB' });
     if (!findMarketplace) {
       this.logger.error('WB не найден среди МП. Не удалось получить заказы v2');
@@ -507,22 +505,12 @@ export class OrdersService {
     }
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
-    let created = 0;
-    let updated = 0;
-    let skipNoWarehouse = 0;
-    let skipNoMpItem = 0;
-    const missingWarehouses = new Set<string>();
-    const missingBarcodes = new Set<string>();
     try {
       for (const order of response.data) {
         const findWarehouse = await queryRunner.manager.findOne(Warehouses, {
           where: { title: order.warehouseName }
         });
         if (!findWarehouse) {
-          skipNoWarehouse++;
-          if (missingWarehouses.size < 20) {
-            missingWarehouses.add(order.warehouseName);
-          }
           continue;
         }
         const findMarketplaceItem = await queryRunner.manager
@@ -533,10 +521,6 @@ export class OrdersService {
           .andWhere('mpItems.barcode = :barcode', { barcode: order.barcode })
           .getOne();
         if (!findMarketplaceItem) {
-          skipNoMpItem++;
-          if (missingBarcodes.size < 30) {
-            missingBarcodes.add(`${order.barcode}(nm=${order.nmId},srid=${order.srid})`);
-          }
           continue;
         }
         const findOrder = await queryRunner.manager.findOne(OrdersV2, {
@@ -569,7 +553,6 @@ export class OrdersService {
             marketplaceItemId: findMarketplaceItem.id
           });
           await queryRunner.manager.save(OrdersV2, createOrder);
-          created++;
         } else {
           await queryRunner.manager.update(
             OrdersV2,
@@ -590,18 +573,7 @@ export class OrdersService {
               marketplaceCreatedAt: new Date(order.date + '+03:00')
             }
           );
-          updated++;
         }
-      }
-      this.logger.log(
-        `WB FBO orders: api=${apiCount}, created=${created}, updated=${updated}, ` +
-          `skipNoWarehouse=${skipNoWarehouse}, skipNoMpItem=${skipNoMpItem}`
-      );
-      if (missingWarehouses.size) {
-        this.logger.warn(`WB FBO missing warehouses (sample): ${[...missingWarehouses].join(', ')}`);
-      }
-      if (missingBarcodes.size) {
-        this.logger.warn(`WB FBO missing barcode listings (sample): ${[...missingBarcodes].join('; ')}`);
       }
     } catch (error) {
       this.logger.error(error);
@@ -721,10 +693,18 @@ export class OrdersService {
   async getWbFbsArchiveTasks() {
     const apiToken = this.configService.get<string>('wbToken');
     const urlOrders = 'https://marketplace-api.wildberries.ru/api/v3/orders';
-    let hasMoreData = true;
-    let next = 0;
-    // Unix timestamp (сек), UTC: временно ~с 1 сен (38 дней)
-    const dateFrom = Math.floor(Date.now() / 1000) - 38 * 24 * 60 * 60;
+    // WB: max 30 calendar days per request. Cutover: 38 days → chunks of 5.
+    const totalDays = 38;
+    const chunkDays = 5;
+    const nowSec = Math.floor(Date.now() / 1000);
+    const daySec = 24 * 60 * 60;
+    const windows: { dateFrom: number; dateTo: number }[] = [];
+    for (let offset = totalDays; offset > 0; offset -= chunkDays) {
+      const span = Math.min(chunkDays, offset);
+      const dateTo = nowSec - (offset - span) * daySec;
+      const dateFrom = nowSec - offset * daySec;
+      windows.push({ dateFrom, dateTo });
+    }
     const ordersResult: {
       rid: string;
       nmId: string;
@@ -733,41 +713,51 @@ export class OrdersService {
     }[] = [];
     let pages = 0;
     try {
-      this.logger.log(`WB FBS archive: start fetch, dateFrom=${dateFrom}`);
-      while (hasMoreData) {
-        await new Promise(resolve => setTimeout(resolve, 5000));
-        const response = await axios.get<GetNewFbsTasksWb>(urlOrders, {
-          params: {
-            next,
-            limit: 1000,
-            dateFrom
-          },
-          headers: {
-            Authorization: apiToken
-          },
-          timeout: 30_000
-        });
-        pages++;
-        if (!response.data.orders.length) {
-          hasMoreData = false;
-          break;
-        }
-        for (const order of response.data.orders) {
-          ordersResult.push({
-            rid: order.rid,
-            nmId: String(order.nmId),
-            chrtId: String(order.chrtId),
-            warehouseId: order.warehouseId
-          });
-        }
+      this.logger.log(
+        `WB FBS archive: start fetch, ${totalDays}d in ${windows.length} window(s) of ≤${chunkDays}d`
+      );
+      for (const [windowIndex, { dateFrom, dateTo }] of windows.entries()) {
+        let next = 0;
+        let hasMoreData = true;
         this.logger.log(
-          `WB FBS archive: page=${pages}, batch=${response.data.orders.length}, total=${ordersResult.length}, next=${response.data.next ?? 'end'}`
+          `WB FBS archive: window ${windowIndex + 1}/${windows.length}, dateFrom=${dateFrom}, dateTo=${dateTo}`
         );
-        if (response.data.next) {
-          hasMoreData = true;
-          next = response.data.next;
-        } else {
-          hasMoreData = false;
+        while (hasMoreData) {
+          await new Promise(resolve => setTimeout(resolve, 5000));
+          const response = await axios.get<GetNewFbsTasksWb>(urlOrders, {
+            params: {
+              next,
+              limit: 1000,
+              dateFrom,
+              dateTo
+            },
+            headers: {
+              Authorization: apiToken
+            },
+            timeout: 30_000
+          });
+          pages++;
+          if (!response.data.orders.length) {
+            hasMoreData = false;
+            break;
+          }
+          for (const order of response.data.orders) {
+            ordersResult.push({
+              rid: order.rid,
+              nmId: String(order.nmId),
+              chrtId: String(order.chrtId),
+              warehouseId: order.warehouseId
+            });
+          }
+          this.logger.log(
+            `WB FBS archive: window=${windowIndex + 1}, page=${pages}, batch=${response.data.orders.length}, total=${ordersResult.length}, next=${response.data.next ?? 'end'}`
+          );
+          if (response.data.next) {
+            hasMoreData = true;
+            next = response.data.next;
+          } else {
+            hasMoreData = false;
+          }
         }
       }
     } catch (error) {
