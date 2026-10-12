@@ -711,6 +711,7 @@ export class OrdersService {
       chrtId: string;
       warehouseId: number;
     }[] = [];
+    const seenRids = new Set<string>();
     let pages = 0;
     try {
       this.logger.log(
@@ -724,9 +725,10 @@ export class OrdersService {
         );
         while (hasMoreData) {
           await new Promise(resolve => setTimeout(resolve, 5000));
+          const requestNext = next;
           const response = await axios.get<GetNewFbsTasksWb>(urlOrders, {
             params: {
-              next,
+              next: requestNext,
               limit: 1000,
               dateFrom,
               dateTo
@@ -737,11 +739,24 @@ export class OrdersService {
             timeout: 30_000
           });
           pages++;
-          if (!response.data.orders.length) {
+          const batch = response.data.orders ?? [];
+          if (!batch.length) {
             hasMoreData = false;
             break;
           }
-          for (const order of response.data.orders) {
+          let newInBatch = 0;
+          let dupInBatch = 0;
+          const sampleDupRids: string[] = [];
+          for (const order of batch) {
+            if (seenRids.has(order.rid)) {
+              dupInBatch++;
+              if (sampleDupRids.length < 5) {
+                sampleDupRids.push(order.rid);
+              }
+              continue;
+            }
+            seenRids.add(order.rid);
+            newInBatch++;
             ordersResult.push({
               rid: order.rid,
               nmId: String(order.nmId),
@@ -750,12 +765,20 @@ export class OrdersService {
             });
           }
           this.logger.log(
-            `WB FBS archive: window=${windowIndex + 1}, page=${pages}, batch=${response.data.orders.length}, total=${ordersResult.length}, next=${response.data.next ?? 'end'}`
+            `WB FBS archive: window=${windowIndex + 1}, page=${pages}, batch=${batch.length}, new=${newInBatch}, dup=${dupInBatch}, total=${ordersResult.length}, next=${response.data.next ?? 'end'}`
           );
-          console.log('old next', next);
-          console.log('new NEXT', response.data.next);
+          if (dupInBatch > 0) {
+            const postmanUrl =
+              `${urlOrders}?next=${requestNext}&limit=1000&dateFrom=${dateFrom}&dateTo=${dateTo}`;
+            this.logger.warn(
+              `WB FBS archive: дубли в батче (dup=${dupInBatch}, new=${newInBatch}), ` +
+                `переход к следующему окну. Postman GET ${postmanUrl}; ` +
+                `response.next=${response.data.next ?? 'null'}; sample rid: ${sampleDupRids.join(', ')}`
+            );
+            hasMoreData = false;
+            break;
+          }
           if (response.data.next) {
-            hasMoreData = true;
             next = response.data.next;
           } else {
             hasMoreData = false;
@@ -765,7 +788,7 @@ export class OrdersService {
     } catch (error) {
       this.logger.error(error, 'Не смог получить архивные задания на сборку');
     }
-    this.logger.log(`WB FBS archive: fetched ${ordersResult.length} шт за ${pages} page(s)`);
+    this.logger.log(`WB FBS archive: fetched ${ordersResult.length} уникальных шт за ${pages} page(s)`);
     if (!ordersResult.length) {
       return;
     }
