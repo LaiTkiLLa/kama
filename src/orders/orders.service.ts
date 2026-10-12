@@ -753,6 +753,7 @@ export class OrdersService {
             `WB FBS archive: window=${windowIndex + 1}, page=${pages}, batch=${response.data.orders.length}, total=${ordersResult.length}, next=${response.data.next ?? 'end'}`
           );
           if (response.data.next) {
+            console.log('next', next);
             hasMoreData = true;
             next = response.data.next;
           } else {
