@@ -768,8 +768,7 @@ export class OrdersService {
             `WB FBS archive: window=${windowIndex + 1}, page=${pages}, batch=${batch.length}, new=${newInBatch}, dup=${dupInBatch}, total=${ordersResult.length}, next=${response.data.next ?? 'end'}`
           );
           if (dupInBatch > 0) {
-            const postmanUrl =
-              `${urlOrders}?next=${requestNext}&limit=1000&dateFrom=${dateFrom}&dateTo=${dateTo}`;
+            const postmanUrl = `${urlOrders}?next=${requestNext}&limit=1000&dateFrom=${dateFrom}&dateTo=${dateTo}`;
             this.logger.warn(
               `WB FBS archive: дубли в батче (dup=${dupInBatch}, new=${newInBatch}), ` +
                 `переход к следующему окну. Postman GET ${postmanUrl}; ` +
