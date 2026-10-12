@@ -693,18 +693,10 @@ export class OrdersService {
   async getWbFbsArchiveTasks() {
     const apiToken = this.configService.get<string>('wbToken');
     const urlOrders = 'https://marketplace-api.wildberries.ru/api/v3/orders';
-    // WB: max 30 calendar days per request. Cutover: 38 days → chunks of 2.
-    const totalDays = 40;
-    const chunkDays = 10;
-    const nowSec = Math.floor(Date.now() / 1000);
-    const daySec = 24 * 60 * 60;
-    const windows: { dateFrom: number; dateTo: number }[] = [];
-    for (let offset = totalDays; offset > 0; offset -= chunkDays) {
-      const span = Math.min(chunkDays, offset);
-      const dateTo = nowSec - (offset - span) * daySec;
-      const dateFrom = nowSec - offset * daySec;
-      windows.push({ dateFrom, dateTo });
-    }
+    let next = 0;
+    let hasMoreData = true;
+    // Unix timestamp (сек), UTC: 10 дней назад
+    const dateFrom = Math.floor(Date.now() / 1000) - 10 * 24 * 60 * 60;
     const ordersResult: {
       rid: string;
       nmId: string;
@@ -714,74 +706,64 @@ export class OrdersService {
     const seenRids = new Set<string>();
     let pages = 0;
     try {
-      this.logger.log(
-        `WB FBS archive: start fetch, ${totalDays}d in ${windows.length} window(s) of ≤${chunkDays}d`
-      );
-      for (const [windowIndex, { dateFrom, dateTo }] of windows.entries()) {
-        let next = 0;
-        let hasMoreData = true;
-        this.logger.log(
-          `WB FBS archive: window ${windowIndex + 1}/${windows.length}, dateFrom=${dateFrom}, dateTo=${dateTo}`
-        );
-        while (hasMoreData) {
-          await new Promise(resolve => setTimeout(resolve, 5000));
-          const requestNext = next;
-          const response = await axios.get<GetNewFbsTasksWb>(urlOrders, {
-            params: {
-              next: requestNext,
-              limit: 1000,
-              dateFrom,
-              dateTo
-            },
-            headers: {
-              Authorization: apiToken
-            },
-            timeout: 30_000
-          });
-          pages++;
-          const batch = response.data.orders ?? [];
-          if (!batch.length) {
-            hasMoreData = false;
-            break;
-          }
-          let newInBatch = 0;
-          let dupInBatch = 0;
-          const sampleDupRids: string[] = [];
-          for (const order of batch) {
-            if (seenRids.has(order.rid)) {
-              dupInBatch++;
-              if (sampleDupRids.length < 5) {
-                sampleDupRids.push(order.rid);
-              }
-              continue;
+      this.logger.log(`WB FBS archive: start fetch, dateFrom=${dateFrom}`);
+      while (hasMoreData) {
+        await new Promise(resolve => setTimeout(resolve, 5000));
+        const requestNext = next;
+        const response = await axios.get<GetNewFbsTasksWb>(urlOrders, {
+          params: {
+            next: requestNext,
+            limit: 1000,
+            dateFrom
+          },
+          headers: {
+            Authorization: apiToken
+          },
+          timeout: 30_000
+        });
+        pages++;
+        const batch = response.data.orders ?? [];
+        if (!batch.length) {
+          hasMoreData = false;
+          break;
+        }
+        let newInBatch = 0;
+        let dupInBatch = 0;
+        const sampleDupRids: string[] = [];
+        for (const order of batch) {
+          if (seenRids.has(order.rid)) {
+            dupInBatch++;
+            if (sampleDupRids.length < 5) {
+              sampleDupRids.push(order.rid);
             }
-            seenRids.add(order.rid);
-            newInBatch++;
-            ordersResult.push({
-              rid: order.rid,
-              nmId: String(order.nmId),
-              chrtId: String(order.chrtId),
-              warehouseId: order.warehouseId
-            });
+            continue;
           }
-          this.logger.log(
-            `WB FBS archive: window=${windowIndex + 1}, page=${pages}, batch=${batch.length}, new=${newInBatch}, dup=${dupInBatch}, total=${ordersResult.length}, next=${response.data.next ?? 'end'}`
+          seenRids.add(order.rid);
+          newInBatch++;
+          ordersResult.push({
+            rid: order.rid,
+            nmId: String(order.nmId),
+            chrtId: String(order.chrtId),
+            warehouseId: order.warehouseId
+          });
+        }
+        this.logger.log(
+          `WB FBS archive: page=${pages}, batch=${batch.length}, new=${newInBatch}, dup=${dupInBatch}, total=${ordersResult.length}, next=${response.data.next ?? 'end'}`
+        );
+        if (dupInBatch > 0) {
+          const postmanUrl = `${urlOrders}?next=${requestNext}&limit=1000&dateFrom=${dateFrom}`;
+          this.logger.warn(
+            `WB FBS archive: дубли в батче (dup=${dupInBatch}, new=${newInBatch}), стоп. ` +
+              `Postman GET ${postmanUrl}; response.next=${response.data.next ?? 'null'}; ` +
+              `sample rid: ${sampleDupRids.join(', ')}`
           );
-          if (dupInBatch > 0) {
-            const postmanUrl = `${urlOrders}?next=${requestNext}&limit=1000&dateFrom=${dateFrom}&dateTo=${dateTo}`;
-            this.logger.warn(
-              `WB FBS archive: дубли в батче (dup=${dupInBatch}, new=${newInBatch}), ` +
-                `переход к следующему окну. Postman GET ${postmanUrl}; ` +
-                `response.next=${response.data.next ?? 'null'}; sample rid: ${sampleDupRids.join(', ')}`
-            );
-            hasMoreData = false;
-            break;
-          }
-          if (response.data.next) {
-            next = response.data.next;
-          } else {
-            hasMoreData = false;
-          }
+          hasMoreData = false;
+          break;
+        }
+        if (response.data.next) {
+          next = response.data.next;
+        } else {
+          hasMoreData = false;
         }
       }
     } catch (error) {
