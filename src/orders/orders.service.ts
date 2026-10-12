@@ -752,11 +752,11 @@ export class OrdersService {
           this.logger.log(
             `WB FBS archive: window=${windowIndex + 1}, page=${pages}, batch=${response.data.orders.length}, total=${ordersResult.length}, next=${response.data.next ?? 'end'}`
           );
+          console.log('old next', next);
+          console.log('new NEXT', response.data.next);
           if (response.data.next) {
-            console.log('old next', next);
             hasMoreData = true;
             next = response.data.next;
-            console.log('new NEXT', response.data.next);
           } else {
             hasMoreData = false;
           }
