@@ -689,13 +689,13 @@ export class OrdersService {
     return;
   }
 
-  // @Cron('0 */20 * * * *') // TODO temporary: every 20 min for size-listings cutover
+  @Cron('0 */20 * * * *') // TODO temporary: every 20 min for size-listings cutover
   async getWbFbsArchiveTasks() {
     const apiToken = this.configService.get<string>('wbToken');
     const urlOrders = 'https://marketplace-api.wildberries.ru/api/v3/orders';
     // WB: max 30 calendar days per request. Cutover: 38 days → chunks of 2.
-    const totalDays = 38;
-    const chunkDays = 2;
+    const totalDays = 40;
+    const chunkDays = 10;
     const nowSec = Math.floor(Date.now() / 1000);
     const daySec = 24 * 60 * 60;
     const windows: { dateFrom: number; dateTo: number }[] = [];
